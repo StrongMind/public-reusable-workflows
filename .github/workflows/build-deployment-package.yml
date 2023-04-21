@@ -1,6 +1,7 @@
 name: Build Python Package for Deployment Components
 
-on: 
+on:
+  workflow_dispatch:
   push:
     branches:
       - main
