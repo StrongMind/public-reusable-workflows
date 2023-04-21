@@ -1,6 +1,6 @@
 name: Build docker and Upload to ECR
 
-on: [push, workflow_dispatch]
+on: workflow_call
 
 env:
   AWS_REGION: us-west-2
