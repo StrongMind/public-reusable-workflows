@@ -1,9 +1,11 @@
-name: Python Build
+name: Build Python Package for Deployment Components
 
 on: 
   push:
     branches:
       - main
+    paths:
+      - 'deployment/**'
 
 jobs:
   build:

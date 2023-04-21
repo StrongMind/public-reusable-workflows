@@ -1,4 +1,4 @@
-name: 'Python Build'
+name: Build Python Package
 
 on: 
   workflow_call:
@@ -17,7 +17,7 @@ jobs:
       with:
         python-version: pypy3.8 
 
-    - name: Install Dependancies
+    - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         make install
