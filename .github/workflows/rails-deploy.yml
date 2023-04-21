@@ -1,6 +1,12 @@
 name: Deploy Rails
 
-on: workflow_call
+on:
+  workflow_call:
+    inputs:
+      environment-name:
+        required: true
+        type: string
+
 
 env:
   AWS_REGION: us-west-2
@@ -12,7 +18,7 @@ jobs:
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
-    environment: production
+    environment: ${{ inputs.environment-name }}
 
     steps:
     - name: Checkout
