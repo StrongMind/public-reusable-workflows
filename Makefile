@@ -6,4 +6,5 @@ test:
 	cd deployment && pytest
 
 build:
-	cd deployment && python -m build
+	python3 -m pip install --upgrade build
+	cd deployment && python3 -m build

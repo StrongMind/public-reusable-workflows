@@ -5,6 +5,4 @@ pulumi-awsx
 pytest-describe
 faker
 
-setuptools
 wheel
-build
