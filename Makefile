@@ -8,3 +8,4 @@ test:
 
 build:
 	cd deployment && python3 -m build
+	mkdir -p ./dist && cp deployment/dist/*.whl ./dist/.
