@@ -5,7 +5,7 @@ on:
 
 jobs:
   Build-Publish:
-    name: Build
+    name: Build and Publish
     runs-on: ubuntu-latest
     steps:
 
@@ -24,12 +24,11 @@ jobs:
 
     - name: Pytest
       run: |
-        pip install pytest pytest-azurepipelines wheel twine
         make test
 
     - name: package files
       run: |
-        python3 setup.py sdist
+        make build
 
     - name: Publish a Python distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1

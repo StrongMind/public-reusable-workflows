@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "strongmind_deployment"
+version = "0.0.1"
+authors = [
+  { name="Belding", email="teambelding@strongmind.com" },
+]
+description = "Deployment tools for Strongmind"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "pulumi",
+    "pulumi-aws",
+    "pulumi-awsx",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/strongmind/public-reusable-workflows/tree/main/deployment"

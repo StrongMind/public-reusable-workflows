@@ -1,0 +1,12 @@
+name: Python Build
+
+on: 
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Publish
+    uses: strongmind/public-reusable-workflows/.github/workflows/python-package-build.yml@main
+    secrets: inherit

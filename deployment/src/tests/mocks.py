@@ -1,0 +1,24 @@
+import pulumi
+
+
+def get_pulumi_mocks(faker):
+    class PulumiMocks(pulumi.runtime.Mocks):
+        def new_resource(self, args: pulumi.runtime.MockResourceArgs):
+            outputs = args.inputs
+            if args.typ == "awsx:ecr:Repository":
+                outputs = {
+                    **args.inputs,
+                    "url": f"{faker.word()}.dkr.ecr.us-west-2.amazonaws.com",
+                    "force_delete": args.inputs["forceDelete"],
+                }
+            if args.typ == "awsx:ecs:FargateService":
+                outputs = {
+                    **args.inputs,
+                    "task_definition_args": args.inputs["taskDefinitionArgs"],
+                }
+            return [args.name + '_id', outputs]
+
+        def call(self, args: pulumi.runtime.MockCallArgs):
+            return {}
+
+    return PulumiMocks()
