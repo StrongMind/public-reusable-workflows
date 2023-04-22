@@ -40,13 +40,28 @@ def describe_a_pulumi_containerized_app():
         return faker.random_int()
 
     @pytest.fixture
-    def sut(pulumi_set_mocks, app_name, app_path, container_port, cpu, memory):
+    def aws_account_id(faker):
+        return faker.random_int()
+
+    @pytest.fixture
+    def repo_url(aws_account_id, app_name):
+        return f"{aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/{app_name}"
+
+    @pytest.fixture
+    def get_aws_account_and_region_mock(aws_account_id):
+        def func():
+            return str(aws_account_id), "us-west-2"
+        return func
+
+    @pytest.fixture
+    def sut(pulumi_set_mocks, app_name, app_path, container_port, cpu, memory, get_aws_account_and_region_mock):
         import strongmind_deployment.container
         return strongmind_deployment.container.ContainerComponent(app_name,
                                                                   app_path=app_path,
                                                                   container_port=container_port,
                                                                   cpu=cpu,
-                                                                  memory=memory)
+                                                                  memory=memory,
+                                                                  get_aws_account_and_region=get_aws_account_and_region_mock)
 
     def it_exists(sut):
         assert sut
@@ -75,26 +90,6 @@ def describe_a_pulumi_containerized_app():
                 assert load_balancer_name == app_name
 
             return pulumi.Output.all(sut.load_balancer.name).apply(check_load_balancer_name)
-
-        @pulumi.runtime.test
-        def it_creates_a_repo(sut):
-            assert sut.repo
-
-        @pulumi.runtime.test
-        def it_sets_the_repo_name(sut, app_name):
-            def check_repo_name(args):
-                repo_name = args[0]
-                assert repo_name == app_name
-
-            return pulumi.Output.all(sut.repo.name).apply(check_repo_name)
-
-        @pulumi.runtime.test
-        def it_sets_force_delete_to_true(sut):
-            def check_force_delete(args):
-                force_delete = args[0]
-                assert force_delete
-
-            return pulumi.Output.all(sut.repo.force_delete).apply(check_force_delete)
 
         @pulumi.runtime.test
         def describe_the_fargate_service():
@@ -131,17 +126,20 @@ def describe_a_pulumi_containerized_app():
                     return os.environ['IMAGE_TAG']
 
                 @pytest.fixture
-                def sut(pulumi_set_mocks, app_name, app_path, image_tag):
+                def sut(pulumi_set_mocks, app_name, app_path, image_tag, get_aws_account_and_region_mock):
                     import strongmind_deployment.container
-                    return strongmind_deployment.container.ContainerComponent(app_name, app_path=app_path)
+                    return strongmind_deployment.container.ContainerComponent(app_name,
+                                                                              app_path=app_path,
+                                                                              get_aws_account_and_region=get_aws_account_and_region_mock)
+
 
                 @pulumi.runtime.test
-                def it_sets_the_image_tag_from_the_environment(sut, image_tag):
+                def it_sets_the_image_tag_from_the_environment(sut, image_tag, repo_url):
                     def check_image_tag(args):
-                        task_definition_container_image, repo_url = args
+                        task_definition_container_image = args[0]
                         assert task_definition_container_image == f'{repo_url}/{image_tag}'
 
-                    return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"], sut.repo.url).apply(check_image_tag)
+                    return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"]).apply(check_image_tag)
 
             def describe_when_image_tag_is_not_on_the_environment():
                 @pytest.fixture
@@ -150,15 +148,17 @@ def describe_a_pulumi_containerized_app():
                         os.environ.pop('IMAGE_TAG')
 
                 @pytest.fixture
-                def sut(pulumi_set_mocks, app_name, app_path, image_tag):
+                def sut(pulumi_set_mocks, app_name, app_path, image_tag, get_aws_account_and_region_mock):
                     import strongmind_deployment.container
-                    return strongmind_deployment.container.ContainerComponent(app_name, app_path=app_path)
+                    return strongmind_deployment.container.ContainerComponent(app_name,
+                                                                              app_path=app_path,
+                                                                              get_aws_account_and_region=get_aws_account_and_region_mock)
 
                 @pulumi.runtime.test
-                def it_sets_the_image_tag_to_the_app_name_plus_latest(sut, app_name):
+                def it_sets_the_image_tag_to_the_app_name_plus_latest(sut, app_name, repo_url):
                     def check_image_tag(args):
-                        task_definition_container_image, repo_url = args
+                        task_definition_container_image = args[0]
                         assert task_definition_container_image == f'{repo_url}/{app_name}:latest'
 
-                    return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"], sut.repo.url).apply(
+                    return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"]).apply(
                         check_image_tag)

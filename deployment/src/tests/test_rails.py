@@ -38,18 +38,28 @@ def describe_a_pulumi_rails_app():
         return faker.random_int()
 
     @pytest.fixture
+    def aws_account_id(faker):
+        return faker.random_int()
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
             container_port,
             cpu,
-            memory):
+            memory,
+            aws_account_id):
         import strongmind_deployment.rails
+
+        def func():
+            return str(aws_account_id), "us-west-2"
+
         return strongmind_deployment.rails.RailsComponent(app_name,
                                                           app_path=app_path,
                                                           container_port=container_port,
                                                           cpu=cpu,
-                                                          memory=memory
+                                                          memory=memory,
+                                                          get_aws_account_and_region=func
                                                           )
 
     def it_exists(sut):

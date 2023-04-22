@@ -29,6 +29,11 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
+    - name: Create private repo
+      uses: int128/create-ecr-repository-action@v1
+      with:
+        repository: ${{ github.event.repository.name }}
+
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
       env:

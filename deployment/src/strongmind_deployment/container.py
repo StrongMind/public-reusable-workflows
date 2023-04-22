@@ -7,9 +7,20 @@ import pulumi_awsx as awsx
 from pulumi import Config, export, Output
 
 
+def get_aws_account_and_region():
+    current_identity = aws.get_caller_identity()
+    current_region = aws.get_region()
+    return current_identity.account_id, current_region
+
+
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
+
+        if kwargs.get("get_aws_account_and_region"):
+            get_aws_account_and_region_func = kwargs.get("get_aws_account_and_region")
+        else:
+            get_aws_account_and_region_func = get_aws_account_and_region
 
         self.app_path = kwargs.get('app_path') or './'
         self.container_port = kwargs.get('container_port') or 3000
@@ -24,16 +35,15 @@ class ContainerComponent(pulumi.ComponentResource):
                                                              name=name,
                                                              opts=pulumi.ResourceOptions(parent=self),
                                                              )
-        self.repo = awsx.ecr.Repository("repo",
-                                        name=name,
-                                        force_delete=True,
-                                        opts=pulumi.ResourceOptions(parent=self),
-                                        )
+        account_id, region = get_aws_account_and_region_func()
 
+        repo_url = f"{account_id}.dkr.ecr.{region}.amazonaws.com/{name}"
         image_name = os.getenv('IMAGE_TAG', f'{name}:latest')
+        image = f"{repo_url}/{image_name}"
+
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
                 container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                    image=pulumi.Output.concat(self.repo.url, f"/{image_name}"),
+                    image=image,
                     cpu=self.cpu,
                     memory=self.memory,
                     essential=True,
