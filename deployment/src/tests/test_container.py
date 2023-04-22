@@ -28,9 +28,25 @@ def describe_a_pulumi_containerized_app():
         return f'./{faker.word()}'
 
     @pytest.fixture
-    def sut(pulumi_set_mocks, app_name, app_path):
+    def container_port(faker):
+        return faker.random_int()
+
+    @pytest.fixture
+    def cpu(faker):
+        return faker.random_int()
+
+    @pytest.fixture
+    def memory(faker):
+        return faker.random_int()
+
+    @pytest.fixture
+    def sut(pulumi_set_mocks, app_name, app_path, container_port, cpu, memory):
         import strongmind_deployment.container
-        return strongmind_deployment.container.ContainerComponent(app_name, app_path=app_path)
+        return strongmind_deployment.container.ContainerComponent(app_name,
+                                                                  app_path=app_path,
+                                                                  container_port=container_port,
+                                                                  cpu=cpu,
+                                                                  memory=memory)
 
     def it_exists(sut):
         assert sut
@@ -97,11 +113,14 @@ def describe_a_pulumi_containerized_app():
                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
-            def it_has_task_definition(sut):
+            def it_has_task_definition(sut, container_port, cpu, memory):
                 def check_task_definition(args):
                     task_definition_dict = args[0]
-                    assert task_definition_dict["container"]["cpu"] == 256
-                    assert task_definition_dict["container"]["memory"] == 512
+                    assert task_definition_dict["container"]["cpu"] == cpu
+                    assert task_definition_dict["container"]["memory"] == memory
+                    assert task_definition_dict["container"]["essential"]
+                    assert task_definition_dict["container"]["portMappings"][0]["containerPort"] == container_port
+                    assert task_definition_dict["container"]["portMappings"][0]["hostPort"] == container_port
 
                 return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_task_definition)
 

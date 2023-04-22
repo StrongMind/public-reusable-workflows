@@ -39,6 +39,7 @@ class ContainerComponent(pulumi.ComponentResource):
                     essential=True,
                     port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
                         container_port=self.container_port,
+                        host_port=self.container_port,
                         target_group=self.load_balancer.default_target_group,
                     )],
                 )
