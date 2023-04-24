@@ -41,8 +41,6 @@ class ContainerComponent(pulumi.ComponentResource):
         image_name = os.getenv('IMAGE_TAG', f'{name}:latest')
         image = f"{repo_url}/{image_name}"
 
-        print(image)
-
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
                 container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
                     image=image,
