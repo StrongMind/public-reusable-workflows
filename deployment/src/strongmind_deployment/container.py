@@ -8,9 +8,9 @@ from pulumi import Config, export, Output
 
 
 def get_aws_account_and_region():
-    current_identity = aws.get_caller_identity()
-    current_region = aws.get_region()
-    return current_identity.account_id, current_region
+    account_id = aws.get_caller_identity().account_id
+    current_region = aws.get_region().name
+    return account_id, current_region
 
 
 class ContainerComponent(pulumi.ComponentResource):
@@ -40,6 +40,8 @@ class ContainerComponent(pulumi.ComponentResource):
         repo_url = f"{account_id}.dkr.ecr.{region}.amazonaws.com/{name}"
         image_name = os.getenv('IMAGE_TAG', f'{name}:latest')
         image = f"{repo_url}/{image_name}"
+
+        print(image)
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
                 container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
