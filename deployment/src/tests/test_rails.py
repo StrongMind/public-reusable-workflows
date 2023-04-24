@@ -113,12 +113,13 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_cluster_endpoint_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                cluster_endpoint = args[0]
-                assert cluster_endpoint
+                task_definition, endpoint = args
+                assert task_definition["container"]["environment"]["DATABASE_HOST"] == endpoint
 
             return pulumi.Output.all(
-                sut.container.fargate_service.task_definition_args
-            )
+                sut.container.fargate_service.task_definition_args,
+                sut.rds_serverless_cluster.endpoint
+            ).apply(check_ecs_environment)
 
     def describe_a_rds_postgres_cluster_instance():
         @pulumi.runtime.test

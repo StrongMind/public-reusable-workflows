@@ -2,6 +2,7 @@ import json
 
 import pulumi
 import pulumi_aws as aws
+from pulumi import export, Output
 
 from strongmind_deployment.container import ContainerComponent
 
@@ -11,15 +12,19 @@ class RailsComponent(pulumi.ComponentResource):
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.kwargs = kwargs
 
-        self.rds(name)
+        db_endpoint = self.rds(name)
 
-        self.ecs(name)
+        self.ecs(name, db_endpoint)
 
         self.register_outputs({
             'rds_serverless_cluster': self.rds_serverless_cluster.cluster_identifier
         })
 
-    def ecs(self, name):
+    def ecs(self, name, db_endpoint):
+        if 'env_vars' not in self.kwargs:
+            self.kwargs['env_vars'] = {}
+
+        self.kwargs['env_vars']['DATABASE_HOST'] = db_endpoint
         self.container = ContainerComponent(name,
                                             pulumi.ResourceOptions(parent=self),
                                             **self.kwargs
@@ -48,3 +53,6 @@ class RailsComponent(pulumi.ComponentResource):
             engine=self.rds_serverless_cluster.engine,
             engine_version=self.rds_serverless_cluster.engine_version,
         )
+
+        export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
+        return self.rds_serverless_cluster.endpoint
