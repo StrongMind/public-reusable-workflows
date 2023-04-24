@@ -47,8 +47,7 @@ def describe_a_pulumi_rails_app():
             app_path,
             container_port,
             cpu,
-            memory,
-            aws_account_id):
+            memory):
         import strongmind_deployment.rails
 
         def func():
@@ -58,8 +57,7 @@ def describe_a_pulumi_rails_app():
                                                           app_path=app_path,
                                                           container_port=container_port,
                                                           cpu=cpu,
-                                                          memory=memory,
-                                                          get_aws_account_and_region=func
+                                                          memory=memory
                                                           )
 
     def it_exists(sut):
