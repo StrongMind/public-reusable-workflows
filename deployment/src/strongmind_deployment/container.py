@@ -23,6 +23,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                            )
         self.load_balancer = awsx.lb.ApplicationLoadBalancer("loadbalancer",
                                                              name=name,
+                                                             default_target_group_port=self.container_port,
                                                              opts=pulumi.ResourceOptions(parent=self),
                                                              )
 
