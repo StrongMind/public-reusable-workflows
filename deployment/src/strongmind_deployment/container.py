@@ -39,6 +39,7 @@ class ContainerComponent(pulumi.ComponentResource):
                         host_port=self.container_port,
                         target_group=self.load_balancer.default_target_group,
                     )],
+                    environment=self.env_vars
                 )
             )
 
