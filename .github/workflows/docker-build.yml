@@ -1,6 +1,11 @@
 name: Build docker and Upload to ECR
 
-on: workflow_call
+on:
+  workflow_call:
+    outputs:
+      container-image:
+        description: "Container image"
+        value: ${{ jobs.build-image.outputs.container-image }}
 
 env:
   AWS_REGION: us-west-2
@@ -9,10 +14,12 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy
+  build-image:
+    name: Build image
     runs-on: ubuntu-latest
     environment: containers
+    outputs:
+      container-image: ${{ steps.build-image.outputs.image }}
 
     steps:
     - name: Checkout

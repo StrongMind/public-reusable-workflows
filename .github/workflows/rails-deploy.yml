@@ -6,6 +6,9 @@ on:
       environment-name:
         required: true
         type: string
+      container-image:
+        required: true
+        type: string
 
 
 env:
@@ -34,6 +37,7 @@ jobs:
     - name: Deploy with Pulumi
       env:
         PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        CONTAINER_IMAGE: ${{ inputs.container-image }}
       run: |
         cd ./infrastructure/
         pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
