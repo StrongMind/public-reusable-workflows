@@ -135,7 +135,13 @@ def describe_a_pulumi_containerized_app():
             def it_sends_env_vars_to_the_task_definition(sut, env_vars):
                 def check_env_vars(args):
                     task_definition_dict = args[0]
-                    assert task_definition_dict["container"]["environment"] == env_vars
+                    env_var_key_value_pair_array = []
+                    for var in env_vars:
+                        env_var_key_value_pair_array.append({
+                            "name": var,
+                            "value": env_vars[var]
+                        })
+                    assert task_definition_dict["container"]["environment"] == env_var_key_value_pair_array
 
                 return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_env_vars)
 

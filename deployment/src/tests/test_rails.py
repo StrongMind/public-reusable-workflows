@@ -65,6 +65,23 @@ def describe_a_pulumi_rails_app():
 
     def describe_a_rds_postgres_cluster():
         @pulumi.runtime.test
+        def it_has_a_password(sut):
+            assert sut.db_password
+
+        @pulumi.runtime.test
+        def it_has_a_password_with_30_chars(sut):
+            def check_password(pwd):
+                assert len(pwd) == 30
+            return sut.db_password.result.apply(check_password)
+
+        @pulumi.runtime.test
+        def it_has_a_password_with_no_special_chars(sut):
+            def check_special(special):
+                assert special is False
+
+            return sut.db_password.special.apply(check_special)
+
+        @pulumi.runtime.test
         def it_creates_a_aurora_postgres_cluster(sut):
             def check_rds_cluster_engine(args):
                 cluster_engine, engine_mode, engine_version = args
@@ -111,14 +128,51 @@ def describe_a_pulumi_rails_app():
             ).apply(check_rds_cluster_scaling_configuration)
 
         @pulumi.runtime.test
-        def it_sends_the_cluster_endpoint_to_the_ecs_environment(sut):
+        def it_sends_the_cluster_url_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                task_definition, endpoint = args
-                assert task_definition["container"]["environment"]["DATABASE_HOST"] == endpoint
+                actual_url, endpoint, master_username, master_password = args
+                expected_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/{master_username}'
+
+                assert actual_url == expected_url
 
             return pulumi.Output.all(
-                sut.container.fargate_service.task_definition_args,
+                sut.container.env_vars["DATABASE_URL"],
+                sut.rds_serverless_cluster.endpoint,
+                sut.rds_serverless_cluster.master_username,
+                sut.rds_serverless_cluster.master_password
+            ).apply(check_ecs_environment)
+
+        @pulumi.runtime.test
+        def it_sends_the_cluster_endpoint_to_the_ecs_environment(sut):
+            def check_ecs_environment(args):
+                actual_host, expected_endpoint = args
+                assert actual_host == expected_endpoint
+
+            return pulumi.Output.all(
+                sut.container.env_vars["DATABASE_HOST"],
                 sut.rds_serverless_cluster.endpoint
+            ).apply(check_ecs_environment)
+
+        @pulumi.runtime.test
+        def it_sends_the_cluster_username_to_the_ecs_environment(sut):
+            def check_ecs_environment(args):
+                actual_username, expected_username = args
+                assert actual_username == expected_username
+
+            return pulumi.Output.all(
+                sut.container.env_vars["DB_USERNAME"],
+                sut.rds_serverless_cluster.master_username
+            ).apply(check_ecs_environment)
+
+        @pulumi.runtime.test
+        def it_sends_the_cluster_password_to_the_ecs_environment(sut):
+            def check_ecs_environment(args):
+                actual_password, expected_password = args
+                assert actual_password == expected_password
+
+            return pulumi.Output.all(
+                sut.container.env_vars["DB_PASSWORD"],
+                sut.rds_serverless_cluster.master_password
             ).apply(check_ecs_environment)
 
     def describe_a_rds_postgres_cluster_instance():
