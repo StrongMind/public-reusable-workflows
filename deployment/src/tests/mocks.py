@@ -16,6 +16,18 @@ def get_pulumi_mocks(faker):
                     **args.inputs,
                     "task_definition_args": args.inputs["taskDefinitionArgs"],
                 }
+            if args.typ == "aws:rds/cluster:Cluster":
+                outputs = {
+                    **args.inputs,
+                    "endpoint": f"{faker.domain_name()}.cluster-{faker.word()}.us-west-2.rds.amazonaws.com"
+                }
+            if args.typ == "random:index/randomPassword:RandomPassword":
+                length = args.inputs["length"]
+                outputs = {
+                    **args.inputs,
+                    "result": faker.password(length=int(length)),
+                    "special": args.inputs["special"],
+                }
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):

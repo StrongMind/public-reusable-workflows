@@ -16,6 +16,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.container_port = kwargs.get('container_port') or 3000
         self.cpu = kwargs.get('cpu') or 256
         self.memory = kwargs.get("memory") or 512
+        self.env_vars = kwargs.get('env_vars', {})
 
         self.ecs_cluster = aws.ecs.Cluster("cluster",
                                            name=name,
@@ -38,6 +39,7 @@ class ContainerComponent(pulumi.ComponentResource):
                         host_port=self.container_port,
                         target_group=self.load_balancer.default_target_group,
                     )],
+                    environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
                 )
             )
 

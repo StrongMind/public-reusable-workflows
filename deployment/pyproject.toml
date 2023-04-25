@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strongmind_deployment"
-version = "0.0.7"
+version = "0.0.8"
 authors = [
   { name="Belding", email="teambelding@strongmind.com" },
 ]
@@ -20,6 +20,7 @@ dependencies = [
     "pulumi",
     "pulumi-aws",
     "pulumi-awsx",
+    "pulumi-random",
 ]
 
 [project.urls]

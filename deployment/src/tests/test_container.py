@@ -48,20 +48,28 @@ def describe_a_pulumi_containerized_app():
         return f"{aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/{app_name}:latest"
 
     @pytest.fixture
+    def env_vars(faker):
+        return {
+            faker.word(): faker.word()
+        }
+
+    @pytest.fixture
     def get_aws_account_and_region_mock(aws_account_id):
         def func():
             return str(aws_account_id), "us-west-2"
         return func
 
     @pytest.fixture
-    def sut(pulumi_set_mocks, app_name, app_path, container_port, cpu, memory, container_image):
+    def sut(pulumi_set_mocks, app_name, app_path, container_port, cpu, memory, container_image, env_vars):
         import strongmind_deployment.container
         return strongmind_deployment.container.ContainerComponent(app_name,
                                                                   app_path=app_path,
                                                                   container_port=container_port,
                                                                   cpu=cpu,
                                                                   memory=memory,
-                                                                  container_image=container_image)
+                                                                  container_image=container_image,
+                                                                  env_vars=env_vars
+                                                                  )
 
     def it_exists(sut):
         assert sut
@@ -78,6 +86,10 @@ def describe_a_pulumi_containerized_app():
                 assert cluster_name == app_name
 
             return pulumi.Output.all(sut.ecs_cluster.name).apply(check_cluster_name)
+
+        @pulumi.runtime.test
+        def it_has_environment_variables(sut, app_name, env_vars):
+            assert sut.env_vars == env_vars
 
         @pulumi.runtime.test
         def it_creates_a_load_balancer(sut):
@@ -118,6 +130,20 @@ def describe_a_pulumi_containerized_app():
                     assert task_definition_dict["container"]["portMappings"][0]["hostPort"] == container_port
 
                 return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_task_definition)
+
+            @pulumi.runtime.test
+            def it_sends_env_vars_to_the_task_definition(sut, env_vars):
+                def check_env_vars(args):
+                    task_definition_dict = args[0]
+                    env_var_key_value_pair_array = []
+                    for var in env_vars:
+                        env_var_key_value_pair_array.append({
+                            "name": var,
+                            "value": env_vars[var]
+                        })
+                    assert task_definition_dict["container"]["environment"] == env_var_key_value_pair_array
+
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_env_vars)
 
             @pulumi.runtime.test
             def it_sets_the_image(sut, container_image):
