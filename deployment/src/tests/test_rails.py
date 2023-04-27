@@ -1,7 +1,9 @@
 import pulumi.runtime
 import pytest
 
+from shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
+import pulumi_aws as aws
 
 
 def describe_a_pulumi_rails_app():
@@ -131,7 +133,7 @@ def describe_a_pulumi_rails_app():
         def it_sends_the_cluster_url_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
                 actual_url, endpoint, master_username, master_password = args
-                expected_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/{master_username}'
+                expected_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/app'
 
                 assert actual_url == expected_url
 
@@ -240,3 +242,13 @@ def describe_a_pulumi_rails_app():
                 sut.container.cpu,
                 sut.container.memory
             ).apply(check_machine_specs)
+
+    @pulumi.runtime.test
+    def it_allows_container_to_talk_to_rds(sut, faker):
+        assert sut.firewall_rule
+        ecs_security_group = faker.word()
+        sut.container.security_group = ecs_security_group
+        assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0])
+        assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
+
+

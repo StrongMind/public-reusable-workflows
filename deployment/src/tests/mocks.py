@@ -1,4 +1,9 @@
+from unittest.mock import Mock
+
 import pulumi
+import pulumi_aws as aws
+import pulumi_aws.ecs
+from pulumi_aws.ecs import ServiceNetworkConfigurationArgs
 
 
 def get_pulumi_mocks(faker):
@@ -12,6 +17,7 @@ def get_pulumi_mocks(faker):
                     "force_delete": args.inputs["forceDelete"],
                 }
             if args.typ == "awsx:ecs:FargateService":
+                mock_ecs_service = Mock(pulumi_aws.ecs.Service)
                 outputs = {
                     **args.inputs,
                     "task_definition_args": args.inputs["taskDefinitionArgs"],
@@ -19,7 +25,8 @@ def get_pulumi_mocks(faker):
             if args.typ == "aws:rds/cluster:Cluster":
                 outputs = {
                     **args.inputs,
-                    "endpoint": f"{faker.domain_name()}.cluster-{faker.word()}.us-west-2.rds.amazonaws.com"
+                    "endpoint": f"{faker.domain_name()}.cluster-{faker.word()}.us-west-2.rds.amazonaws.com",
+                    "vpc_security_group_ids": [faker.word()]
                 }
             if args.typ == "random:index/randomPassword:RandomPassword":
                 length = args.inputs["length"]
