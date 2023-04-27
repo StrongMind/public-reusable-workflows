@@ -22,11 +22,11 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.ecs(name)
 
-        self.setup_security()
+        self.security()
 
         self.register_outputs({})
 
-    def setup_security(self):
+    def security(self):
         self.firewall_rule = aws.ec2.SecurityGroupRule(
             'rds_security_group_rule',
             type='ingress',
