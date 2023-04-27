@@ -11,6 +11,7 @@ from strongmind_deployment.container import ContainerComponent
 class RailsComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.firewall_rule = None
         self.db_password = None
         self.container = None
         self.rds_serverless_cluster_instance = None
@@ -21,9 +22,21 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.ecs(name)
 
-        self.register_outputs({
-            'rds_serverless_cluster': self.rds_serverless_cluster.cluster_identifier
-        })
+        self.security()
+
+        self.register_outputs({})
+
+    def security(self):
+        self.firewall_rule = aws.ec2.SecurityGroupRule(
+            'rds_security_group_rule',
+            type='ingress',
+            from_port=5432,
+            to_port=5432,
+            protocol='tcp',
+            security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
+            source_security_group_id=self.container.security_group,
+            opts=pulumi.ResourceOptions(parent=self)
+        )
 
     def ecs(self, name):
         if 'env_vars' not in self.kwargs:
@@ -48,6 +61,7 @@ class RailsComponent(pulumi.ComponentResource):
             engine='aurora-postgresql',
             engine_mode='provisioned',
             engine_version='15.2',
+            database_name="app",
             master_username=name.replace('-', '_'),
             master_password=self.db_password.result,
             opts=pulumi.ResourceOptions(parent=self),
@@ -74,5 +88,4 @@ class RailsComponent(pulumi.ComponentResource):
                              self.rds_serverless_cluster.master_password,
                              '@',
                              self.rds_serverless_cluster.endpoint,
-                             ':5432/',
-                             self.rds_serverless_cluster.master_username)
+                             ':5432/app')

@@ -29,19 +29,19 @@ class ContainerComponent(pulumi.ComponentResource):
                                                              )
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
-                container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                    image=self.container_image,
-                    cpu=self.cpu,
-                    memory=self.memory,
-                    essential=True,
-                    port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
-                        container_port=self.container_port,
-                        host_port=self.container_port,
-                        target_group=self.load_balancer.default_target_group,
-                    )],
-                    environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
-                )
+            container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+                image=self.container_image,
+                cpu=self.cpu,
+                memory=self.memory,
+                essential=True,
+                port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
+                    container_port=self.container_port,
+                    host_port=self.container_port,
+                    target_group=self.load_balancer.default_target_group,
+                )],
+                environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
+        )
 
         self.fargate_service = awsx.ecs.FargateService(
             "service",
@@ -54,3 +54,13 @@ class ContainerComponent(pulumi.ComponentResource):
 
         export("url", Output.concat("http://", self.load_balancer.load_balancer.dns_name))
         self.register_outputs({})
+
+    @property
+    def security_group(self):  # pragma: no cover
+        if self._name:
+            return self._name
+        return self.fargate_service.service.network_configuration.security_groups[0]
+
+    @security_group.setter
+    def security_group(self, value):  # pragma: no cover
+        self._name = value
