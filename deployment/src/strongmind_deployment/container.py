@@ -11,6 +11,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self._security_group_name = None
         self.container_image = kwargs.get('container_image')
         self.app_path = kwargs.get('app_path') or './'
         self.container_port = kwargs.get('container_port') or 3000
@@ -57,10 +58,10 @@ class ContainerComponent(pulumi.ComponentResource):
 
     @property
     def security_group(self):  # pragma: no cover
-        if self._name:
-            return self._name
+        if self._security_group_name:
+            return self._security_group_name
         return self.fargate_service.service.network_configuration.security_groups[0]
 
     @security_group.setter
     def security_group(self, value):  # pragma: no cover
-        self._name = value
+        self._security_group_name = value

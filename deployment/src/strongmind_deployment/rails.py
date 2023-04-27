@@ -35,7 +35,9 @@ class RailsComponent(pulumi.ComponentResource):
             protocol='tcp',
             security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
             source_security_group_id=self.container.security_group,
-            opts=pulumi.ResourceOptions(parent=self)
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[self.rds_serverless_cluster_instance,
+                                                    self.container])
         )
 
     def ecs(self, name):
