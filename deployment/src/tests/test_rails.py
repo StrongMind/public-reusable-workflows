@@ -44,23 +44,27 @@ def describe_a_pulumi_rails_app():
         return faker.random_int()
 
     @pytest.fixture
+    def ecs_security_group(faker):
+        return faker.word()
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
             container_port,
             cpu,
-            memory):
+            memory,
+            ecs_security_group):
         import strongmind_deployment.rails
 
-        def func():
-            return str(aws_account_id), "us-west-2"
-
-        return strongmind_deployment.rails.RailsComponent(app_name,
-                                                          app_path=app_path,
-                                                          container_port=container_port,
-                                                          cpu=cpu,
-                                                          memory=memory
-                                                          )
+        sut = strongmind_deployment.rails.RailsComponent(app_name,
+                                                         app_path=app_path,
+                                                         container_port=container_port,
+                                                         cpu=cpu,
+                                                         memory=memory,
+                                                         container_security_group_id=ecs_security_group,
+                                                         )
+        return sut
 
     def it_exists(sut):
         assert sut
@@ -74,6 +78,7 @@ def describe_a_pulumi_rails_app():
         def it_has_a_password_with_30_chars(sut):
             def check_password(pwd):
                 assert len(pwd) == 30
+
             return sut.db_password.result.apply(check_password)
 
         @pulumi.runtime.test
@@ -143,6 +148,10 @@ def describe_a_pulumi_rails_app():
                 sut.rds_serverless_cluster.master_username,
                 sut.rds_serverless_cluster.master_password
             ).apply(check_ecs_environment)
+
+        @pulumi.runtime.test
+        def it_sets_the_rails_environment(sut):
+            assert sut.container.env_vars["RAILS_ENV"] == "production"
 
         @pulumi.runtime.test
         def it_sends_the_cluster_endpoint_to_the_ecs_environment(sut):
@@ -250,5 +259,3 @@ def describe_a_pulumi_rails_app():
         sut.container.security_group = ecs_security_group
         assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0])
         assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
-
-

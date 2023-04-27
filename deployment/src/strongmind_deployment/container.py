@@ -30,6 +30,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                              )
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
+            skip_destroy=True,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
                 image=self.container_image,
                 cpu=self.cpu,
@@ -48,6 +49,7 @@ class ContainerComponent(pulumi.ComponentResource):
             "service",
             name=f"{name}-service",
             cluster=self.ecs_cluster.arn,
+            continue_before_steady_state=True,
             assign_public_ip=True,
             task_definition_args=task_definition_args,
             opts=pulumi.ResourceOptions(parent=self),

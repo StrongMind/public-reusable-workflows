@@ -27,6 +27,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.register_outputs({})
 
     def security(self):
+        container_security_group_id = self.kwargs.get(
+            'container_security_group_id',
+            self.container.fargate_service.service.network_configuration.security_groups[0])  # pragma: no cover
+
         self.firewall_rule = aws.ec2.SecurityGroupRule(
             'rds_security_group_rule',
             type='ingress',
@@ -34,7 +38,7 @@ class RailsComponent(pulumi.ComponentResource):
             to_port=5432,
             protocol='tcp',
             security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
-            source_security_group_id=self.container.security_group,
+            source_security_group_id=container_security_group_id,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance,
                                                     self.container])
@@ -44,10 +48,16 @@ class RailsComponent(pulumi.ComponentResource):
         if 'env_vars' not in self.kwargs:
             self.kwargs['env_vars'] = {}
 
-        self.kwargs['env_vars']['DATABASE_HOST'] = self.rds_serverless_cluster.endpoint
-        self.kwargs['env_vars']['DB_USERNAME'] = self.rds_serverless_cluster.master_username
-        self.kwargs['env_vars']['DB_PASSWORD'] = self.rds_serverless_cluster.master_password
-        self.kwargs['env_vars']['DATABASE_URL'] = self.get_database_url()
+        additional_env_vars = {
+            'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
+            'DB_USERNAME': self.rds_serverless_cluster.master_username,
+            'DB_PASSWORD': self.rds_serverless_cluster.master_password,
+            'DATABASE_URL': self.get_database_url(),
+            'RAILS_ENV': 'production'
+        }
+
+        self.kwargs['env_vars'].update(additional_env_vars)
+
         self.container = ContainerComponent(name,
                                             pulumi.ResourceOptions(parent=self),
                                             **self.kwargs
