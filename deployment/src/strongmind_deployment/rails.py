@@ -4,6 +4,7 @@ import pulumi
 import pulumi_random as random
 import pulumi_aws as aws
 from pulumi import export, Output
+from pulumi_cloudflare import Record, get_zone
 
 from strongmind_deployment.container import ContainerComponent
 
@@ -11,6 +12,7 @@ from strongmind_deployment.container import ContainerComponent
 class RailsComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.cname_record = None
         self.firewall_rule = None
         self.db_password = None
         self.container = None
@@ -18,6 +20,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
         self.env_vars = self.kwargs.get('env_vars', {})
+        self.env_name = self.env_vars.get("ENVIRONMENT_NAME", "stage")
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
@@ -25,7 +28,7 @@ class RailsComponent(pulumi.ComponentResource):
             "product": project,
             "repository": project,
             "service": project,
-            "environment": self.env_vars.get("ENVIRONMENT_NAME", "stage"),
+            "environment": self.env_name,
         }
 
         self.rds(stack)
@@ -33,6 +36,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.ecs(stack)
 
         self.security()
+
+        self.dns(project)
 
         self.register_outputs({})
 
@@ -112,3 +117,20 @@ class RailsComponent(pulumi.ComponentResource):
                              '@',
                              self.rds_serverless_cluster.endpoint,
                              ':5432/app')
+
+    def dns(self, name):
+        domain = 'strongmind.com'
+        zone_id = self.kwargs.get('zone_id')
+        if not zone_id:  # pragma: no cover
+            zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain)
+
+        lb_dns_name = self.kwargs.get('load_balancer_dns_name',
+                                      self.container.fargate_service.service.load_balancers[0].dns_name)  # pragma: no cover
+
+        self.cname_record = Record(
+            'cname_record',
+            name=name,
+            type='CNAME',
+            zone_id=zone_id,
+            value=lb_dns_name,
+        )

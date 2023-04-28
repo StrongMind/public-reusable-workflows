@@ -1,5 +1,6 @@
 import pulumi.runtime
 import pytest
+from pulumi_cloudflare import Record, Zone
 
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
@@ -87,6 +88,10 @@ def describe_a_pulumi_rails_app():
         return f"{faker.word()}.{faker.word()}.{faker.word()}"
 
     @pytest.fixture
+    def zone_id(faker):
+        return faker.word()
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_path,
             container_port,
@@ -96,7 +101,8 @@ def describe_a_pulumi_rails_app():
             load_balancer_arn,
             target_group_arn,
             domain_validation_options,
-            load_balancer_dns_name):
+            load_balancer_dns_name,
+            zone_id):
         import strongmind_deployment.rails
 
         sut = strongmind_deployment.rails.RailsComponent("rails",
@@ -109,6 +115,7 @@ def describe_a_pulumi_rails_app():
                                                          target_group_arn=target_group_arn,
                                                          domain_validation_options=domain_validation_options,
                                                          load_balancer_dns_name=load_balancer_dns_name,
+                                                         zone_id=zone_id
                                                          )
         return sut
 
@@ -299,3 +306,16 @@ def describe_a_pulumi_rails_app():
         assert sut.firewall_rule
         assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0])
         assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
+
+    def describe_dns():
+        @pulumi.runtime.test
+        def it_has_cname_record(sut):
+            assert sut.cname_record
+
+        @pulumi.runtime.test
+        def it_has_cname_type(sut):
+            return assert_output_equals(sut.cname_record.type, "CNAME")
+
+        @pulumi.runtime.test
+        def it_has_zone(sut, zone_id):
+            return assert_output_equals(sut.cname_record.zone_id, zone_id)
