@@ -19,16 +19,53 @@ class ContainerComponent(pulumi.ComponentResource):
         self.memory = kwargs.get("memory") or 512
         self.env_vars = kwargs.get('env_vars', {})
 
+        project = pulumi.get_project()
+        self.tags = {
+            "product": project,
+            "repository": project,
+            "service": project,
+            "environment": self.env_vars.get("ENVIRONMENT_NAME", "stage"),
+        }
+
         self.ecs_cluster = aws.ecs.Cluster("cluster",
                                            name=name,
+                                           tags=self.tags,
                                            opts=pulumi.ResourceOptions(parent=self),
                                            )
-        self.load_balancer = awsx.lb.ApplicationLoadBalancer("loadbalancer",
-                                                             name=name,
-                                                             default_target_group_port=self.container_port,
-                                                             opts=pulumi.ResourceOptions(parent=self),
-                                                             )
+        self.load_balancer = awsx.lb.ApplicationLoadBalancer(
+            "loadbalancer",
+            name=name,
+            default_target_group_port=self.container_port,
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
+        load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
+        target_group_arn = kwargs.get('target_group_arn', self.load_balancer.default_target_group.arn)
+        self.load_balancer_listener = aws.lb.Listener("listener80",
+                                                      port=80,
+                                                      protocol="HTTP",
+                                                      load_balancer_arn=load_balancer_arn,
+                                                      # port=443,
+                                                      # protocol="HTTPS",
+                                                      default_actions=[
+                                                          aws.lb.ListenerDefaultActionArgs(
+                                                              type="forward",
+                                                              target_group_arn=target_group_arn
+                                                          )],
+                                                      )
+        # aws.lb.ListenerArgs(
+        #     port=80,
+        #     protocol="HTTP",
+        #     default_action=awsx.lb.ApplicationListenerDefaultActionArgs(
+        #         type="redirect",
+        #         redirect=awsx.lb.ApplicationListenerDefaultActionRedirectArgs(
+        #             port="443",
+        #             protocol="HTTPS",
+        #             status_code="HTTP_301",
+        #         ),
+        #     )
+        # ),
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
@@ -44,7 +81,6 @@ class ContainerComponent(pulumi.ComponentResource):
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
-
         self.fargate_service = awsx.ecs.FargateService(
             "service",
             name=f"{name}-service",
@@ -52,18 +88,9 @@ class ContainerComponent(pulumi.ComponentResource):
             continue_before_steady_state=True,
             assign_public_ip=True,
             task_definition_args=task_definition_args,
+            tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
 
         export("url", Output.concat("http://", self.load_balancer.load_balancer.dns_name))
         self.register_outputs({})
-
-    @property
-    def security_group(self):  # pragma: no cover
-        if self._security_group_name:
-            return self._security_group_name
-        return self.fargate_service.service.network_configuration.security_groups[0]
-
-    @security_group.setter
-    def security_group(self, value):  # pragma: no cover
-        self._security_group_name = value

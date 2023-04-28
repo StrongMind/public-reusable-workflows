@@ -54,13 +54,24 @@ def describe_a_pulumi_containerized_app():
         }
 
     @pytest.fixture
-    def get_aws_account_and_region_mock(aws_account_id):
-        def func():
-            return str(aws_account_id), "us-west-2"
-        return func
+    def load_balancer_arn(faker):
+        return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:loadbalancer/app/{faker.word()}/{faker.random_int()}"
 
     @pytest.fixture
-    def sut(pulumi_set_mocks, app_name, app_path, container_port, cpu, memory, container_image, env_vars):
+    def target_group_arn(faker):
+        return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
+
+    @pytest.fixture
+    def sut(pulumi_set_mocks,
+            app_name,
+            app_path,
+            container_port,
+            cpu,
+            memory,
+            container_image,
+            env_vars,
+            load_balancer_arn,
+            target_group_arn):
         import strongmind_deployment.container
         return strongmind_deployment.container.ContainerComponent(app_name,
                                                                   app_path=app_path,
@@ -68,7 +79,9 @@ def describe_a_pulumi_containerized_app():
                                                                   cpu=cpu,
                                                                   memory=memory,
                                                                   container_image=container_image,
-                                                                  env_vars=env_vars
+                                                                  env_vars=env_vars,
+                                                                  load_balancer_arn=load_balancer_arn,
+                                                                  target_group_arn=target_group_arn
                                                                   )
 
     def it_exists(sut):

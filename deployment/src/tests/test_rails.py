@@ -1,7 +1,7 @@
 import pulumi.runtime
 import pytest
 
-from shared import assert_outputs_equal, assert_output_equals
+from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
 import pulumi_aws as aws
 
@@ -48,13 +48,23 @@ def describe_a_pulumi_rails_app():
         return faker.word()
 
     @pytest.fixture
+    def load_balancer_arn(faker):
+        return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:loadbalancer/app/{faker.word()}/{faker.random_int()}"
+
+    @pytest.fixture
+    def target_group_arn(faker):
+        return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
             container_port,
             cpu,
             memory,
-            ecs_security_group):
+            ecs_security_group,
+            load_balancer_arn,
+            target_group_arn):
         import strongmind_deployment.rails
 
         sut = strongmind_deployment.rails.RailsComponent(app_name,
@@ -63,6 +73,8 @@ def describe_a_pulumi_rails_app():
                                                          cpu=cpu,
                                                          memory=memory,
                                                          container_security_group_id=ecs_security_group,
+                                                         load_balancer_arn=load_balancer_arn,
+                                                         target_group_arn=target_group_arn
                                                          )
         return sut
 
@@ -253,9 +265,7 @@ def describe_a_pulumi_rails_app():
             ).apply(check_machine_specs)
 
     @pulumi.runtime.test
-    def it_allows_container_to_talk_to_rds(sut, faker):
+    def it_allows_container_to_talk_to_rds(sut, ecs_security_group):
         assert sut.firewall_rule
-        ecs_security_group = faker.word()
-        sut.container.security_group = ecs_security_group
         assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0])
         assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
