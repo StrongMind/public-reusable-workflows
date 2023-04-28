@@ -8,20 +8,30 @@ import pulumi_aws as aws
 
 def describe_a_pulumi_rails_app():
     @pytest.fixture
-    def pulumi_mocks(faker):
-        return get_pulumi_mocks(faker)
+    def app_name(faker):
+        return faker.word()
 
     @pytest.fixture
-    def pulumi_set_mocks(pulumi_mocks):
+    def stack(faker):
+        return "dev"
+
+    @pytest.fixture
+    def master_db_password(faker):
+        return faker.password(length=30)
+
+    @pytest.fixture
+    def pulumi_mocks(faker, master_db_password):
+        return get_pulumi_mocks(faker, master_db_password)
+
+    @pytest.fixture
+    def pulumi_set_mocks(pulumi_mocks, app_name, stack):
         pulumi.runtime.set_mocks(
             pulumi_mocks,
+            project=app_name,
+            stack=stack,
             preview=False
         )
         yield True
-
-    @pytest.fixture
-    def app_name(faker):
-        return f'{faker.word()}-{faker.word()}'
 
     @pytest.fixture
     def app_path(faker):
@@ -56,25 +66,49 @@ def describe_a_pulumi_rails_app():
         return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
 
     @pytest.fixture
+    def resource_record_name(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
+    def resource_record_value(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
+    def domain_validation_options(faker, resource_record_name, resource_record_value):
+        class FakeValidationOption:
+            def __init__(self, name, value):
+                self.resource_record_name = name
+                self.resource_record_value = value
+            pass
+        return [FakeValidationOption(resource_record_name, resource_record_value)]
+
+    @pytest.fixture
+    def load_balancer_dns_name(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
-            app_name,
             app_path,
             container_port,
             cpu,
             memory,
             ecs_security_group,
             load_balancer_arn,
-            target_group_arn):
+            target_group_arn,
+            domain_validation_options,
+            load_balancer_dns_name):
         import strongmind_deployment.rails
 
-        sut = strongmind_deployment.rails.RailsComponent(app_name,
+        sut = strongmind_deployment.rails.RailsComponent("rails",
                                                          app_path=app_path,
                                                          container_port=container_port,
                                                          cpu=cpu,
                                                          memory=memory,
                                                          container_security_group_id=ecs_security_group,
                                                          load_balancer_arn=load_balancer_arn,
-                                                         target_group_arn=target_group_arn
+                                                         target_group_arn=target_group_arn,
+                                                         domain_validation_options=domain_validation_options,
+                                                         load_balancer_dns_name=load_balancer_dns_name,
                                                          )
         return sut
 
@@ -115,24 +149,16 @@ def describe_a_pulumi_rails_app():
             ).apply(check_rds_cluster_engine)
 
         @pulumi.runtime.test
-        def it_sets_the_name_to_the_app_name(sut, app_name):
-            def check_rds_cluster_name(args):
-                rds_serverless_cluster_name = args[0]
-                assert rds_serverless_cluster_name == app_name
-
-            return pulumi.Output.all(sut.rds_serverless_cluster.cluster_identifier).apply(check_rds_cluster_name)
+        def it_sets_the_name_to_the_app_name(sut, stack):
+            return assert_output_equals(sut.rds_serverless_cluster.cluster_identifier, stack)
 
         @pulumi.runtime.test
-        def it_sets_the_master_username_and_password(sut, app_name):
-            def check_rds_cluster_master_username(args):
-                master_username, master_password = args
-                assert master_username == app_name.replace('-', '_')
-                assert master_password
+        def it_sets_the_master_username(sut, stack):
+            return assert_output_equals(sut.rds_serverless_cluster.master_username, stack.replace('-', '_'))
 
-            return pulumi.Output.all(
-                sut.rds_serverless_cluster.master_username,
-                sut.rds_serverless_cluster.master_password
-            ).apply(check_rds_cluster_master_username)
+        @pulumi.runtime.test
+        def it_sets_the_master_password(sut, master_db_password):
+            return assert_output_equals(sut.rds_serverless_cluster.master_password, master_db_password)
 
         @pulumi.runtime.test
         def it_sets_a_serverlessv2_scaling_configuration(sut):
@@ -200,10 +226,10 @@ def describe_a_pulumi_rails_app():
 
     def describe_a_rds_postgres_cluster_instance():
         @pulumi.runtime.test
-        def it_creates_a_aurora_postgres_cluster_instance(sut, app_name):
+        def it_creates_a_aurora_postgres_cluster_instance(sut, stack):
             def check_rds_cluster_instance_engine(args):
                 cluster_identifier, instance_class = args
-                assert cluster_identifier == app_name
+                assert cluster_identifier == stack
                 assert instance_class == 'db.serverless'
 
             return pulumi.Output.all(
@@ -234,14 +260,18 @@ def describe_a_pulumi_rails_app():
             ).apply(check_rds_cluster_instance_engine_version)
 
         @pulumi.runtime.test
-        def it_has_the_app_name(sut, app_name):
+        def it_has_the_app_name(sut, stack):
             def check_rds_cluster_instance_identifier(args):
                 identifier = args[0]
-                assert identifier == app_name
+                assert identifier == stack
 
             return pulumi.Output.all(
                 sut.rds_serverless_cluster_instance.identifier,
             ).apply(check_rds_cluster_instance_identifier)
+
+        @pulumi.runtime.test
+        def it_is_publicly_accessible(sut, app_name):
+            return assert_output_equals(sut.rds_serverless_cluster_instance.publicly_accessible, True)
 
     def describe_a_ecs_task():
         @pulumi.runtime.test

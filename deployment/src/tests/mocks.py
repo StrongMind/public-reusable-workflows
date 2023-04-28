@@ -6,8 +6,12 @@ import pulumi_aws.ecs
 from pulumi_aws.ecs import ServiceNetworkConfigurationArgs
 
 
-def get_pulumi_mocks(faker):
+def get_pulumi_mocks(faker, fake_password=None):
     class PulumiMocks(pulumi.runtime.Mocks):
+        def __init__(self):
+            super().__init__()
+            self.fake_password = fake_password
+
         def new_resource(self, args: pulumi.runtime.MockResourceArgs):
             outputs = args.inputs
             if args.typ == "awsx:ecr:Repository":
@@ -17,7 +21,6 @@ def get_pulumi_mocks(faker):
                     "force_delete": args.inputs["forceDelete"],
                 }
             if args.typ == "awsx:ecs:FargateService":
-                mock_ecs_service = Mock(pulumi_aws.ecs.Service)
                 outputs = {
                     **args.inputs,
                     "task_definition_args": args.inputs["taskDefinitionArgs"],
@@ -32,7 +35,7 @@ def get_pulumi_mocks(faker):
                 length = args.inputs["length"]
                 outputs = {
                     **args.inputs,
-                    "result": faker.password(length=int(length)),
+                    "result": self.fake_password or faker.password(length=length),
                     "special": args.inputs["special"],
                 }
             return [args.name + '_id', outputs]

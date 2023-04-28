@@ -19,6 +19,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.memory = kwargs.get("memory") or 512
         self.env_vars = kwargs.get('env_vars', {})
 
+        stack = pulumi.get_stack()
         project = pulumi.get_project()
         self.tags = {
             "product": project,
@@ -28,13 +29,13 @@ class ContainerComponent(pulumi.ComponentResource):
         }
 
         self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                           name=name,
+                                           name=stack,
                                            tags=self.tags,
                                            opts=pulumi.ResourceOptions(parent=self),
                                            )
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(
             "loadbalancer",
-            name=name,
+            name=stack,
             default_target_group_port=self.container_port,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
@@ -83,7 +84,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.fargate_service = awsx.ecs.FargateService(
             "service",
-            name=f"{name}-service",
+            name=stack,
             cluster=self.ecs_cluster.arn,
             continue_before_steady_state=True,
             assign_public_ip=True,

@@ -4,24 +4,31 @@ import pulumi.runtime
 import pytest
 
 from tests.mocks import get_pulumi_mocks
+from tests.shared import assert_output_equals
 
 
 def describe_a_pulumi_containerized_app():
+    @pytest.fixture
+    def app_name(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def stack(faker, app_name):
+        return f"{app_name}-dev"
+
     @pytest.fixture
     def pulumi_mocks(faker):
         return get_pulumi_mocks(faker)
 
     @pytest.fixture
-    def pulumi_set_mocks(pulumi_mocks):
+    def pulumi_set_mocks(pulumi_mocks, app_name, stack):
         pulumi.runtime.set_mocks(
             pulumi_mocks,
+            project=app_name,
+            stack=stack,
             preview=False
         )
         yield True
-
-    @pytest.fixture
-    def app_name(faker):
-        return f'{faker.word()}-{faker.word()}'
 
     @pytest.fixture
     def app_path(faker):
@@ -93,10 +100,10 @@ def describe_a_pulumi_containerized_app():
             assert sut.ecs_cluster
 
         @pulumi.runtime.test
-        def it_sets_the_cluster_name(sut, app_name):
+        def it_sets_the_cluster_name(sut, stack):
             def check_cluster_name(args):
                 cluster_name = args[0]
-                assert cluster_name == app_name
+                assert cluster_name == stack
 
             return pulumi.Output.all(sut.ecs_cluster.name).apply(check_cluster_name)
 
@@ -109,12 +116,8 @@ def describe_a_pulumi_containerized_app():
             assert sut.load_balancer
 
         @pulumi.runtime.test
-        def it_sets_the_load_balancer_name(sut, app_name):
-            def check_load_balancer_name(args):
-                load_balancer_name = args[0]
-                assert load_balancer_name == app_name
-
-            return pulumi.Output.all(sut.load_balancer.name).apply(check_load_balancer_name)
+        def it_sets_the_load_balancer_name(sut, stack):
+            return assert_output_equals(sut.load_balancer.name, stack)
 
         @pulumi.runtime.test
         def describe_the_fargate_service():

@@ -17,10 +17,20 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
+        self.env_vars = self.kwargs.get('env_vars', {})
 
-        self.rds(name)
+        project = pulumi.get_project()
+        stack = pulumi.get_stack()
+        self.tags = {
+            "product": project,
+            "repository": project,
+            "service": project,
+            "environment": self.env_vars.get("ENVIRONMENT_NAME", "stage"),
+        }
 
-        self.ecs(name)
+        self.rds(stack)
+
+        self.ecs(stack)
 
         self.security()
 
@@ -45,9 +55,6 @@ class RailsComponent(pulumi.ComponentResource):
         )
 
     def ecs(self, name):
-        if 'env_vars' not in self.kwargs:
-            self.kwargs['env_vars'] = {}
-
         additional_env_vars = {
             'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
             'DB_USERNAME': self.rds_serverless_cluster.master_username,
@@ -56,9 +63,10 @@ class RailsComponent(pulumi.ComponentResource):
             'RAILS_ENV': 'production'
         }
 
-        self.kwargs['env_vars'].update(additional_env_vars)
+        self.env_vars.update(additional_env_vars)
+        self.kwargs['env_vars'] = self.env_vars
 
-        self.container = ContainerComponent(name,
+        self.container = ContainerComponent("container",
                                             pulumi.ResourceOptions(parent=self),
                                             **self.kwargs
                                             )
@@ -76,11 +84,12 @@ class RailsComponent(pulumi.ComponentResource):
             database_name="app",
             master_username=name.replace('-', '_'),
             master_password=self.db_password.result,
-            opts=pulumi.ResourceOptions(parent=self),
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=0.5,
                 max_capacity=16,
-            )
+            ),
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
@@ -89,6 +98,8 @@ class RailsComponent(pulumi.ComponentResource):
             instance_class='db.serverless',
             engine=self.rds_serverless_cluster.engine,
             engine_version=self.rds_serverless_cluster.engine_version,
+            publicly_accessible=True,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.rds_serverless_cluster]),
         )
 
         export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
