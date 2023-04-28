@@ -122,10 +122,10 @@ class RailsComponent(pulumi.ComponentResource):
         domain = 'strongmind.com'
         zone_id = self.kwargs.get('zone_id')
         if not zone_id:  # pragma: no cover
-            zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain)
+            zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain).zone_id
 
         lb_dns_name = self.kwargs.get('load_balancer_dns_name',
-                                      self.container.fargate_service.service.load_balancers[0].dns_name)  # pragma: no cover
+                                      self.container.load_balancer.load_balancer.dns_name)  # pragma: no cover
 
         self.cname_record = Record(
             'cname_record',
@@ -134,3 +134,5 @@ class RailsComponent(pulumi.ComponentResource):
             zone_id=zone_id,
             value=lb_dns_name,
         )
+
+        pulumi.export("record_url", Output.concat("http://", self.cname_record.name, ".", domain))

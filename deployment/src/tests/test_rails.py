@@ -319,3 +319,7 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_has_zone(sut, zone_id):
             return assert_output_equals(sut.cname_record.zone_id, zone_id)
+
+        @pulumi.runtime.test
+        def it_points_to_load_balancer(sut, load_balancer_dns_name):
+            return assert_output_equals(sut.cname_record.value, load_balancer_dns_name)
