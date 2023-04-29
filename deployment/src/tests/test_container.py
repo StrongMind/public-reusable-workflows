@@ -146,7 +146,7 @@ def describe_a_pulumi_containerized_app():
                     assert container["portMappings"][0]["containerPort"] == container_port
                     assert container["portMappings"][0]["hostPort"] == container_port
                     assert container["logConfiguration"]["logDriver"] == "awslogs"
-                    assert container["logConfiguration"]["options"]["awslogs-group"] == f"/ecs/{stack}"
+                    assert container["logConfiguration"]["options"]["awslogs-group"] == f"/aws/ecs/{stack}"
                     assert container["logConfiguration"]["options"]["awslogs-region"] == "us-west-2"
                     assert container["logConfiguration"]["options"]["awslogs-stream-prefix"] == "container"
 

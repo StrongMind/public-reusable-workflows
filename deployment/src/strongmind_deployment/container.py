@@ -67,6 +67,13 @@ class ContainerComponent(pulumi.ComponentResource):
         #         ),
         #     )
         # ),
+
+        logs = aws.cloudwatch.LogGroup(
+            f'log',
+            retention_in_days=14,
+            name=f'/aws/ecs/{stack}',
+            tags=self.tags
+        )
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
             family=stack,
@@ -75,7 +82,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
-                        "awslogs-group": f"/ecs/{stack}",
+                        "awslogs-group": logs.name,
                         "awslogs-region": "us-west-2",
                         "awslogs-stream-prefix": "container",
                     },
