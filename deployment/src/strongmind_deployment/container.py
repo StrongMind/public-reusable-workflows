@@ -69,7 +69,17 @@ class ContainerComponent(pulumi.ComponentResource):
         # ),
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
+            family=stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+                name=stack,
+                log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+                    log_driver="awslogs",
+                    options={
+                        "awslogs-group": f"/ecs/{stack}",
+                        "awslogs-region": "us-west-2",
+                        "awslogs-stream-prefix": "container",
+                    },
+                ),
                 image=self.container_image,
                 cpu=self.cpu,
                 memory=self.memory,
