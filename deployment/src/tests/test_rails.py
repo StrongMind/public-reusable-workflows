@@ -92,6 +92,10 @@ def describe_a_pulumi_rails_app():
         return faker.word()
 
     @pytest.fixture
+    def environment(faker):
+        return faker.word()
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_path,
             container_port,
@@ -102,7 +106,8 @@ def describe_a_pulumi_rails_app():
             target_group_arn,
             domain_validation_options,
             load_balancer_dns_name,
-            zone_id):
+            zone_id,
+            environment):
         import strongmind_deployment.rails
 
         sut = strongmind_deployment.rails.RailsComponent("rails",
@@ -115,7 +120,10 @@ def describe_a_pulumi_rails_app():
                                                          target_group_arn=target_group_arn,
                                                          domain_validation_options=domain_validation_options,
                                                          load_balancer_dns_name=load_balancer_dns_name,
-                                                         zone_id=zone_id
+                                                         zone_id=zone_id,
+                                                         env_vars={
+                                                             "ENVIRONMENT_NAME": environment
+                                                         }
                                                          )
         return sut
 
@@ -311,6 +319,19 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_has_cname_record(sut):
             assert sut.cname_record
+
+        @pulumi.runtime.test
+        def it_has_name_with_environment_prefix(sut, environment, app_name):
+            return assert_output_equals(sut.cname_record.name, f"{environment}-{app_name}")
+
+        def describe_in_production():
+            @pytest.fixture
+            def environment():
+                return "prod"
+
+            @pulumi.runtime.test
+            def it_has_name_without_prefix(sut, app_name):
+                return assert_output_equals(sut.cname_record.name, app_name)
 
         @pulumi.runtime.test
         def it_has_cname_type(sut):

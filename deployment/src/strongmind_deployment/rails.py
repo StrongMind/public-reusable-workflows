@@ -119,6 +119,8 @@ class RailsComponent(pulumi.ComponentResource):
                              ':5432/app')
 
     def dns(self, name):
+        if self.env_name != "prod":
+            name = f"{self.env_name}-{name}"
         domain = 'strongmind.com'
         zone_id = self.kwargs.get('zone_id')
         if not zone_id:  # pragma: no cover
