@@ -69,22 +69,16 @@ def describe_a_pulumi_rails_app():
         return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
 
     @pytest.fixture
-    def resource_record_name(faker):
-        return f"{faker.word()}.{faker.word()}.{faker.word()}"
-
-    @pytest.fixture
-    def resource_record_value(faker):
-        return f"{faker.word()}.{faker.word()}.{faker.word()}"
-
-    @pytest.fixture
-    def domain_validation_options(faker, resource_record_name, resource_record_value):
+    def domain_validation_options(faker):
         class FakeValidationOption:
-            def __init__(self, name, value):
+            def __init__(self, name, value, type):
                 self.resource_record_name = name
                 self.resource_record_value = value
-            pass
-        return [FakeValidationOption(resource_record_name, resource_record_value)]
+                self.resource_record_type = type
 
+            pass
+
+        return [FakeValidationOption(faker.word(), faker.word(), faker.word())]
     @pytest.fixture
     def load_balancer_dns_name(faker):
         return f"{faker.word()}.{faker.word()}.{faker.word()}"
@@ -102,8 +96,8 @@ def describe_a_pulumi_rails_app():
             ecs_security_group,
             load_balancer_arn,
             target_group_arn,
-            domain_validation_options,
             load_balancer_dns_name,
+            domain_validation_options,
             zone_id,
             environment):
         import strongmind_deployment.rails
@@ -116,8 +110,8 @@ def describe_a_pulumi_rails_app():
                                                          container_security_group_id=ecs_security_group,
                                                          load_balancer_arn=load_balancer_arn,
                                                          target_group_arn=target_group_arn,
-                                                         domain_validation_options=domain_validation_options,
                                                          load_balancer_dns_name=load_balancer_dns_name,
+                                                         domain_validation_options=domain_validation_options,
                                                          zone_id=zone_id,
                                                          env_vars={
                                                              "ENVIRONMENT_NAME": environment

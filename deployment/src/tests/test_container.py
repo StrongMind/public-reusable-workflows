@@ -81,6 +81,28 @@ def describe_a_pulumi_containerized_app():
         return f"{faker.word()}.{faker.word()}.{faker.word()}"
 
     @pytest.fixture
+    def resource_record_name(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
+    def resource_record_value(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
+    def resource_record_type(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def domain_validation_options(faker, resource_record_name, resource_record_value, resource_record_type):
+        class FakeValidationOption:
+            def __init__(self, name, value, type):
+                self.resource_record_name = name
+                self.resource_record_value = value
+                self.resource_record_type = type
+            pass
+        return [FakeValidationOption(resource_record_name, resource_record_value, resource_record_type)]
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
@@ -93,7 +115,7 @@ def describe_a_pulumi_containerized_app():
             target_group_arn,
             zone_id,
             load_balancer_dns_name,
-            environment,
+            domain_validation_options,
             ):
         import strongmind_deployment.container
         return strongmind_deployment.container.ContainerComponent("container",
@@ -107,6 +129,7 @@ def describe_a_pulumi_containerized_app():
                                                                   target_group_arn=target_group_arn,
                                                                   zone_id=zone_id,
                                                                   load_balancer_dns_name=load_balancer_dns_name,
+                                                                  domain_validation_options=domain_validation_options,
                                                                   )
 
     def it_exists(sut):
@@ -222,3 +245,40 @@ def describe_a_pulumi_containerized_app():
         @pulumi.runtime.test
         def it_points_to_load_balancer(sut, load_balancer_dns_name):
             return assert_output_equals(sut.cname_record.value, load_balancer_dns_name)
+
+    def describe_cert():
+        @pulumi.runtime.test
+        def it_has_cert(sut):
+            assert sut.cert
+
+        @pulumi.runtime.test
+        def it_has_fqdn(sut, load_balancer_dns_name):
+            return assert_output_equals(sut.cert.domain_name, load_balancer_dns_name)
+
+        @pulumi.runtime.test
+        def it_validates_with_dns(sut):
+            return assert_output_equals(sut.cert.validation_method, "DNS")
+
+        @pulumi.runtime.test
+        def it_adds_validation_record(sut):
+            assert sut.cert_validation_record
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_name(sut, resource_record_name):
+            return assert_output_equals(sut.cert_validation_record.name, resource_record_name)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_type(sut):
+            return assert_output_equals(sut.cert_validation_record.type, resource_record_type)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_zone_id(sut, zone_id):
+            return assert_output_equals(sut.cert_validation_record.zone_id, zone_id)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_value(sut, resource_record_value):
+            return assert_output_equals(sut.cert_validation_record.value, resource_record_value)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_ttl(sut):
+            return assert_output_equals(sut.cert_validation_record.ttl, 1)

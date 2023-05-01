@@ -12,6 +12,8 @@ class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.cert_validation_record = None
+        self.cert = None
         self._security_group_name = None
         self.cname_record = None
         self.container_image = kwargs.get('container_image')
@@ -126,7 +128,6 @@ class ContainerComponent(pulumi.ComponentResource):
         zone_id = self.kwargs.get('zone_id')
         if not zone_id:  # pragma: no cover
             zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain).zone_id
-
         lb_dns_name = self.kwargs.get('load_balancer_dns_name',
                                       self.load_balancer.load_balancer.dns_name)  # pragma: no cover
 
@@ -136,6 +137,29 @@ class ContainerComponent(pulumi.ComponentResource):
             type='CNAME',
             zone_id=zone_id,
             value=lb_dns_name,
+            tags=[v for k, v in self.tags.items()],
+            opts=pulumi.ResourceOptions(parent=self),
         )
 
         pulumi.export("record_url", Output.concat("http://", self.cname_record.name, ".", domain))
+
+        self.cert = aws.acm.Certificate(
+            "cert",
+            domain_name=lb_dns_name,
+            validation_method="DNS",
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        domain_validation_options = self.kwargs.get('domain_validation_options',
+                                                    self.cert.domain_validation_options)  # pragma: no cover
+
+        self.cert_validation_record = Record(
+            'cert_validation_record',
+            name=domain_validation_options[0].resource_record_name,
+            type=domain_validation_options[0].resource_record_type,
+            zone_id=zone_id,
+            value=domain_validation_options[0].resource_record_value,
+            ttl=1,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
