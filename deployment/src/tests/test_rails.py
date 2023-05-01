@@ -1,10 +1,8 @@
 import pulumi.runtime
 import pytest
-from pulumi_cloudflare import Record, Zone
 
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
-import pulumi_aws as aws
 
 
 def describe_a_pulumi_rails_app():
@@ -13,8 +11,12 @@ def describe_a_pulumi_rails_app():
         return faker.word()
 
     @pytest.fixture
-    def stack(faker):
-        return "dev"
+    def environment(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def stack(faker, app_name, environment):
+        return f"{app_name}-{environment}"
 
     @pytest.fixture
     def master_db_password(faker):
@@ -89,10 +91,6 @@ def describe_a_pulumi_rails_app():
 
     @pytest.fixture
     def zone_id(faker):
-        return faker.word()
-
-    @pytest.fixture
-    def environment(faker):
         return faker.word()
 
     @pytest.fixture
