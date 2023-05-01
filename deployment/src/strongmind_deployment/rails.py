@@ -30,7 +30,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.rds(stack)
 
-        self.ecs(stack)
+        self.ecs()
 
         self.security()
 
@@ -54,7 +54,7 @@ class RailsComponent(pulumi.ComponentResource):
                                                     self.container])
         )
 
-    def ecs(self, name):
+    def ecs(self):
         additional_env_vars = {
             'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
             'DB_USERNAME': self.rds_serverless_cluster.master_username,
@@ -71,18 +71,18 @@ class RailsComponent(pulumi.ComponentResource):
                                             **self.kwargs
                                             )
 
-    def rds(self, name):
+    def rds(self, stack):
         self.db_password = random.RandomPassword("password",
                                                  length=30,
                                                  special=False)
         self.rds_serverless_cluster = aws.rds.Cluster(
             'rds_serverless_cluster',
-            cluster_identifier=name,
+            cluster_identifier=stack,
             engine='aurora-postgresql',
             engine_mode='provisioned',
             engine_version='15.2',
             database_name="app",
-            master_username=name.replace('-', '_'),
+            master_username=stack.replace('-', '_'),
             master_password=self.db_password.result,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=0.5,
@@ -93,7 +93,7 @@ class RailsComponent(pulumi.ComponentResource):
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
-            identifier=name,
+            identifier=stack,
             cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
             instance_class='db.serverless',
             engine=self.rds_serverless_cluster.engine,

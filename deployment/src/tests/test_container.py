@@ -136,14 +136,19 @@ def describe_a_pulumi_containerized_app():
                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
-            def it_has_task_definition(sut, container_port, cpu, memory):
+            def it_has_task_definition(sut, container_port, cpu, memory, stack):
                 def check_task_definition(args):
                     task_definition_dict = args[0]
-                    assert task_definition_dict["container"]["cpu"] == cpu
-                    assert task_definition_dict["container"]["memory"] == memory
-                    assert task_definition_dict["container"]["essential"]
-                    assert task_definition_dict["container"]["portMappings"][0]["containerPort"] == container_port
-                    assert task_definition_dict["container"]["portMappings"][0]["hostPort"] == container_port
+                    container = task_definition_dict["container"]
+                    assert container["cpu"] == cpu
+                    assert container["memory"] == memory
+                    assert container["essential"]
+                    assert container["portMappings"][0]["containerPort"] == container_port
+                    assert container["portMappings"][0]["hostPort"] == container_port
+                    assert container["logConfiguration"]["logDriver"] == "awslogs"
+                    assert container["logConfiguration"]["options"]["awslogs-group"] == f"/aws/ecs/{stack}"
+                    assert container["logConfiguration"]["options"]["awslogs-region"] == "us-west-2"
+                    assert container["logConfiguration"]["options"]["awslogs-stream-prefix"] == "container"
 
                 return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_task_definition)
 
