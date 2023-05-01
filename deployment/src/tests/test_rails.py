@@ -314,33 +314,3 @@ def describe_a_pulumi_rails_app():
         assert sut.firewall_rule
         assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0])
         assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
-
-    def describe_dns():
-        @pulumi.runtime.test
-        def it_has_cname_record(sut):
-            assert sut.cname_record
-
-        @pulumi.runtime.test
-        def it_has_name_with_environment_prefix(sut, environment, app_name):
-            return assert_output_equals(sut.cname_record.name, f"{environment}-{app_name}")
-
-        def describe_in_production():
-            @pytest.fixture
-            def environment():
-                return "prod"
-
-            @pulumi.runtime.test
-            def it_has_name_without_prefix(sut, app_name):
-                return assert_output_equals(sut.cname_record.name, app_name)
-
-        @pulumi.runtime.test
-        def it_has_cname_type(sut):
-            return assert_output_equals(sut.cname_record.type, "CNAME")
-
-        @pulumi.runtime.test
-        def it_has_zone(sut, zone_id):
-            return assert_output_equals(sut.cname_record.zone_id, zone_id)
-
-        @pulumi.runtime.test
-        def it_points_to_load_balancer(sut, load_balancer_dns_name):
-            return assert_output_equals(sut.cname_record.value, load_balancer_dns_name)

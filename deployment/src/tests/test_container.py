@@ -13,8 +13,12 @@ def describe_a_pulumi_containerized_app():
         return faker.word()
 
     @pytest.fixture
-    def stack(faker, app_name):
-        return f"{app_name}-dev"
+    def environment(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def stack(faker, app_name, environment):
+        return f"{app_name}-{environment}"
 
     @pytest.fixture
     def pulumi_mocks(faker):
@@ -55,9 +59,9 @@ def describe_a_pulumi_containerized_app():
         return f"{aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/{app_name}:latest"
 
     @pytest.fixture
-    def env_vars(faker):
+    def env_vars(faker, environment):
         return {
-            faker.word(): faker.word()
+            "ENVIRONMENT_NAME": environment,
         }
 
     @pytest.fixture
@@ -69,6 +73,14 @@ def describe_a_pulumi_containerized_app():
         return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
 
     @pytest.fixture
+    def zone_id(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def load_balancer_dns_name(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
@@ -78,9 +90,13 @@ def describe_a_pulumi_containerized_app():
             container_image,
             env_vars,
             load_balancer_arn,
-            target_group_arn):
+            target_group_arn,
+            zone_id,
+            load_balancer_dns_name,
+            environment,
+            ):
         import strongmind_deployment.container
-        return strongmind_deployment.container.ContainerComponent(app_name,
+        return strongmind_deployment.container.ContainerComponent("container",
                                                                   app_path=app_path,
                                                                   container_port=container_port,
                                                                   cpu=cpu,
@@ -88,7 +104,9 @@ def describe_a_pulumi_containerized_app():
                                                                   container_image=container_image,
                                                                   env_vars=env_vars,
                                                                   load_balancer_arn=load_balancer_arn,
-                                                                  target_group_arn=target_group_arn
+                                                                  target_group_arn=target_group_arn,
+                                                                  zone_id=zone_id,
+                                                                  load_balancer_dns_name=load_balancer_dns_name,
                                                                   )
 
     def it_exists(sut):
@@ -174,3 +192,33 @@ def describe_a_pulumi_containerized_app():
 
                 return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"]).apply(
                     check_image_tag)
+
+    def describe_dns():
+        @pulumi.runtime.test
+        def it_has_cname_record(sut):
+            assert sut.cname_record
+
+        @pulumi.runtime.test
+        def it_has_name_with_environment_prefix(sut, environment, app_name):
+            return assert_output_equals(sut.cname_record.name, f"{environment}-{app_name}")
+
+        def describe_in_production():
+            @pytest.fixture
+            def environment():
+                return "prod"
+
+            @pulumi.runtime.test
+            def it_has_name_without_prefix(sut, app_name):
+                return assert_output_equals(sut.cname_record.name, app_name)
+
+        @pulumi.runtime.test
+        def it_has_cname_type(sut):
+            return assert_output_equals(sut.cname_record.type, "CNAME")
+
+        @pulumi.runtime.test
+        def it_has_zone(sut, zone_id):
+            return assert_output_equals(sut.cname_record.zone_id, zone_id)
+
+        @pulumi.runtime.test
+        def it_points_to_load_balancer(sut, load_balancer_dns_name):
+            return assert_output_equals(sut.cname_record.value, load_balancer_dns_name)

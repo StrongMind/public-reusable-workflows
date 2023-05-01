@@ -5,6 +5,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_awsx as awsx
 from pulumi import Config, export, Output
+from pulumi_cloudflare import get_zone, Record
 
 
 class ContainerComponent(pulumi.ComponentResource):
@@ -12,12 +13,15 @@ class ContainerComponent(pulumi.ComponentResource):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
         self._security_group_name = None
+        self.cname_record = None
         self.container_image = kwargs.get('container_image')
         self.app_path = kwargs.get('app_path') or './'
         self.container_port = kwargs.get('container_port') or 3000
         self.cpu = kwargs.get('cpu') or 256
         self.memory = kwargs.get("memory") or 512
         self.env_vars = kwargs.get('env_vars', {})
+        self.kwargs = kwargs
+        self.env_name = self.env_vars.get("ENVIRONMENT_NAME", "stage")
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
@@ -25,7 +29,7 @@ class ContainerComponent(pulumi.ComponentResource):
             "product": project,
             "repository": project,
             "service": project,
-            "environment": self.env_vars.get("ENVIRONMENT_NAME", "stage"),
+            "environment": self.env_name,
         }
 
         self.ecs_cluster = aws.ecs.Cluster("cluster",
@@ -40,6 +44,8 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
+
+        self.dns(project)
 
         load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
         target_group_arn = kwargs.get('target_group_arn', self.load_balancer.default_target_group.arn)
@@ -112,3 +118,24 @@ class ContainerComponent(pulumi.ComponentResource):
 
         export("url", Output.concat("http://", self.load_balancer.load_balancer.dns_name))
         self.register_outputs({})
+
+    def dns(self, name):
+        if self.env_name != "prod":
+            name = f"{self.env_name}-{name}"
+        domain = 'strongmind.com'
+        zone_id = self.kwargs.get('zone_id')
+        if not zone_id:  # pragma: no cover
+            zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain).zone_id
+
+        lb_dns_name = self.kwargs.get('load_balancer_dns_name',
+                                      self.load_balancer.load_balancer.dns_name)  # pragma: no cover
+
+        self.cname_record = Record(
+            'cname_record',
+            name=name,
+            type='CNAME',
+            zone_id=zone_id,
+            value=lb_dns_name,
+        )
+
+        pulumi.export("record_url", Output.concat("http://", self.cname_record.name, ".", domain))

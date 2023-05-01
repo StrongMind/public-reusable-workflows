@@ -37,8 +37,6 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.security()
 
-        self.dns(project)
-
         self.register_outputs({})
 
     def security(self):
@@ -117,24 +115,3 @@ class RailsComponent(pulumi.ComponentResource):
                              '@',
                              self.rds_serverless_cluster.endpoint,
                              ':5432/app')
-
-    def dns(self, name):
-        if self.env_name != "prod":
-            name = f"{self.env_name}-{name}"
-        domain = 'strongmind.com'
-        zone_id = self.kwargs.get('zone_id')
-        if not zone_id:  # pragma: no cover
-            zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain).zone_id
-
-        lb_dns_name = self.kwargs.get('load_balancer_dns_name',
-                                      self.container.load_balancer.load_balancer.dns_name)  # pragma: no cover
-
-        self.cname_record = Record(
-            'cname_record',
-            name=name,
-            type='CNAME',
-            zone_id=zone_id,
-            value=lb_dns_name,
-        )
-
-        pulumi.export("record_url", Output.concat("http://", self.cname_record.name, ".", domain))
