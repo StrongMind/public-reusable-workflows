@@ -268,7 +268,7 @@ def describe_a_pulumi_containerized_app():
             return assert_output_equals(sut.cert_validation_record.name, resource_record_name)
 
         @pulumi.runtime.test
-        def it_adds_validation_record_with_type(sut):
+        def it_adds_validation_record_with_type(sut, resource_record_type):
             return assert_output_equals(sut.cert_validation_record.type, resource_record_type)
 
         @pulumi.runtime.test
