@@ -14,11 +14,12 @@ def describe_a_pulumi_containerized_app():
 
     @pytest.fixture
     def environment(faker):
-        return faker.word()
+        os.environ["ENVIRONMENT_NAME"] = faker.word()
+        return os.environ["ENVIRONMENT_NAME"]
 
     @pytest.fixture
-    def stack(faker, app_name, environment):
-        return f"{app_name}-{environment}"
+    def stack(environment):
+        return environment
 
     @pytest.fixture
     def pulumi_mocks(faker):
@@ -141,10 +142,10 @@ def describe_a_pulumi_containerized_app():
             assert sut.ecs_cluster
 
         @pulumi.runtime.test
-        def it_sets_the_cluster_name(sut, stack):
+        def it_sets_the_cluster_name(sut, stack, app_name):
             def check_cluster_name(args):
                 cluster_name = args[0]
-                assert cluster_name == stack
+                assert cluster_name == f"{app_name}-{stack}"
 
             return pulumi.Output.all(sut.ecs_cluster.name).apply(check_cluster_name)
 
@@ -158,8 +159,8 @@ def describe_a_pulumi_containerized_app():
                 assert sut.load_balancer
 
             @pulumi.runtime.test
-            def it_sets_the_load_balancer_name(sut, stack):
-                return assert_output_equals(sut.load_balancer.name, stack)
+            def it_sets_the_load_balancer_name(sut, stack, app_name):
+                return assert_output_equals(sut.load_balancer.name, f"{app_name}-{stack}")
 
             def describe_the_load_balancer_listener_for_https():
                 @pytest.fixture
@@ -248,7 +249,7 @@ def describe_a_pulumi_containerized_app():
                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
-            def it_has_task_definition(sut, container_port, cpu, memory, stack):
+            def it_has_task_definition(sut, container_port, cpu, memory, stack, app_name):
                 def check_task_definition(args):
                     task_definition_dict = args[0]
                     container = task_definition_dict["container"]
@@ -258,7 +259,7 @@ def describe_a_pulumi_containerized_app():
                     assert container["portMappings"][0]["containerPort"] == container_port
                     assert container["portMappings"][0]["hostPort"] == container_port
                     assert container["logConfiguration"]["logDriver"] == "awslogs"
-                    assert container["logConfiguration"]["options"]["awslogs-group"] == f"/aws/ecs/{stack}"
+                    assert container["logConfiguration"]["options"]["awslogs-group"] == f"/aws/ecs/{app_name}-{stack}"
                     assert container["logConfiguration"]["options"]["awslogs-region"] == "us-west-2"
                     assert container["logConfiguration"]["options"]["awslogs-stream-prefix"] == "container"
 
@@ -293,12 +294,13 @@ def describe_a_pulumi_containerized_app():
             assert sut.cname_record
 
         @pulumi.runtime.test
-        def it_has_name_with_environment_prefix(sut, environment, app_name):
-            return assert_output_equals(sut.cname_record.name, f"{environment}-{app_name}")
+        def it_has_name_with_environment_prefix(sut, stack, app_name):
+            return assert_output_equals(sut.cname_record.name, f"{stack}-{app_name}")
 
         def describe_in_production():
             @pytest.fixture
             def environment():
+                os.environ["ENVIRONMENT_NAME"] = "prod"
                 return "prod"
 
             @pulumi.runtime.test
