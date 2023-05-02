@@ -4,7 +4,7 @@ import pulumi.runtime
 import pytest
 
 from tests.mocks import get_pulumi_mocks
-from tests.shared import assert_output_equals
+from tests.shared import assert_output_equals, assert_outputs_equal
 
 
 def describe_a_pulumi_containerized_app():
@@ -282,3 +282,16 @@ def describe_a_pulumi_containerized_app():
         @pulumi.runtime.test
         def it_adds_validation_record_with_ttl(sut):
             return assert_output_equals(sut.cert_validation_record.ttl, 1)
+
+        @pulumi.runtime.test
+        def it_adds_validation_cert(sut):
+            assert sut.cert_validation_cert
+
+        @pulumi.runtime.test
+        def it_adds_validation_cert_with_cert_arn(sut):
+            return assert_outputs_equal(sut.cert_validation_cert.certificate_arn, sut.cert.arn)
+
+        @pulumi.runtime.test
+        def it_adds_validation_cert_with_fqdns(sut):
+            return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
+                                        [sut.cert_validation_record.hostname])

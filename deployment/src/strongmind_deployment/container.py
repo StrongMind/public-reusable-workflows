@@ -12,6 +12,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.cert_validation_cert = None
         self.cert_validation_record = None
         self.cert = None
         self._security_group_name = None
@@ -160,6 +161,13 @@ class ContainerComponent(pulumi.ComponentResource):
             zone_id=zone_id,
             value=domain_validation_options[0].resource_record_value,
             ttl=1,
+            tags=[v for k, v in self.tags.items()],
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        self.cert_validation_cert = aws.acm.CertificateValidation(
+            "cert_validation",
+            certificate_arn=self.cert.arn,
+            validation_record_fqdns=[self.cert_validation_record.hostname],
+            opts=pulumi.ResourceOptions(parent=self),
+        )
