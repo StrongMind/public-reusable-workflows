@@ -4,6 +4,7 @@ import pulumi
 import pulumi_random as random
 import pulumi_aws as aws
 from pulumi import export, Output
+from pulumi_cloudflare import Record, get_zone
 
 from strongmind_deployment.container import ContainerComponent
 
@@ -11,6 +12,7 @@ from strongmind_deployment.container import ContainerComponent
 class RailsComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.cname_record = None
         self.firewall_rule = None
         self.db_password = None
         self.container = None
@@ -18,6 +20,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
         self.env_vars = self.kwargs.get('env_vars', {})
+        self.env_name = self.env_vars.get("ENVIRONMENT_NAME", "stage")
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
@@ -25,7 +28,7 @@ class RailsComponent(pulumi.ComponentResource):
             "product": project,
             "repository": project,
             "service": project,
-            "environment": self.env_vars.get("ENVIRONMENT_NAME", "stage"),
+            "environment": self.env_name,
         }
 
         self.rds(stack)

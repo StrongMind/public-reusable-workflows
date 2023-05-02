@@ -3,7 +3,6 @@ import pytest
 
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
-import pulumi_aws as aws
 
 
 def describe_a_pulumi_rails_app():
@@ -12,8 +11,12 @@ def describe_a_pulumi_rails_app():
         return faker.word()
 
     @pytest.fixture
-    def stack(faker):
-        return "dev"
+    def environment(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def stack(faker, app_name, environment):
+        return f"{app_name}-{environment}"
 
     @pytest.fixture
     def master_db_password(faker):
@@ -87,6 +90,10 @@ def describe_a_pulumi_rails_app():
         return f"{faker.word()}.{faker.word()}.{faker.word()}"
 
     @pytest.fixture
+    def zone_id(faker):
+        return faker.word()
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_path,
             container_port,
@@ -96,7 +103,9 @@ def describe_a_pulumi_rails_app():
             load_balancer_arn,
             target_group_arn,
             domain_validation_options,
-            load_balancer_dns_name):
+            load_balancer_dns_name,
+            zone_id,
+            environment):
         import strongmind_deployment.rails
 
         sut = strongmind_deployment.rails.RailsComponent("rails",
@@ -109,6 +118,10 @@ def describe_a_pulumi_rails_app():
                                                          target_group_arn=target_group_arn,
                                                          domain_validation_options=domain_validation_options,
                                                          load_balancer_dns_name=load_balancer_dns_name,
+                                                         zone_id=zone_id,
+                                                         env_vars={
+                                                             "ENVIRONMENT_NAME": environment
+                                                         }
                                                          )
         return sut
 
