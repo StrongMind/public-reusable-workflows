@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 import pulumi
 import pulumi_aws as aws
@@ -12,6 +13,9 @@ class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.cert_validation_cert = None
+        self.cert_validation_record = None
+        self.cert = None
         self._security_group_name = None
         self.cname_record = None
         self.container_image = kwargs.get('container_image')
@@ -49,30 +53,36 @@ class ContainerComponent(pulumi.ComponentResource):
 
         load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
         target_group_arn = kwargs.get('target_group_arn', self.load_balancer.default_target_group.arn)
-        self.load_balancer_listener = aws.lb.Listener("listener80",
-                                                      port=80,
-                                                      protocol="HTTP",
-                                                      load_balancer_arn=load_balancer_arn,
-                                                      # port=443,
-                                                      # protocol="HTTPS",
-                                                      default_actions=[
-                                                          aws.lb.ListenerDefaultActionArgs(
-                                                              type="forward",
-                                                              target_group_arn=target_group_arn
-                                                          )],
-                                                      )
-        # aws.lb.ListenerArgs(
-        #     port=80,
-        #     protocol="HTTP",
-        #     default_action=awsx.lb.ApplicationListenerDefaultActionArgs(
-        #         type="redirect",
-        #         redirect=awsx.lb.ApplicationListenerDefaultActionRedirectArgs(
-        #             port="443",
-        #             protocol="HTTPS",
-        #             status_code="HTTP_301",
-        #         ),
-        #     )
-        # ),
+        self.load_balancer_listener = aws.lb.Listener(
+            "listener443",
+            load_balancer_arn=load_balancer_arn,
+            certificate_arn=self.cert.arn,
+            port=443,
+            protocol="HTTPS",
+            default_actions=[
+                aws.lb.ListenerDefaultActionArgs(
+                    type="forward",
+                    target_group_arn=target_group_arn
+                )],
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
+        )
+        self.load_balancer_listener_redirect_http_to_https = aws.lb.Listener(
+            "listener80",
+            load_balancer_arn=load_balancer_arn,
+            port=80,
+            protocol="HTTP",
+            default_actions=[aws.lb.ListenerDefaultActionArgs(
+                type="redirect",
+                redirect=aws.lb.ListenerDefaultActionRedirectArgs(
+                    port="443",
+                    protocol="HTTPS",
+                    status_code="HTTP_301",
+                ),
+            )],
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
         logs = aws.cloudwatch.LogGroup(
             f'log',
@@ -116,26 +126,59 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        export("url", Output.concat("http://", self.load_balancer.load_balancer.dns_name))
         self.register_outputs({})
 
     def dns(self, name):
         if self.env_name != "prod":
             name = f"{self.env_name}-{name}"
         domain = 'strongmind.com'
-        zone_id = self.kwargs.get('zone_id')
-        if not zone_id:  # pragma: no cover
-            zone_id = get_zone(account_id='8232ad8254d56191adf53b86920459fa', name=domain).zone_id
-
+        full_name = f"{name}.{domain}"
+        zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
         lb_dns_name = self.kwargs.get('load_balancer_dns_name',
                                       self.load_balancer.load_balancer.dns_name)  # pragma: no cover
-
         self.cname_record = Record(
             'cname_record',
             name=name,
             type='CNAME',
             zone_id=zone_id,
             value=lb_dns_name,
+            ttl=1,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        pulumi.export("url", Output.concat("https://", full_name))
+
+        self.cert = aws.acm.Certificate(
+            "cert",
+            domain_name=full_name,
+            validation_method="DNS",
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        domain_validation_options = self.kwargs.get('domain_validation_options',
+                                                    self.cert.domain_validation_options)  # pragma: no cover
+
+        resource_record_value = domain_validation_options[0].resource_record_value
+
+        def remove_trailing_period(value):
+            return re.sub("\\.$", "", value)
+
+        if type(resource_record_value) != str:
+            resource_record_value = resource_record_value.apply(remove_trailing_period)
+
+        self.cert_validation_record = Record(
+            'cert_validation_record',
+            name=domain_validation_options[0].resource_record_name,
+            type=domain_validation_options[0].resource_record_type,
+            zone_id=zone_id,
+            value=resource_record_value,
+            ttl=1,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert,
+                                                                 self.cname_record]),
         )
 
-        pulumi.export("record_url", Output.concat("http://", self.cname_record.name, ".", domain))
+        self.cert_validation_cert = aws.acm.CertificateValidation(
+            "cert_validation",
+            certificate_arn=self.cert.arn,
+            validation_record_fqdns=[self.cert_validation_record.hostname],
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
+        )

@@ -4,7 +4,7 @@ import pulumi.runtime
 import pytest
 
 from tests.mocks import get_pulumi_mocks
-from tests.shared import assert_output_equals
+from tests.shared import assert_output_equals, assert_outputs_equal
 
 
 def describe_a_pulumi_containerized_app():
@@ -81,6 +81,28 @@ def describe_a_pulumi_containerized_app():
         return f"{faker.word()}.{faker.word()}.{faker.word()}"
 
     @pytest.fixture
+    def resource_record_name(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
+    def resource_record_value(faker):
+        return f"{faker.word()}.{faker.word()}.{faker.word()}"
+
+    @pytest.fixture
+    def resource_record_type(faker):
+        return faker.word()
+
+    @pytest.fixture
+    def domain_validation_options(faker, resource_record_name, resource_record_value, resource_record_type):
+        class FakeValidationOption:
+            def __init__(self, name, value, type):
+                self.resource_record_name = name
+                self.resource_record_value = value
+                self.resource_record_type = type
+            pass
+        return [FakeValidationOption(resource_record_name, resource_record_value, resource_record_type)]
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
@@ -93,7 +115,7 @@ def describe_a_pulumi_containerized_app():
             target_group_arn,
             zone_id,
             load_balancer_dns_name,
-            environment,
+            domain_validation_options,
             ):
         import strongmind_deployment.container
         return strongmind_deployment.container.ContainerComponent("container",
@@ -107,6 +129,7 @@ def describe_a_pulumi_containerized_app():
                                                                   target_group_arn=target_group_arn,
                                                                   zone_id=zone_id,
                                                                   load_balancer_dns_name=load_balancer_dns_name,
+                                                                  domain_validation_options=domain_validation_options,
                                                                   )
 
     def it_exists(sut):
@@ -129,13 +152,84 @@ def describe_a_pulumi_containerized_app():
         def it_has_environment_variables(sut, app_name, env_vars):
             assert sut.env_vars == env_vars
 
-        @pulumi.runtime.test
-        def it_creates_a_load_balancer(sut):
-            assert sut.load_balancer
+        def describe_load_balancer():
+            @pulumi.runtime.test
+            def it_creates_a_load_balancer(sut):
+                assert sut.load_balancer
 
-        @pulumi.runtime.test
-        def it_sets_the_load_balancer_name(sut, stack):
-            return assert_output_equals(sut.load_balancer.name, stack)
+            @pulumi.runtime.test
+            def it_sets_the_load_balancer_name(sut, stack):
+                return assert_output_equals(sut.load_balancer.name, stack)
+
+            def describe_the_load_balancer_listener_for_https():
+                @pytest.fixture
+                def listener(sut):
+                    return sut.load_balancer_listener
+
+                @pulumi.runtime.test
+                def it_has_load_balancer_listener_for_https(listener):
+                    assert listener
+
+                @pulumi.runtime.test
+                def it_sets_the_load_balancer_arn(listener, load_balancer_arn):
+                    return assert_output_equals(listener.load_balancer_arn, load_balancer_arn)
+
+                @pulumi.runtime.test
+                def it_sets_the_certificate_arn(listener, sut):
+                    return assert_outputs_equal(listener.certificate_arn, sut.cert.arn)
+
+                @pulumi.runtime.test
+                def it_sets_the_port(listener):
+                    return assert_output_equals(listener.port, 443)
+
+                @pulumi.runtime.test
+                def it_sets_the_protocol(listener):
+                    return assert_output_equals(listener.protocol, "HTTPS")
+
+                @pulumi.runtime.test
+                def it_forwards_to_the_target_group(listener, target_group_arn):
+                    return assert_output_equals(listener.default_actions[0].target_group_arn, target_group_arn)
+
+                @pulumi.runtime.test
+                def it_forwards(listener):
+                    return assert_output_equals(listener.default_actions[0].type, "forward")
+
+            def describe_the_load_balancer_listener_for_http():
+                @pytest.fixture
+                def listener(sut):
+                    return sut.load_balancer_listener_redirect_http_to_https
+
+                @pulumi.runtime.test
+                def it_has_load_balancer_listener_for_http(listener):
+                    assert listener
+
+                @pulumi.runtime.test
+                def it_sets_the_load_balancer_arn(listener, load_balancer_arn):
+                    return assert_output_equals(listener.load_balancer_arn, load_balancer_arn)
+
+                @pulumi.runtime.test
+                def it_sets_the_port(listener):
+                    return assert_output_equals(listener.port, 80)
+
+                @pulumi.runtime.test
+                def it_sets_the_protocol(listener):
+                    return assert_output_equals(listener.protocol, "HTTP")
+
+                @pulumi.runtime.test
+                def it_redirects_to_443(listener):
+                    return assert_output_equals(listener.default_actions[0].redirect.port, "443")
+
+                @pulumi.runtime.test
+                def it_redirects_to_https(listener):
+                    return assert_output_equals(listener.default_actions[0].redirect.protocol, "HTTPS")
+
+                @pulumi.runtime.test
+                def it_redirects_with_301(listener):
+                    return assert_output_equals(listener.default_actions[0].redirect.status_code, "HTTP_301")
+
+                @pulumi.runtime.test
+                def it_redirects(listener):
+                    return assert_output_equals(listener.default_actions[0].type, "redirect")
 
         @pulumi.runtime.test
         def describe_the_fargate_service():
@@ -222,3 +316,53 @@ def describe_a_pulumi_containerized_app():
         @pulumi.runtime.test
         def it_points_to_load_balancer(sut, load_balancer_dns_name):
             return assert_output_equals(sut.cname_record.value, load_balancer_dns_name)
+
+    def describe_cert():
+        @pulumi.runtime.test
+        def it_has_cert(sut):
+            assert sut.cert
+
+        @pulumi.runtime.test
+        def it_has_fqdn(sut, app_name, environment):
+            return assert_output_equals(sut.cert.domain_name, f"{environment}-{app_name}.strongmind.com")
+
+        @pulumi.runtime.test
+        def it_validates_with_dns(sut):
+            return assert_output_equals(sut.cert.validation_method, "DNS")
+
+        @pulumi.runtime.test
+        def it_adds_validation_record(sut):
+            assert sut.cert_validation_record
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_name(sut, resource_record_name):
+            return assert_output_equals(sut.cert_validation_record.name, resource_record_name)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_type(sut, resource_record_type):
+            return assert_output_equals(sut.cert_validation_record.type, resource_record_type)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_zone_id(sut, zone_id):
+            return assert_output_equals(sut.cert_validation_record.zone_id, zone_id)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_value(sut, resource_record_value):
+            return assert_output_equals(sut.cert_validation_record.value, resource_record_value)
+
+        @pulumi.runtime.test
+        def it_adds_validation_record_with_ttl(sut):
+            return assert_output_equals(sut.cert_validation_record.ttl, 1)
+
+        @pulumi.runtime.test
+        def it_adds_validation_cert(sut):
+            assert sut.cert_validation_cert
+
+        @pulumi.runtime.test
+        def it_adds_validation_cert_with_cert_arn(sut):
+            return assert_outputs_equal(sut.cert_validation_cert.certificate_arn, sut.cert.arn)
+
+        @pulumi.runtime.test
+        def it_adds_validation_cert_with_fqdns(sut):
+            return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
+                                        [sut.cert_validation_record.hostname])

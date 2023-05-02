@@ -38,6 +38,16 @@ def get_pulumi_mocks(faker, fake_password=None):
                     "result": self.fake_password or faker.password(length=length),
                     "special": args.inputs["special"],
                 }
+            if args.typ == "cloudflare:index/record:Record":
+                outputs = {
+                    **args.inputs,
+                    "hostname": faker.domain_name()
+                }
+            if args.typ == "aws:acm/certificate:Certificate":
+                outputs = {
+                    **args.inputs,
+                    "arn": f"arn:aws:acm:us-west-2:123456789012:certificate/{faker.word()}",
+                }
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
