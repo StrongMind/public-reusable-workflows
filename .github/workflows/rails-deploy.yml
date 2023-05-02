@@ -44,6 +44,6 @@ jobs:
       run: |
         cd ./infrastructure/
         pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
-        pulumi stack init ${{ github.event.repository.name }}-${{ inputs.environment-name }} --non-interactive || true
-        pulumi stack select ${{ github.event.repository.name }}-${{ inputs.environment-name }}
+        pulumi stack init ${{ inputs.environment-name }} --non-interactive || true
+        pulumi stack select ${{ inputs.environment-name }}
         pulumi up --yes

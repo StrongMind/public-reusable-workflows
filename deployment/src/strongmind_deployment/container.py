@@ -25,10 +25,12 @@ class ContainerComponent(pulumi.ComponentResource):
         self.memory = kwargs.get("memory") or 512
         self.env_vars = kwargs.get('env_vars', {})
         self.kwargs = kwargs
-        self.env_name = self.env_vars.get("ENVIRONMENT_NAME", "stage")
+        self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
+        project_stack = f"{project}-{stack}"
+
         self.tags = {
             "product": project,
             "repository": project,
@@ -37,13 +39,13 @@ class ContainerComponent(pulumi.ComponentResource):
         }
 
         self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                           name=stack,
+                                           name=project_stack,
                                            tags=self.tags,
                                            opts=pulumi.ResourceOptions(parent=self),
                                            )
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(
             "loadbalancer",
-            name=stack,
+            name=project_stack,
             default_target_group_port=self.container_port,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
@@ -65,7 +67,12 @@ class ContainerComponent(pulumi.ComponentResource):
                     target_group_arn=target_group_arn
                 )],
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[
+                                            self.cert,
+                                            self.cert_validation_record,
+                                            self.cert_validation_cert,
+                                        ]),
         )
         self.load_balancer_listener_redirect_http_to_https = aws.lb.Listener(
             "listener80",
@@ -87,14 +94,14 @@ class ContainerComponent(pulumi.ComponentResource):
         logs = aws.cloudwatch.LogGroup(
             f'log',
             retention_in_days=14,
-            name=f'/aws/ecs/{stack}',
+            name=f'/aws/ecs/{project_stack}',
             tags=self.tags
         )
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
-            family=stack,
+            family=project_stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=stack,
+                name=project_stack,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
@@ -117,7 +124,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.fargate_service = awsx.ecs.FargateService(
             "service",
-            name=stack,
+            name=project_stack,
             cluster=self.ecs_cluster.arn,
             continue_before_steady_state=True,
             assign_public_ip=True,

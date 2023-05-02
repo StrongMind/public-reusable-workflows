@@ -1,10 +1,10 @@
 import json
+import os
 
 import pulumi
 import pulumi_random as random
 import pulumi_aws as aws
 from pulumi import export, Output
-from pulumi_cloudflare import Record, get_zone
 
 from strongmind_deployment.container import ContainerComponent
 
@@ -20,10 +20,13 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
         self.env_vars = self.kwargs.get('env_vars', {})
-        self.env_name = self.env_vars.get("ENVIRONMENT_NAME", "stage")
+
+        self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
+        project_stack = f"{project}-{stack}"
+
         self.tags = {
             "product": project,
             "repository": project,
@@ -31,7 +34,7 @@ class RailsComponent(pulumi.ComponentResource):
             "environment": self.env_name,
         }
 
-        self.rds(stack)
+        self.rds(project_stack)
 
         self.ecs()
 
@@ -58,7 +61,10 @@ class RailsComponent(pulumi.ComponentResource):
         )
 
     def ecs(self):
+        container_image = os.environ['CONTAINER_IMAGE']
+        master_key = os.environ['RAILS_MASTER_KEY']
         additional_env_vars = {
+            'RAILS_MASTER_KEY': master_key,
             'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
             'DB_USERNAME': self.rds_serverless_cluster.master_username,
             'DB_PASSWORD': self.rds_serverless_cluster.master_password,
@@ -68,41 +74,45 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.env_vars.update(additional_env_vars)
         self.kwargs['env_vars'] = self.env_vars
+        self.kwargs['container_image'] = container_image
 
         self.container = ContainerComponent("container",
                                             pulumi.ResourceOptions(parent=self),
                                             **self.kwargs
                                             )
 
-    def rds(self, stack):
+    def rds(self, project_stack):
         self.db_password = random.RandomPassword("password",
                                                  length=30,
                                                  special=False)
         self.rds_serverless_cluster = aws.rds.Cluster(
             'rds_serverless_cluster',
-            cluster_identifier=stack,
+            cluster_identifier=project_stack,
             engine='aurora-postgresql',
             engine_mode='provisioned',
             engine_version='15.2',
             database_name="app",
-            master_username=stack.replace('-', '_'),
+            master_username=project_stack.replace('-', '_'),
             master_password=self.db_password.result,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=0.5,
                 max_capacity=16,
             ),
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self),
+            opts=pulumi.ResourceOptions(parent=self,
+                                        protect=True),
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
-            identifier=stack,
+            identifier=project_stack,
             cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
             instance_class='db.serverless',
             engine=self.rds_serverless_cluster.engine,
             engine_version=self.rds_serverless_cluster.engine_version,
             publicly_accessible=True,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.rds_serverless_cluster]),
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[self.rds_serverless_cluster],
+                                        protect=True),
         )
 
         export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
