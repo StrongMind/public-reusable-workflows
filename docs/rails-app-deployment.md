@@ -9,6 +9,9 @@ name: Build and Deploy to Stage
 on:
   workflow_dispatch:
 
+  push:
+    branches: main
+
 jobs:
   build:
     name: Build Docker image
