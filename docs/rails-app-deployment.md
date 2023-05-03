@@ -2,9 +2,9 @@
 
 ## Setup GitHub Actions
 1. Open your rails app.
-1. Create the following file as `.github/workflows/deploy-stage.yml`:
+1. Create the following file as `.github/workflows/build.yml`:
 ```yaml
-name: Build and Deploy to Stage
+name: Build
 
 on:
   workflow_dispatch:
@@ -17,6 +17,17 @@ jobs:
     name: Build Docker image
     uses: strongmind/public-reusable-workflows/.github/workflows/docker-build.yml@main
     secrets: inherit
+```
+
+3. Create the following file as `.github/workflows/deploy-stage.yml`:
+```yaml
+name: Deploy to stage
+
+on:
+  workflow_run:
+    workflows: [Build]
+    types:
+      - completed
 
   deploy:
     name: Deploy Rails to ECS
@@ -24,28 +35,22 @@ jobs:
     uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
     with:
       environment-name: stage
-      container-image: ${{ needs.build.outputs.container-image }}
     secrets: inherit
 ```
-3. Create the following file as `.github/workflows/deploy-prod.yml`:
+
+4. Create the following file as `.github/workflows/deploy-prod.yml`:
 ```yaml
 name: Deploy to production
 
 on: workflow_dispatch
 
 jobs:
-  build:
-    name: Build Docker image
-    uses: strongmind/public-reusable-workflows/.github/workflows/docker-build.yml@main
-    secrets: inherit
-
   deploy:
     name: Deploy Rails to ECS
     needs: build
     uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
     with:
       environment-name: prod
-      container-image: ${{ needs.build.outputs.container-image }}
     secrets: inherit
 ```
 
