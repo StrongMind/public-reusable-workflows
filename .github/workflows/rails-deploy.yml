@@ -6,10 +6,6 @@ on:
       environment-name:
         required: true
         type: string
-      container-image:
-        required: true
-        type: string
-
 
 env:
   AWS_REGION: us-west-2
