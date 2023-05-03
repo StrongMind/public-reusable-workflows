@@ -4,6 +4,10 @@
 
 Public github actions workflows that are reusable within StrongMind.
 
+
+## How to deploy a rails app
+See [Rails App Deployment](./docs/rails-app-deployment.md)
+
 ### Diagram
 
 ```mermaid
