@@ -78,3 +78,16 @@ description: A Python program to deploy a containerized service on AWS
 from strongmind_deployment.rails import RailsComponent
 component = RailsComponent("rails")
 ```
+
+## Check Deployment
+1. Push or merge your changes to the main branch.
+2. Go to the `Actions` tab in the GitHub repo.
+3. Look for the `Deploy to stage` or `Deploy to production` workflow and click on it.
+4. Click on the workflow run.
+5. Click on the `Deploy Rails to ECS` job.
+6. Click on the `Deploy with Pulumi` step.
+7. Scroll to the bottom.
+8. Under `Outputs` locate the `url` output.
+9. Click on the link to see your deployed app which will be located at the following URLs:
+- `https://stage-[repo-name-here].strongmind.com`
+- `https://[repo-name-here].strongmind.com`
