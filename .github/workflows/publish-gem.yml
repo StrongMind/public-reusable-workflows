@@ -41,7 +41,7 @@ jobs:
         env:
           GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_API_KEY}}"
   VelocityCheckin:
-    uses: StrongMind/global-build/.github/workflows/velocityCheckin.yml@main
+    uses: StrongMind/public-reusable-workflows/.github/workflows/velocityCheckin.yml@main
     with:
       sourceEnvironment: prod
       sourceBranch: ${{ github.ref_name }}
