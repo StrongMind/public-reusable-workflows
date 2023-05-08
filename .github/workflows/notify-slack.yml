@@ -5,13 +5,16 @@ on:
 
 jobs:
   send-slack:
-    name: Send message to slack
-    id: slack
-    uses: slackapi/slack-github-action@v1.23.0
-    with:
-      payload: |
-        {
-          "message": "${{ github.event.repository.name }} deployment: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
-        }
-    env:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_RELEASE_NOTIFICATIONS_URL }}
+    name: Send slack message
+    runs-on: ubuntu-latest
+    steps:
+    - name: Send message to slack
+      id: slack
+      uses: slackapi/slack-github-action@v1.23.0
+      with:
+        payload: |
+          {
+            "message": "${{ github.event.repository.name }} deployment: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+          }
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_RELEASE_NOTIFICATIONS_URL }}
