@@ -14,7 +14,7 @@ jobs:
       with:
         payload: |
           {
-            "message": "${{ github.event.repository.name }} deployment: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+            "message": "${{ github.event.repository.name }} deployment: ${{ job.status }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_RELEASE_NOTIFICATIONS_URL }}
