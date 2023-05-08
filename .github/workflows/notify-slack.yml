@@ -14,7 +14,17 @@ jobs:
       with:
         payload: |
           {
-            "message": "${{ github.event.repository.name }} deployment: ${{ job.status }}\n${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            "repository_url": "${{ github.server_url }}/${{ github.repository }}",
+            "repository_name": "${{ github.event.repository.name }}",
+            "repository_owner": "${{ github.event.repository.owner.login }}",
+            "commit_sha": "${{ github.sha }}",
+            "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
+            "commit_message": "${{ github.event.head_commit.message }}",
+            "actor": "${{ github.actor }}",
+            "actor_url": "${{ github.server_url }}/${{ github.actor }}",
+            "actor_avatar": "${{ github.event.sender.avatar_url }}",
+            "workflow_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "workflow_name": "${{ github.workflow }}"
           }
       env:
         SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_RELEASE_NOTIFICATIONS_URL }}
