@@ -1,0 +1,17 @@
+name: Notify release to slack
+
+on:
+  workflow_call:
+
+jobs:
+  send-slack:
+    name: Send message to slack
+    id: slack
+    uses: slackapi/slack-github-action@v1.23.0
+    with:
+      payload: |
+        {
+          "message": "${{ github.event.repository.name }} deployment: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}",
+        }
+    env:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_RELEASE_NOTIFICATIONS_URL }}
