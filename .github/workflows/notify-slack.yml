@@ -2,6 +2,7 @@ name: Notify release to slack
 
 on:
   workflow_call:
+  workflow_dispatch:
 
 jobs:
   send-slack:
@@ -18,6 +19,7 @@ jobs:
       run: |
         delimiter="$(openssl rand -hex 8)"
         MSG=$(git log --format=%B -n 1 ${{ github.sha }})
+        MSG="${MSG//$'\n'/%0A}"
         echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
         echo "${MSG}" >> "$GITHUB_OUTPUT"
         echo "${delimiter}" >> "${GITHUB_OUTPUT}"
