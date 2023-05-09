@@ -15,7 +15,9 @@ Use these instructions to add a step to your production release workflow that no
           type: string
 ```
 3. Add the following job after the job that deploys to production:
-NOTE: `deploy-prod` in the sample below needs to be the name of the job that deploys to production.
+
+> **_NOTE:_** `deploy-prod` in the sample below needs to match the name of the job that deploys to production.
+
 ```yaml
   notify:
     name: Notify Slack
