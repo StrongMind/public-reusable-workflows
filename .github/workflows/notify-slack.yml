@@ -8,9 +8,11 @@ jobs:
     name: Send slack message
     runs-on: ubuntu-latest
     steps:
-    - name: Logging
+    - name: Get Commit Message
+      id: get-commit-message
       run: |
-        echo "${{toJSON(github)}}"
+        MSG=$(git log --format=%B -n 1 ${{ github.sha }})
+        echo "message=${MSG}" >> "$GITHUB_OUTPUT"
     - name: Send message to slack
       id: slack
       uses: slackapi/slack-github-action@v1.23.0
@@ -22,7 +24,7 @@ jobs:
             "repository_owner": "${{ github.event.repository.owner.login }}",
             "commit_sha": "${{ github.sha }}",
             "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
-            "commit_message": "${{ github.event.head_commit.message }}",
+            "commit_message": "${{ steps.get-commit-message.outputs.message }}",
             "actor": "${{ github.actor }}",
             "actor_url": "${{ github.server_url }}/${{ github.actor }}",
             "actor_avatar": "${{ github.event.sender.avatar_url }}",
