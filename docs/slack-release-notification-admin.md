@@ -32,4 +32,4 @@ Follow these steps to modify the message:
 
 ![slack_message_editor.png](slack_message_editor.png)
 
-10. Make sure to publish the workflow after making changes.
+9. Make sure to publish the workflow after making changes.
