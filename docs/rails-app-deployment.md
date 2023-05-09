@@ -42,7 +42,11 @@ on:
 ```yaml
 name: Deploy to production
 
-on: workflow_dispatch
+on: 
+  workflow_dispatch:
+    inputs:
+      jira-ticket:
+        type: string
 
 jobs:
   deploy:
@@ -52,6 +56,14 @@ jobs:
     with:
       environment-name: prod
     secrets: inherit
+
+  notify:
+    name: Notify Slack
+    needs: deploy
+    uses: strongmind/public-reusable-workflows/.github/workflows/notify-slack.yml@main
+    secrets: inherit
+    with:
+      jira-ticket: ${{ github.event.inputs.jira-ticket }}
 ```
 
 ## Setup Pulumi
