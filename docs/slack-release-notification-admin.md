@@ -29,5 +29,7 @@ Follow these steps to modify the message:
 }
 ```
 8. The second step determines the channel and message:
+
 ![slack_message_editor.png](slack_message_editor.png)
-9. Make sure to publish the workflow after making changes.
+
+10. Make sure to publish the workflow after making changes.
