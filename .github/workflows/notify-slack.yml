@@ -16,8 +16,11 @@ jobs:
     - name: Get Commit Message
       id: get-commit-message
       run: |
+        delimiter="$(openssl rand -hex 8)"
         MSG=$(git log --format=%B -n 1 ${{ github.sha }})
-        echo "message=${MSG}" >> "$GITHUB_OUTPUT"
+        echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
+        echo "${MSG}" >> "$GITHUB_OUTPUT"
+        echo "${delimiter}" >> "${GITHUB_OUTPUT}"
     - name: Send message to slack
       id: slack
       uses: slackapi/slack-github-action@v1.23.0
