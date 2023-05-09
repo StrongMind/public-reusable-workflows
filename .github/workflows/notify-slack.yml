@@ -3,6 +3,10 @@ name: Notify release to slack
 on:
   workflow_call:
   workflow_dispatch:
+    inputs:
+      jira-ticket:
+        name: Jira ticket
+        type: string
 
 jobs:
   send-slack:
@@ -35,6 +39,7 @@ jobs:
             "commit_sha": "${{ github.sha }}",
             "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
             "commit_message": "${{ steps.get-commit-message.outputs.message }}",
+            "jira_ticket": "${{ github.event.inputs.jira-ticket }}",
             "actor": "${{ github.actor }}",
             "actor_url": "${{ github.server_url }}/${{ github.actor }}",
             "actor_avatar": "${{ github.event.sender.avatar_url }}",
