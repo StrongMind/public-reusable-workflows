@@ -19,7 +19,7 @@ jobs:
       run: |
         delimiter="$(openssl rand -hex 8)"
         MSG=$(git log --format=%B -n 1 ${{ github.sha }})
-        MSG="${MSG//$'\n'/%0A}"
+        MSG="${MSG//$'\n'/\\n}"
         echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
         echo "${MSG}" >> "$GITHUB_OUTPUT"
         echo "${delimiter}" >> "${GITHUB_OUTPUT}"
