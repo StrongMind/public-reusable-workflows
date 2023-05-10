@@ -32,7 +32,6 @@ on:
 jobs:
   deploy:
     name: Deploy Rails to ECS
-    needs: build
     uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
     with:
       environment-name: stage
@@ -52,7 +51,6 @@ on:
 jobs:
   deploy:
     name: Deploy Rails to ECS
-    needs: build
     uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
     with:
       environment-name: prod
