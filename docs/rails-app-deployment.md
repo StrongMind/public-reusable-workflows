@@ -29,6 +29,7 @@ on:
     types:
       - completed
 
+jobs:
   deploy:
     name: Deploy Rails to ECS
     needs: build
