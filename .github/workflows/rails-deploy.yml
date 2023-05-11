@@ -34,12 +34,12 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
-    - name: Set environment variables
-      run: |
-        for i in "${{ secrets.ENV_VARS }}"
-        do
-          printf "%s\n" $i >> $GITHUB_ENV
-        done
+#    - name: Set environment variables
+#      run: |
+#        for i in "${{ secrets.ENV_VARS }}"
+#        do
+#          printf "%s\n" $i >> $GITHUB_ENV
+#        done
 
     - name: Deploy with Pulumi
       env:
