@@ -6,11 +6,6 @@ on:
       environment-name:
         required: true
         type: string
-    secrets:
-      env_vars:
-        description: List of environment variables to set up, given in env=value format.
-        required: false
-        type: string
 
 env:
   AWS_REGION: us-west-2
@@ -40,9 +35,9 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Set environment variables
-      if: ${{ secrets.env_vars }}
+      if: ${{ secrets.ENV_VARS }}
       run: |
-        for i in "${{ secrets.env_vars }}"
+        for i in "${{ secrets.ENV_VARS }}"
         do
           printf "%s\n" $i >> $GITHUB_ENV
         done
