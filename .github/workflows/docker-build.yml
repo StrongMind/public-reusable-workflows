@@ -30,7 +30,7 @@ jobs:
       - name: Test docker
         run: |
           docker build -t test-docker .
-          CONTAINER_ID=$(docker run -e RAILS_ENV=test ${{ inputs.test_docker_run_extra_params }} -d test-docker)
+          CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d test-docker)
           echo "Starting docker container $CONTAINER_ID and waiting for ${{ inputs.test_docker_timeout }} seconds"
           sleep ${{ inputs.test_docker_timeout }}
           OUTPUT=$(docker logs $CONTAINER_ID --tail 20)
