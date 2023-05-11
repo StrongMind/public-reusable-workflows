@@ -10,6 +10,7 @@ on:
         default: ""
       test_docker_timeout:
         description: Number of seconds to wait for docker to start
+        required: false
         type: number
         default: 15
 
