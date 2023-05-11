@@ -35,7 +35,6 @@ jobs:
       uses: aws-actions/amazon-ecr-login@v1
 
     - name: Set environment variables
-      if: ${{ secrets.ENV_VARS }}
       run: |
         for i in "${{ secrets.ENV_VARS }}"
         do
