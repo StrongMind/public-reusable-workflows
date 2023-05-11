@@ -30,6 +30,9 @@ on:
 
   push:
     branches: main
+  
+  pull_request:
+    branches: main
 
 jobs:
   build:
@@ -45,12 +48,13 @@ name: Deploy to stage
 on:
   workflow_run:
     workflows: [Build]
-    types:
-      - completed
+    branches: [main]
+    types: [completed]
 
 jobs:
   deploy:
     name: Deploy Rails to ECS
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
     with:
       environment-name: stage
