@@ -6,6 +6,10 @@ on:
       environment-name:
         required: true
         type: string
+      env_vars:
+        description: List of environment variables to set up, given in env=value format.
+        required: false
+        type: string
 
 env:
   AWS_REGION: us-west-2
@@ -33,6 +37,14 @@ jobs:
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
+
+    - name: Set environment variables
+      if: ${{ inputs.env_vars }}
+      run: |
+        for i in "${{ inputs.env_vars }}"
+        do
+          printf "%s\n" $i >> $GITHUB_ENV
+        done
 
     - name: Deploy with Pulumi
       env:
