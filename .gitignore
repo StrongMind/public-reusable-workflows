@@ -145,3 +145,5 @@ config/
 
 test.*
 temp.file
+my.secrets
+.DS_Store

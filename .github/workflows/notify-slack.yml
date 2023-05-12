@@ -27,10 +27,12 @@ jobs:
       run: |
         delimiter="$(openssl rand -hex 8)"
         MSG=$(git log --format=%B -n 1 ${{ github.sha }})
+        AUTHOR_NAME=$(git log --format=%an -n 1 ${{ github.sha }})
         MSG="${MSG//$'\n'/\\n}"
         echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
         echo "${MSG}" >> "$GITHUB_OUTPUT"
         echo "${delimiter}" >> "${GITHUB_OUTPUT}"
+        echo "author_name=${AUTHOR_NAME}" >> "${GITHUB_OUTPUT}"
     - name: Send message to slack
       id: slack
       uses: slackapi/slack-github-action@v1.23.0
@@ -45,6 +47,7 @@ jobs:
             "commit_message": "${{ steps.get-commit-message.outputs.message }}",
             "jira_ticket": "${{ github.event.inputs.jira-ticket }}",
             "actor": "${{ github.actor }}",
+            "actor_name": "${{ steps.get-commit-message.outputs.author_name }}",
             "actor_url": "${{ github.server_url }}/${{ github.actor }}",
             "actor_avatar": "${{ github.event.sender.avatar_url }}",
             "workflow_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
