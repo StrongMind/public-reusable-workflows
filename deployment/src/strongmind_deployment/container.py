@@ -52,10 +52,10 @@ class ContainerComponent(pulumi.ComponentResource):
             target_type="ip",
             health_check=aws.lb.TargetGroupHealthCheckArgs(
                 enabled=True,
-                path="/",
+                path="/up",
                 port=str(self.container_port),
                 protocol="HTTP",
-                matcher="200-399",
+                matcher="200",
                 interval=30,
                 timeout=5,
                 healthy_threshold=5,
