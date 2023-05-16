@@ -164,39 +164,43 @@ def describe_a_pulumi_containerized_app():
 
             def describe_target_group():
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_port(sut, container_port):
+                def it_sets_the_target_group_port(sut, container_port):
                     return assert_output_equals(sut.target_group.port, container_port)
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_enabled(sut):
+                def it_sets_the_target_group_target_type(sut):
+                    return assert_output_equals(sut.target_group.target_type, "ip")
+
+                @pulumi.runtime.test
+                def it_sets_the_target_group_health_check_enabled(sut):
                     return assert_output_equals(sut.target_group.health_check.enabled, True)
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_healthy_threshold(sut):
+                def it_sets_the_target_group_health_check_healthy_threshold(sut):
                     return assert_output_equals(sut.target_group.health_check.healthy_threshold, 5)
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_unhealthy_threshold(sut):
+                def it_sets_the_target_group_health_check_unhealthy_threshold(sut):
                     return assert_output_equals(sut.target_group.health_check.unhealthy_threshold, 2)
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_interval(sut):
+                def it_sets_the_target_group_health_check_interval(sut):
                     return assert_output_equals(sut.target_group.health_check.interval, 30)
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_matcher_to_200(sut):
+                def it_sets_the_target_group_health_check_matcher_to_200(sut):
                     return assert_output_equals(sut.target_group.health_check.matcher, "200")
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_path_to_up(sut):
+                def it_sets_the_target_group_health_check_path_to_up(sut):
                     return assert_output_equals(sut.target_group.health_check.path, "/up")
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_protocol(sut):
+                def it_sets_the_target_group_health_check_protocol(sut):
                     return assert_output_equals(sut.target_group.health_check.protocol, "HTTP")
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_timeout(sut):
+                def it_sets_the_target_group_health_check_timeout(sut):
                     return assert_output_equals(sut.target_group.health_check.timeout, 5)
 
             def describe_the_load_balancer_listener_for_https():
@@ -216,15 +220,19 @@ def describe_a_pulumi_containerized_app():
                 def it_sets_the_certificate_arn(listener, sut):
                     return assert_outputs_equal(listener.certificate_arn, sut.cert.arn)
 
+                @pulumi.runtime.test
                 def it_sets_the_port(listener):
                     return assert_output_equals(listener.port, 443)
 
+                @pulumi.runtime.test
                 def it_sets_the_protocol(listener):
                     return assert_output_equals(listener.protocol, "HTTPS")
 
+                @pulumi.runtime.test
                 def it_forwards_to_the_target_group(listener, target_group_arn):
                     return assert_output_equals(listener.default_actions[0].target_group_arn, target_group_arn)
 
+                @pulumi.runtime.test
                 def it_forwards(listener):
                     return assert_output_equals(listener.default_actions[0].type, "forward")
 
@@ -241,23 +249,34 @@ def describe_a_pulumi_containerized_app():
                 def it_sets_the_load_balancer_arn(listener, load_balancer_arn):
                     return assert_output_equals(listener.load_balancer_arn, load_balancer_arn)
 
+                @pulumi.runtime.test
                 def it_sets_the_port(listener):
                     return assert_output_equals(listener.port, 80)
 
+                @pulumi.runtime.test
                 def it_sets_the_protocol(listener):
                     return assert_output_equals(listener.protocol, "HTTP")
 
-                def it_redirects_to_443(listener):
-                    return assert_output_equals(listener.default_actions[0].redirect.port, "443")
+                @pytest.fixture
+                def redirect_action(listener):
+                    return listener.default_actions[0]
 
-                def it_redirects_to_https(listener):
-                    return assert_output_equals(listener.default_actions[0].redirect.protocol, "HTTPS")
+                @pulumi.runtime.test
+                def it_redirects_to_443(redirect_action):
+                    return assert_output_equals(redirect_action.redirect.port, "443")
 
-                def it_redirects_with_301(listener):
-                    return assert_output_equals(listener.default_actions[0].redirect.status_code, "HTTP_301")
+                @pulumi.runtime.test
+                def it_redirects_to_https(redirect_action):
+                    return assert_output_equals(redirect_action.redirect.protocol, "HTTPS")
 
-                def it_redirects(listener):
-                    return assert_output_equals(listener.default_actions[0].type, "redirect")
+                @pulumi.runtime.test
+                def it_redirects_with_301(redirect_action):
+                    return assert_output_equals(redirect_action.redirect.status_code, "HTTP_301")
+
+                @pulumi.runtime.test
+                def it_redirects(redirect_action):
+                    return assert_output_equals(redirect_action.type, "redirect")
+
 
         @pulumi.runtime.test
         def describe_the_fargate_service():

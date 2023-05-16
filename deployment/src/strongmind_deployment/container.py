@@ -44,12 +44,15 @@ class ContainerComponent(pulumi.ComponentResource):
                                            opts=pulumi.ResourceOptions(parent=self),
                                            )
 
+        default_vpc = awsx.ec2.DefaultVpc("default_vpc")
+
         self.target_group = aws.lb.TargetGroup(
             "targetgroup",
             name=project_stack,
             port=self.container_port,
             protocol="HTTP",
             target_type="ip",
+            vpc_id=default_vpc.vpc_id,
             health_check=aws.lb.TargetGroupHealthCheckArgs(
                 enabled=True,
                 path="/up",
