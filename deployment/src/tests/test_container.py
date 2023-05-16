@@ -184,12 +184,12 @@ def describe_a_pulumi_containerized_app():
                     return assert_output_equals(sut.target_group.health_check.interval, 30)
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_matcher(sut):
-                    return assert_output_equals(sut.target_group.health_check.matcher, "200-399")
+                def it_sets_the_default_target_group_health_check_matcher_to_200(sut):
+                    return assert_output_equals(sut.target_group.health_check.matcher, "200")
 
                 @pulumi.runtime.test
-                def it_sets_the_default_target_group_health_check_path(sut):
-                    return assert_output_equals(sut.target_group.health_check.path, "/")
+                def it_sets_the_default_target_group_health_check_path_to_up(sut):
+                    return assert_output_equals(sut.target_group.health_check.path, "/up")
 
                 @pulumi.runtime.test
                 def it_sets_the_default_target_group_health_check_protocol(sut):
