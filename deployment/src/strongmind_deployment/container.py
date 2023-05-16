@@ -43,6 +43,25 @@ class ContainerComponent(pulumi.ComponentResource):
                                            tags=self.tags,
                                            opts=pulumi.ResourceOptions(parent=self),
                                            )
+
+        self.target_group = aws.lb.TargetGroup(
+            "targetgroup",
+            name=project_stack,
+            port=self.container_port,
+            protocol="HTTP",
+            target_type="ip",
+            health_check=aws.lb.TargetGroupHealthCheckArgs(
+                enabled=True,
+                path="/",
+                port=str(self.container_port),
+                protocol="HTTP",
+                matcher="200-399",
+                interval=30,
+                timeout=5,
+                healthy_threshold=5,
+                unhealthy_threshold=2,
+            ),
+        )
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(
             "loadbalancer",
             name=project_stack,
@@ -54,7 +73,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.dns(project)
 
         load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
-        target_group_arn = kwargs.get('target_group_arn', self.load_balancer.default_target_group.arn)
+        target_group_arn = kwargs.get('target_group_arn', self.target_group.arn)
         self.load_balancer_listener = aws.lb.Listener(
             "listener443",
             load_balancer_arn=load_balancer_arn,
@@ -117,7 +136,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
                     container_port=self.container_port,
                     host_port=self.container_port,
-                    target_group=self.load_balancer.default_target_group,
+                    target_group=self.target_group,
                 )],
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
