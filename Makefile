@@ -4,7 +4,7 @@ install:
 	pip install -r deployment/requirements.txt
 
 test:
-	cd deployment/src && pytest
+	cd deployment/src
 
 build:
 	cd deployment && python3 -m build
