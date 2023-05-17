@@ -13,11 +13,18 @@ class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.target_group = None
+        self.load_balancer_listener_redirect_http_to_https = None
+        self.load_balancer_listener = None
+        self.load_balancer = None
         self.cert_validation_cert = None
         self.cert_validation_record = None
         self.cert = None
         self._security_group_name = None
         self.cname_record = None
+        self.need_load_balancer = kwargs.get('need_load_balancer')
+        if self.need_load_balancer is None:
+            self.need_load_balancer = True
         self.container_image = kwargs.get('container_image')
         self.app_path = kwargs.get('app_path') or './'
         self.container_port = kwargs.get('container_port') or 3000
@@ -39,12 +46,64 @@ class ContainerComponent(pulumi.ComponentResource):
             "environment": self.env_name,
         }
 
-        self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                           name=project_stack,
-                                           tags=self.tags,
-                                           opts=pulumi.ResourceOptions(parent=self),
-                                           )
+        self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
+        if self.ecs_cluster_arn is None:
+            self.ecs_cluster = aws.ecs.Cluster("cluster",
+                                               name=project_stack,
+                                               tags=self.tags,
+                                               opts=pulumi.ResourceOptions(parent=self),
+                                               )
+            self.ecs_cluster_arn = self.ecs_cluster.arn
 
+        if self.need_load_balancer:
+            self.setup_load_balancer(kwargs, project, project_stack)
+
+        logs = aws.cloudwatch.LogGroup(
+            f'log',
+            retention_in_days=14,
+            name=f'/aws/ecs/{project_stack}',
+            tags=self.tags
+        )
+        task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
+            skip_destroy=True,
+            family=project_stack,
+            container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+                name=project_stack,
+                log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+                    log_driver="awslogs",
+                    options={
+                        "awslogs-group": logs.name,
+                        "awslogs-region": "us-west-2",
+                        "awslogs-stream-prefix": "container",
+                    },
+                ),
+                image=self.container_image,
+                cpu=self.cpu,
+                memory=self.memory,
+                entry_point=self.entry_point,
+                essential=True,
+                port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
+                    container_port=self.container_port,
+                    host_port=self.container_port,
+                    target_group=self.target_group,
+                )],
+                environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
+            )
+        )
+        self.fargate_service = awsx.ecs.FargateService(
+            "service",
+            name=project_stack,
+            cluster=self.ecs_cluster_arn,
+            continue_before_steady_state=True,
+            assign_public_ip=True,
+            task_definition_args=task_definition_args,
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        self.register_outputs({})
+
+    def setup_load_balancer(self, kwargs, project, project_stack):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
 
         self.target_group = aws.lb.TargetGroup(
@@ -66,6 +125,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 unhealthy_threshold=2,
             ),
         )
+
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(
             "loadbalancer",
             name=project_stack,
@@ -73,9 +133,7 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-
         self.dns(project)
-
         load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
         target_group_arn = kwargs.get('target_group_arn', self.target_group.arn)
         self.load_balancer_listener = aws.lb.Listener(
@@ -113,51 +171,6 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-
-        logs = aws.cloudwatch.LogGroup(
-            f'log',
-            retention_in_days=14,
-            name=f'/aws/ecs/{project_stack}',
-            tags=self.tags
-        )
-        task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
-            skip_destroy=True,
-            family=project_stack,
-            container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=project_stack,
-                log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
-                    log_driver="awslogs",
-                    options={
-                        "awslogs-group": logs.name,
-                        "awslogs-region": "us-west-2",
-                        "awslogs-stream-prefix": "container",
-                    },
-                ),
-                image=self.container_image,
-                cpu=self.cpu,
-                memory=self.memory,
-                entry_point=self.entry_point,
-                essential=True,
-                port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
-                    container_port=self.container_port,
-                    host_port=self.container_port,
-                    target_group=self.target_group,
-                )],
-                environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
-            )
-        )
-        self.fargate_service = awsx.ecs.FargateService(
-            "service",
-            name=project_stack,
-            cluster=self.ecs_cluster.arn,
-            continue_before_steady_state=True,
-            assign_public_ip=True,
-            task_definition_args=task_definition_args,
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self),
-        )
-
-        self.register_outputs({})
 
     def dns(self, name):
         if self.env_name != "prod":
