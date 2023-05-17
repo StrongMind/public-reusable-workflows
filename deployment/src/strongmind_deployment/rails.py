@@ -13,6 +13,7 @@ from strongmind_deployment.redis import RedisComponent
 class RailsComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
         self.db_password = None
@@ -95,15 +96,23 @@ class RailsComponent(pulumi.ComponentResource):
                                                 **self.kwargs
                                                 )
 
+        self.need_worker = self.kwargs.get('need_worker', None)
+        if self.need_worker is None:
+            # If we don't know if we need a worker, check for sidekiq in the Gemfile
+            self.need_worker = os.path.exists('../Gemfile') and 'sidekiq' in open('../Gemfile').read()
+
+        if self.need_worker:
+            self.setup_worker()
+
+    def setup_worker(self):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
         self.kwargs['entry_point'] = worker_entry_point
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')
-        self.kwargs['app_path'] = self.kwargs['worker_app_path']
+        self.kwargs['app_path'] = self.kwargs.get('worker_app_path')
         self.kwargs['need_load_balancer'] = False
         self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
-
-        self.worker_container = ContainerComponent("worker_container",
+        self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self),
                                                    **self.kwargs
                                                    )

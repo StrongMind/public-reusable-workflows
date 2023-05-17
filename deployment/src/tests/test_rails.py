@@ -150,6 +150,7 @@ def describe_a_pulumi_rails_app():
                                                          container_port=container_port,
                                                          cpu=cpu,
                                                          memory=memory,
+                                                         need_worker=True,
                                                          worker_entry_point=worker_container_entry_point,
                                                          worker_app_path=worker_container_app_path,
                                                          worker_cpu=worker_container_cpu,

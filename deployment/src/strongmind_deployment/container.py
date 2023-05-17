@@ -36,6 +36,8 @@ class ContainerComponent(pulumi.ComponentResource):
         stack = pulumi.get_stack()
         project = pulumi.get_project()
         project_stack = f"{project}-{stack}"
+        if name != 'container':
+            project_stack = f"{project_stack}-{name}"
 
         self.tags = {
             "product": project,
@@ -56,8 +58,11 @@ class ContainerComponent(pulumi.ComponentResource):
         if self.need_load_balancer:
             self.setup_load_balancer(kwargs, project, project_stack)
 
+        log_name = 'log'
+        if name != 'container':
+            log_name = f'{name}-log'
         logs = aws.cloudwatch.LogGroup(
-            f'log',
+            log_name,
             retention_in_days=14,
             name=f'/aws/ecs/{project_stack}',
             tags=self.tags
@@ -91,8 +96,11 @@ class ContainerComponent(pulumi.ComponentResource):
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
+        service_name = 'service'
+        if name != 'container':
+            service_name = f'{name}-service'
         self.fargate_service = awsx.ecs.FargateService(
-            "service",
+            service_name,
             name=project_stack,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
