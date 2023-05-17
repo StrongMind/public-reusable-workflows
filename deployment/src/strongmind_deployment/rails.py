@@ -16,7 +16,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.cname_record = None
         self.firewall_rule = None
         self.db_password = None
-        self.container = None
+        self.web_container = None
+        self.worker_container = None
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
@@ -50,7 +51,7 @@ class RailsComponent(pulumi.ComponentResource):
     def security(self):
         container_security_group_id = self.kwargs.get(
             'container_security_group_id',
-            self.container.fargate_service.service.network_configuration.security_groups[0])  # pragma: no cover
+            self.web_container.fargate_service.service.network_configuration.security_groups[0])  # pragma: no cover
 
         self.firewall_rule = aws.ec2.SecurityGroupRule(
             'rds_security_group_rule',
@@ -62,7 +63,7 @@ class RailsComponent(pulumi.ComponentResource):
             source_security_group_id=container_security_group_id,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance,
-                                                    self.container])
+                                                    self.web_container])
         )
 
     def ecs(self):
@@ -82,10 +83,30 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['env_vars'] = self.env_vars
         self.kwargs['container_image'] = container_image
 
-        self.container = ContainerComponent("container",
-                                            pulumi.ResourceOptions(parent=self),
-                                            **self.kwargs
-                                            )
+        web_entry_point = self.kwargs.get('web_entry_point', ["sh", "-c",
+                                                              "rails db:prepare db:migrate db:seed && "
+                                                              "rails assets:precompile && "
+                                                              "rails server --port 3000 -b 0.0.0.0"])
+
+        self.kwargs['entry_point'] = web_entry_point
+
+        self.web_container = ContainerComponent("container",
+                                                pulumi.ResourceOptions(parent=self),
+                                                **self.kwargs
+                                                )
+
+        worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
+        self.kwargs['entry_point'] = worker_entry_point
+        self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
+        self.kwargs['memory'] = self.kwargs.get('worker_memory')
+        self.kwargs['app_path'] = self.kwargs['worker_app_path']
+        self.kwargs['need_load_balancer'] = False
+        self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
+
+        self.worker_container = ContainerComponent("worker_container",
+                                                   pulumi.ResourceOptions(parent=self),
+                                                   **self.kwargs
+                                                   )
 
     def rds(self, project_stack):
         self.db_password = random.RandomPassword("password",

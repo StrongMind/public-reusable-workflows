@@ -22,14 +22,12 @@ class ContainerComponent(pulumi.ComponentResource):
         self.cert = None
         self._security_group_name = None
         self.cname_record = None
-        self.need_load_balancer = kwargs.get('need_load_balancer')
-        if self.need_load_balancer is None:
-            self.need_load_balancer = True
+        self.need_load_balancer = kwargs.get('need_load_balancer', True)
         self.container_image = kwargs.get('container_image')
-        self.app_path = kwargs.get('app_path') or './'
-        self.container_port = kwargs.get('container_port') or 3000
-        self.cpu = kwargs.get('cpu') or 256
-        self.memory = kwargs.get("memory") or 512
+        self.app_path = kwargs.get('app_path', './')
+        self.container_port = kwargs.get('container_port', 3000)
+        self.cpu = kwargs.get('cpu', 256)
+        self.memory = kwargs.get("memory", 512)
         self.entry_point = kwargs.get('entry_point')
         self.env_vars = kwargs.get('env_vars', {})
         self.kwargs = kwargs
@@ -64,6 +62,13 @@ class ContainerComponent(pulumi.ComponentResource):
             name=f'/aws/ecs/{project_stack}',
             tags=self.tags
         )
+        port_mappings = None
+        if self.target_group is not None:
+            port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
+                    container_port=self.container_port,
+                    host_port=self.container_port,
+                    target_group=self.target_group,
+                )]
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
             family=project_stack,
@@ -82,11 +87,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 memory=self.memory,
                 entry_point=self.entry_point,
                 essential=True,
-                port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
-                    container_port=self.container_port,
-                    host_port=self.container_port,
-                    target_group=self.target_group,
-                )],
+                port_mappings=port_mappings,
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
