@@ -52,6 +52,10 @@ def describe_a_pulumi_containerized_app():
         return faker.random_int()
 
     @pytest.fixture
+    def entry_point(faker):
+        return f'./{faker.word()}'
+
+    @pytest.fixture
     def aws_account_id(faker):
         return faker.random_int()
 
@@ -104,12 +108,17 @@ def describe_a_pulumi_containerized_app():
         return [FakeValidationOption(resource_record_name, resource_record_value, resource_record_type)]
 
     @pytest.fixture
+    def need_load_balancer():
+        return True
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_name,
             app_path,
             container_port,
             cpu,
             memory,
+            entry_point,
             container_image,
             env_vars,
             load_balancer_arn,
@@ -124,6 +133,7 @@ def describe_a_pulumi_containerized_app():
                                                                   container_port=container_port,
                                                                   cpu=cpu,
                                                                   memory=memory,
+                                                                  entry_point=entry_point,
                                                                   container_image=container_image,
                                                                   env_vars=env_vars,
                                                                   load_balancer_arn=load_balancer_arn,
@@ -152,6 +162,21 @@ def describe_a_pulumi_containerized_app():
         @pulumi.runtime.test
         def it_has_environment_variables(sut, app_name, env_vars):
             assert sut.env_vars == env_vars
+
+        def describe_with_no_load_balancer():
+            @pytest.fixture
+            def need_load_balancer():
+                return False
+
+            @pytest.fixture
+            def sut(need_load_balancer):
+                import strongmind_deployment.container
+                return strongmind_deployment.container.ContainerComponent("container",
+                                                                          need_load_balancer=need_load_balancer)
+
+            @pulumi.runtime.test
+            def test_it_does_not_create_a_load_balancer(sut, need_load_balancer):
+                assert not sut.load_balancer
 
         def describe_load_balancer():
             @pulumi.runtime.test
@@ -295,13 +320,14 @@ def describe_a_pulumi_containerized_app():
                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
-            def it_has_task_definition(sut, container_port, cpu, memory, stack, app_name):
+            def it_has_task_definition(sut, container_port, cpu, memory, entry_point, stack, app_name):
                 def check_task_definition(args):
                     task_definition_dict = args[0]
                     container = task_definition_dict["container"]
                     assert container["cpu"] == cpu
                     assert container["memory"] == memory
                     assert container["essential"]
+                    assert container["entryPoint"] == entry_point
                     assert container["portMappings"][0]["containerPort"] == container_port
                     assert container["portMappings"][0]["hostPort"] == container_port
                     assert container["logConfiguration"]["logDriver"] == "awslogs"
@@ -414,3 +440,19 @@ def describe_a_pulumi_containerized_app():
         def it_adds_validation_cert_with_fqdns(sut):
             return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
                                         [sut.cert_validation_record.hostname])
+
+    def describe_with_existing_cluster():
+        @pytest.fixture
+        def existing_cluster_arn(faker):
+            return faker.word()
+
+        @pytest.fixture
+        def sut(existing_cluster_arn):
+            import strongmind_deployment.container
+            return strongmind_deployment.container.ContainerComponent("container",
+                                                                      need_load_balancer=False,
+                                                                      ecs_cluster_arn=existing_cluster_arn)
+
+        @pulumi.runtime.test
+        def it_uses_existing_cluster(sut, existing_cluster_arn):
+            return assert_output_equals(sut.fargate_service.cluster, existing_cluster_arn)
