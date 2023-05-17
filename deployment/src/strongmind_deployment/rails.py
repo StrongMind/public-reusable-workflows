@@ -39,6 +39,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.redis = RedisComponent("redis",
                                     env_vars=self.env_vars)
+        export("redis_endpoint", Output.concat(self.redis.cluster.cache_nodes[0]['address']))
 
         self.ecs()
 
@@ -132,4 +133,6 @@ class RailsComponent(pulumi.ComponentResource):
                              ':5432/app')
 
     def get_redis_endpoint(self):
-        return self.redis.cluster.cache_nodes[0]['address']
+        return Output.concat('redis://',
+                             self.redis.cluster.cache_nodes[0]['address'],
+                             ':6379')

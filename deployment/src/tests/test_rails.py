@@ -331,7 +331,10 @@ def describe_a_pulumi_rails_app():
     def test_it_sends_the_redis_cluster_url_to_the_ecs_environment(sut):
         def check_redis_endpoint(args):
             cache_nodes, redis_url = args
-            assert cache_nodes[0]['address'] == redis_url
+            endpoint = cache_nodes[0]['address']
+            port = cache_nodes[0]['port']
+            expected_redis_url = f'redis://{endpoint}:{port}'
+            assert redis_url == expected_redis_url
         return pulumi.Output.all(
             sut.redis.cluster.cache_nodes,
             sut.env_vars["REDIS_URL"]).apply(check_redis_endpoint)
