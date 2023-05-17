@@ -23,6 +23,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.container_port = kwargs.get('container_port') or 3000
         self.cpu = kwargs.get('cpu') or 256
         self.memory = kwargs.get("memory") or 512
+        self.entry_point = kwargs.get('entry_point')
         self.env_vars = kwargs.get('env_vars', {})
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
@@ -135,6 +136,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 image=self.container_image,
                 cpu=self.cpu,
                 memory=self.memory,
+                entry_point=self.entry_point,
                 essential=True,
                 port_mappings=[awsx.ecs.TaskDefinitionPortMappingArgs(
                     container_port=self.container_port,

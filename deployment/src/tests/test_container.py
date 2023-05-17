@@ -52,6 +52,10 @@ def describe_a_pulumi_containerized_app():
         return faker.random_int()
 
     @pytest.fixture
+    def entry_point(faker):
+        return f'./{faker.word()}'
+
+    @pytest.fixture
     def aws_account_id(faker):
         return faker.random_int()
 
@@ -110,6 +114,7 @@ def describe_a_pulumi_containerized_app():
             container_port,
             cpu,
             memory,
+            entry_point,
             container_image,
             env_vars,
             load_balancer_arn,
@@ -124,6 +129,7 @@ def describe_a_pulumi_containerized_app():
                                                                   container_port=container_port,
                                                                   cpu=cpu,
                                                                   memory=memory,
+                                                                  entry_point=entry_point,
                                                                   container_image=container_image,
                                                                   env_vars=env_vars,
                                                                   load_balancer_arn=load_balancer_arn,
@@ -295,13 +301,14 @@ def describe_a_pulumi_containerized_app():
                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
-            def it_has_task_definition(sut, container_port, cpu, memory, stack, app_name):
+            def it_has_task_definition(sut, container_port, cpu, memory, entry_point, stack, app_name):
                 def check_task_definition(args):
                     task_definition_dict = args[0]
                     container = task_definition_dict["container"]
                     assert container["cpu"] == cpu
                     assert container["memory"] == memory
                     assert container["essential"]
+                    assert container["entryPoint"] == entry_point
                     assert container["portMappings"][0]["containerPort"] == container_port
                     assert container["portMappings"][0]["hostPort"] == container_port
                     assert container["logConfiguration"]["logDriver"] == "awslogs"
