@@ -198,10 +198,10 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_cluster_url_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                actual_url, endpoint, master_username, master_password = args
-                expected_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/app'
+                postgres_url, endpoint, master_username, master_password = args
+                expected_postgres_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/app'
 
-                assert actual_url == expected_url
+                assert postgres_url == expected_postgres_url
 
             return pulumi.Output.all(
                 sut.container.env_vars["DATABASE_URL"],
@@ -320,5 +320,18 @@ def describe_a_pulumi_rails_app():
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_group):
         assert sut.firewall_rule
-        assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0])
-        assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
+        return assert_outputs_equal(sut.firewall_rule.security_group_id, sut.rds_serverless_cluster.vpc_security_group_ids[0]) \
+            and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
+
+    @pulumi.runtime.test
+    def it_has_redis(sut):
+        assert sut.redis
+
+    @pulumi.runtime.test
+    def test_it_sends_the_redis_cluster_url_to_the_ecs_environment(sut):
+        def check_redis_endpoint(args):
+            cache_nodes, redis_url = args
+            assert cache_nodes[0]['address'] == redis_url
+        return pulumi.Output.all(
+            sut.redis.cluster.cache_nodes,
+            sut.env_vars["REDIS_URL"]).apply(check_redis_endpoint)

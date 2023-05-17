@@ -48,6 +48,16 @@ def get_pulumi_mocks(faker, fake_password=None):
                     **args.inputs,
                     "arn": f"arn:aws:acm:us-west-2:123456789012:certificate/{faker.word()}",
                 }
+            if args.typ == "aws:elasticache/cluster:Cluster":
+                outputs = {
+                    **args.inputs,
+                    "cacheNodes": [
+                        {
+                            "address": f"{faker.domain_name()}.cache.amazonaws.com",
+                            "port": 6379,
+                        }
+                    ],
+                }
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):

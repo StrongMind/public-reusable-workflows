@@ -7,6 +7,7 @@ import pulumi_aws as aws
 from pulumi import export, Output
 
 from strongmind_deployment.container import ContainerComponent
+from strongmind_deployment.redis import RedisComponent
 
 
 class RailsComponent(pulumi.ComponentResource):
@@ -35,6 +36,9 @@ class RailsComponent(pulumi.ComponentResource):
         }
 
         self.rds(project_stack)
+
+        self.redis = RedisComponent("redis",
+                                    env_vars=self.env_vars)
 
         self.ecs()
 
@@ -69,6 +73,7 @@ class RailsComponent(pulumi.ComponentResource):
             'DB_USERNAME': self.rds_serverless_cluster.master_username,
             'DB_PASSWORD': self.rds_serverless_cluster.master_password,
             'DATABASE_URL': self.get_database_url(),
+            'REDIS_URL': self.get_redis_endpoint(),
             'RAILS_ENV': 'production'
         }
 
@@ -125,3 +130,6 @@ class RailsComponent(pulumi.ComponentResource):
                              '@',
                              self.rds_serverless_cluster.endpoint,
                              ':5432/app')
+
+    def get_redis_endpoint(self):
+        return self.redis.cluster.cache_nodes[0]['address']
