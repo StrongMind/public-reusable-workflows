@@ -26,16 +26,6 @@ def describe_a_pulumi_containerized_app():
         return get_pulumi_mocks(faker)
 
     @pytest.fixture
-    def pulumi_set_mocks(pulumi_mocks, app_name, stack):
-        pulumi.runtime.set_mocks(
-            pulumi_mocks,
-            project=app_name,
-            stack=stack,
-            preview=False
-        )
-        yield True
-
-    @pytest.fixture
     def app_path(faker):
         return f'./{faker.word()}'
 
@@ -104,7 +94,9 @@ def describe_a_pulumi_containerized_app():
                 self.resource_record_name = name
                 self.resource_record_value = value
                 self.resource_record_type = type
+
             pass
+
         return [FakeValidationOption(resource_record_name, resource_record_value, resource_record_type)]
 
     @pytest.fixture
@@ -186,6 +178,7 @@ def describe_a_pulumi_containerized_app():
             @pulumi.runtime.test
             def it_sets_the_load_balancer_name(sut, stack, app_name):
                 return assert_output_equals(sut.load_balancer.name, f"{app_name}-{stack}")
+
 
             def describe_target_group():
                 @pulumi.runtime.test
@@ -301,7 +294,6 @@ def describe_a_pulumi_containerized_app():
                 @pulumi.runtime.test
                 def it_redirects(redirect_action):
                     return assert_output_equals(redirect_action.type, "redirect")
-
 
         @pulumi.runtime.test
         def describe_the_fargate_service():

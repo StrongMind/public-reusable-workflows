@@ -1,3 +1,4 @@
+from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock
 
 import pulumi
@@ -48,6 +49,11 @@ def get_pulumi_mocks(faker, fake_password=None):
                     **args.inputs,
                     "arn": f"arn:aws:acm:us-west-2:123456789012:certificate/{faker.word()}",
                 }
+            if args.typ == "aws:lb/targetGroup:TargetGroup":
+                outputs = {
+                    **args.inputs,
+                    "arn": f"arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/{faker.word()}",
+                }
             if args.typ == "aws:elasticache/cluster:Cluster":
                 outputs = {
                     **args.inputs,
@@ -64,3 +70,28 @@ def get_pulumi_mocks(faker, fake_password=None):
             return {}
 
     return PulumiMocks()
+
+
+class ImmediateExecutor(ThreadPoolExecutor):
+    """This removes multithreading from current tests. Unfortunately in
+    presence of multithreading the tests are flaky. The proper fix is
+    postponed - see https://github.com/pulumi/pulumi/issues/7663
+    """
+
+    def __init__(self):
+        super()
+        self._default_executor = ThreadPoolExecutor()
+
+    def submit(self, fn, *args, **kwargs):
+        v = fn(*args, **kwargs)
+        return self._default_executor.submit(ImmediateExecutor._identity, v)
+
+    def map(self, func, *iterables, timeout=None, chunksize=1):
+        raise Exception('map not implemented')
+
+    def shutdown(self, wait=True, cancel_futures=False):
+        raise Exception('shutdown not implemented')
+
+    @staticmethod
+    def _identity(x):
+        return x

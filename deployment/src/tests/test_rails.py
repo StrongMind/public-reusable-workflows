@@ -29,16 +29,6 @@ def describe_a_pulumi_rails_app():
         return get_pulumi_mocks(faker, master_db_password)
 
     @pytest.fixture
-    def pulumi_set_mocks(pulumi_mocks, app_name, stack):
-        pulumi.runtime.set_mocks(
-            pulumi_mocks,
-            project=app_name,
-            stack=stack,
-            preview=False
-        )
-        yield True
-
-    @pytest.fixture
     def app_path(faker):
         return f'./{faker.word()}'
 
