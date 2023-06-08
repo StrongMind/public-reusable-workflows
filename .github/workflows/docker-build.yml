@@ -13,6 +13,9 @@ on:
         required: false
         type: number
         default: 15
+    secrets:
+      test_docker_run_extra_parms_secrets:
+        required: false
 
 env:
   AWS_REGION: us-west-2
@@ -30,7 +33,7 @@ jobs:
       - name: Test docker
         run: |
           docker build -t test-docker .
-          CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d test-docker)
+          CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} ${{ secrets.test_docker_run_extra_parms_secrets }} -d test-docker)
           echo "Starting docker container $CONTAINER_ID and waiting for ${{ inputs.test_docker_timeout }} seconds"
           sleep ${{ inputs.test_docker_timeout }}
           OUTPUT=$(docker logs $CONTAINER_ID --tail 20)
