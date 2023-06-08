@@ -31,7 +31,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      if: ${{ !inputs.skip_test_docker }}
+
+        if: ${{ !inputs.skip_test_docker }}
       - name: Test docker
         run: |
           docker build -t test-docker .
