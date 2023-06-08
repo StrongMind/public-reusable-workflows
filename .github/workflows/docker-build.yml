@@ -17,6 +17,7 @@ on:
         description: Skip testing the dockerfile
         required: false
         type: boolean
+        default: true
 
 env:
   AWS_REGION: us-west-2
@@ -26,13 +27,13 @@ permissions:
 
 jobs:
   test-docker:
+    if: ${{ !inputs.skip_test_docker == 'true' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - if: ${{ !inputs.skip_test_docker == 'true' }}
-        name: Test docker
+      - name: Test docker
         run: |
           docker build -t test-docker .
           CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d test-docker)
