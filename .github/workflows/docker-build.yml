@@ -17,7 +17,7 @@ on:
         description: Skip testing the dockerfile
         required: false
         type: boolean
-        default: true
+        default: false
 
 env:
   AWS_REGION: us-west-2
@@ -27,7 +27,7 @@ permissions:
 
 jobs:
   test-docker:
-    if: ${{ !inputs.skip_test_docker == 'true' }}
+    if: ${{ !inputs.skip_test_docker == 'false' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
