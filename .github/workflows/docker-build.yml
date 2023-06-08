@@ -48,7 +48,6 @@ jobs:
           fi
   build-image:
     name: Build image
-    needs: test-docker
     runs-on: ubuntu-latest
     environment: containers
 
