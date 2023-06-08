@@ -17,7 +17,6 @@ on:
         description: Skip testing the dockerfile
         required: false
         type: boolean
-        default: true
 
 env:
   AWS_REGION: us-west-2
@@ -32,7 +31,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - if: ${{ !inputs.skip_test_docker }}
+      - if: ${{ !inputs.skip_test_docker == 'true' }}
         name: Test docker
         run: |
           docker build -t test-docker .
