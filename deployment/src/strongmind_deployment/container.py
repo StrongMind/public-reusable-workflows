@@ -75,7 +75,7 @@ class ContainerComponent(pulumi.ComponentResource):
                     target_group=self.target_group,
                 )]
         execution_role = aws.iam.Role(
-            "execution-role",
+            f"{project_stack}-exec-role",
             name=f"{project_stack}-exec-role",
             assume_role_policy=json.dumps(
                 {
@@ -94,7 +94,7 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
         aws.iam.RolePolicy(
-            "role-policy",
+            f"{project_stack}-policy",
             name=f"{project_stack}-policy",
             role=execution_role.id,
             policy=json.dumps(
