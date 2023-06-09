@@ -132,8 +132,6 @@ class ContainerComponent(pulumi.ComponentResource):
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
             family=project_stack,
-            execution_role=execution_role.arn,
-            task_role=execution_role.arn,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
                 name=project_stack,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
