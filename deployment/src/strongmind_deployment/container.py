@@ -74,6 +74,7 @@ class ContainerComponent(pulumi.ComponentResource):
                     host_port=self.container_port,
                     target_group=self.target_group,
                 )]
+
         execution_role = aws.iam.Role(
             f"{project_stack}-exec-role",
             name=f"{project_stack}-exec-role",
@@ -131,6 +132,8 @@ class ContainerComponent(pulumi.ComponentResource):
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
             family=project_stack,
+            execution_role=execution_role.arn,
+            task_role=execution_role.arn,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
                 name=project_stack,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
@@ -150,14 +153,6 @@ class ContainerComponent(pulumi.ComponentResource):
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
-        task_definition = awsx.ecs.FargateTaskDefinition(
-            f"{project_stack}-task",
-            task_definition_args=task_definition_args,
-            execution_role=execution_role.arn,
-            task_role=execution_role.arn,
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self),
-        )
         service_name = 'service'
         if name != 'container':
             service_name = f'{name}-service'
@@ -167,7 +162,7 @@ class ContainerComponent(pulumi.ComponentResource):
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
             assign_public_ip=True,
-            task_definition=task_definition,
+            task_definition_args=task_definition_args,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
