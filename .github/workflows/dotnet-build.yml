@@ -1,0 +1,118 @@
+name: 'build' 
+
+on: 
+  workflow_call:
+    inputs: 
+      project_path: 
+        required: false
+        type: string
+      project_path_test:
+        required: false
+        type: string
+      test:
+        required: true
+        type: boolean
+      maven_packages:
+        required: false
+        type: boolean        
+      strongmind_packages:
+        required: false
+        type: boolean
+      nightswatch_packages:
+        required: false
+        type: boolean
+      atlas_packages:
+        required: false
+        type: boolean
+      npm_directory:
+        required: false
+        type: string
+      node-version:
+        required: false
+        type: string
+        default: '16.17'  
+      upload_source:
+        required: false
+        type: string
+        default: 'out'
+      artifact_name:
+        required: false
+        type: string
+      dotnet-version:
+        required: false
+        type: string
+
+
+env:
+  maven_packages: 'MavenPackages'
+  maven_source: 'https://strongmind.pkgs.visualstudio.com/_packaging/MavenPackages/nuget/v3/index.json'
+  strongmind_packages: 'StrongMindPackages'
+  strongmind_source: 'https://pkgs.dev.azure.com/strongmind/Strongmind/_packaging/StrongMindPackages/nuget/v3/index.json'
+  nightswatch_packages: 'NightsWatchPackages'
+  nightswatch_source: 'https://pkgs.dev.azure.com/strongmind/_packaging/NightsWatchPackages/nuget/v3/index.json'
+  atlas_packages: 'AtlasMavenAgregateFeed'
+  atlas_source: 'https://pkgs.dev.azure.com/strongmind/Strongmind/_packaging/AtlasMavenAgregateFeed/nuget/v3/index.json'
+  nuget_config_file: 'nuget.config'
+
+jobs:
+
+  Build-Upload:
+    name: Analyze
+    runs-on: windows-latest
+
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - if: ${{ inputs.dotnet-version }}
+      name: Setup .NET Core SDK ${{ inputs.dotnet-version }}
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ inputs.dotnet-version }}
+
+    - if: ${{ inputs.maven_packages }}
+      name: maven_packages
+      run: dotnet nuget update source ${{ env.maven_packages }} --source ${{ env.maven_source }} --configfile ${{ env.nuget_config_file }} --username az --password ${{ secrets.AZURE_DEVOPS_TOKEN }}
+ 
+    - if: ${{ inputs.strongmind_packages }}
+      name: strongmind_packages
+      run: dotnet nuget update source ${{ env.strongmind_packages }} --source ${{ env.strongmind_source }} --configfile ${{ env.nuget_config_file }} --username az --password ${{ secrets.AZURE_DEVOPS_TOKEN }}
+    
+    - if: ${{ inputs.nightswatch_packages }}
+      name: nightswatch_packages
+      run: dotnet nuget update source ${{ env.nightswatch_packages }} --source ${{ env.nightswatch_source }} --configfile ${{ env.nuget_config_file }} --username az --password ${{ secrets.AZURE_DEVOPS_TOKEN }}
+
+    - if: ${{ inputs.atlas_packages }}
+      name: atlas_packages
+      run: dotnet nuget update source ${{ env.atlas_packages }} --source ${{ env.atlas_source }} --configfile ${{ env.nuget_config_file }} --username az --password ${{ secrets.AZURE_DEVOPS_TOKEN }}
+
+    - if: ${{ inputs.npm_directory }}
+      name: setup nodejs
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ inputs.node-version }}
+        
+    - if: ${{ inputs.npm_directory }}
+      run: npm ci 
+      working-directory: ${{ inputs.npm_directory }}
+      
+    - if: ${{ inputs.npm_directory }}
+      run: npm run build:prod
+      working-directory: ${{ inputs.npm_directory }}
+        
+    - if: ${{ inputs.test }}
+      name: Unit Tests
+      run: dotnet test ${{ inputs.project_path_test }} --filter 'FullyQualifiedName!~IntegrationTests'
+                    
+    - name: Build
+      run: dotnet publish ${{ inputs.project_path }} --configuration Release --output .\${{ inputs.upload_source }}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ github.sha }}${{ inputs.artifact_name }}
+        path: '${{ github.workspace }}\${{ inputs.upload_source }}\*'
+
+ 
+
