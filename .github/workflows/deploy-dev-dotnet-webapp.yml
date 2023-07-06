@@ -1,0 +1,41 @@
+name: "Deploy Dev"
+
+on:
+  workflow_call:
+    inputs:
+      project_path_test:
+        required: false
+        type: string
+      artifact_name:
+        required: false
+        type: string
+
+
+jobs:
+  Deploy-to-Rollback:
+    name: Artifact Download
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download workflow artifact
+      uses: dawidd6/action-download-artifact@v2.24.0
+      with: 
+          workflow: dotnet-build.yml 
+          workflow_conclusion: success
+          name: ${{ github.sha }}${{ inputs.artifact_name }}
+          check_artifacts: true
+          search_artifacts: true
+    
+    - uses: azure/login@v1
+      with:
+        creds: '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}"}'
+           
+    - name: 'Azure WebApp Deploy'
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ vars.AZURE_WEBAPP_NAME_DEV }}
+        publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_DEV }}
+        package: '.'
+        slot-name: ${{ vars.slot_name_dev }}
+    - if: ${{ inputs.project_path_test }}
+      name: Integration Tests
+      run: dotnet test ${{ inputs.project_path_test }}
