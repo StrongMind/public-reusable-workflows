@@ -87,3 +87,16 @@ def describe_a_pulumi_redis_component():
             @pulumi.runtime.test
             def it_has_num_cache_nodes(sut, component_arguments):
                 return assert_output_equals(sut.cluster.num_cache_nodes, 2)
+
+    def describe_a_redis_queue_cluster():
+        @pytest.fixture
+        def sut(component_arguments):
+            import strongmind_deployment.redis
+
+            sut = strongmind_deployment.redis.QueueComponent("queue_redis",
+                                                             **component_arguments
+                                                             )
+            return sut
+
+        def it_has_a_parameter_group(sut):
+            assert sut.parameter_group
