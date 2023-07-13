@@ -115,6 +115,14 @@ def describe_a_pulumi_rails_app():
         return key
 
     @pytest.fixture
+    def redis_node_type():
+        return None
+
+    @pytest.fixture
+    def redis_num_cache_nodes():
+        return None
+
+    @pytest.fixture
     def sut(pulumi_set_mocks,
             app_path,
             container_port,
@@ -132,28 +140,38 @@ def describe_a_pulumi_rails_app():
             worker_container_app_path,
             worker_container_entry_point,
             worker_container_cpu,
-            worker_container_memory):
+            worker_container_memory,
+            redis_node_type,
+            redis_num_cache_nodes):
         import strongmind_deployment.rails
 
+        kwargs = {
+            "app_path": app_path,
+            "container_port": container_port,
+            "cpu": cpu,
+            "memory": memory,
+            "need_worker": True,
+            "worker_entry_point": worker_container_entry_point,
+            "worker_app_path": worker_container_app_path,
+            "worker_cpu": worker_container_cpu,
+            "worker_memory": worker_container_memory,
+            "container_security_group_id": ecs_security_group,
+            "load_balancer_arn": load_balancer_arn,
+            "target_group_arn": target_group_arn,
+            "load_balancer_dns_name": load_balancer_dns_name,
+            "domain_validation_options": domain_validation_options,
+            "zone_id": zone_id,
+            "env_vars": {
+                "ENVIRONMENT_NAME": environment
+            }
+        }
+        if redis_node_type:
+            kwargs["redis_node_type"] = redis_node_type
+        if redis_num_cache_nodes:
+            kwargs["redis_num_cache_nodes"] = redis_num_cache_nodes
+
         sut = strongmind_deployment.rails.RailsComponent("rails",
-                                                         app_path=app_path,
-                                                         container_port=container_port,
-                                                         cpu=cpu,
-                                                         memory=memory,
-                                                         need_worker=True,
-                                                         worker_entry_point=worker_container_entry_point,
-                                                         worker_app_path=worker_container_app_path,
-                                                         worker_cpu=worker_container_cpu,
-                                                         worker_memory=worker_container_memory,
-                                                         container_security_group_id=ecs_security_group,
-                                                         load_balancer_arn=load_balancer_arn,
-                                                         target_group_arn=target_group_arn,
-                                                         load_balancer_dns_name=load_balancer_dns_name,
-                                                         domain_validation_options=domain_validation_options,
-                                                         zone_id=zone_id,
-                                                         env_vars={
-                                                             "ENVIRONMENT_NAME": environment
-                                                         }
+                                                         **kwargs
                                                          )
         return sut
 
@@ -386,7 +404,7 @@ def describe_a_pulumi_rails_app():
             assert sut.redis
 
         @pulumi.runtime.test
-        def test_it_sends_the_redis_cluster_url_to_the_ecs_environment(sut):
+        def it_sends_the_redis_cluster_url_to_the_ecs_environment(sut):
             def check_redis_endpoint(args):
                 cache_nodes, redis_url = args
                 endpoint = cache_nodes[0]['address']
@@ -397,3 +415,20 @@ def describe_a_pulumi_rails_app():
             return pulumi.Output.all(
                 sut.redis.cluster.cache_nodes,
                 sut.env_vars["REDIS_URL"]).apply(check_redis_endpoint)
+
+        def describe_redis_cluster_with_scaling_overrides():
+            @pytest.fixture
+            def redis_node_type():
+                return "cache.t3.micro"
+
+            @pytest.fixture
+            def redis_num_cache_nodes():
+                return 2
+
+            @pulumi.runtime.test
+            def it_passes_node_type(sut, redis_node_type):
+                assert sut.redis.node_type == redis_node_type
+
+            @pulumi.runtime.test
+            def it_passes_node_count(sut, redis_num_cache_nodes):
+                assert sut.redis.num_cache_nodes == redis_num_cache_nodes

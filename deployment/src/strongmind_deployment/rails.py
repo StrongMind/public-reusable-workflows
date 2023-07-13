@@ -38,9 +38,17 @@ class RailsComponent(pulumi.ComponentResource):
         }
 
         self.rds(project_stack)
+        redis_kwargs = {}
+        if 'redis_node_type' in self.kwargs:
+            redis_kwargs['node_type'] = self.kwargs['redis_node_type']
+
+        if 'redis_num_cache_nodes' in self.kwargs:
+            redis_kwargs['num_cache_nodes'] = self.kwargs['redis_num_cache_nodes']
 
         self.redis = RedisComponent("redis",
-                                    env_vars=self.env_vars)
+                                    env_vars=self.env_vars,
+                                    **redis_kwargs
+                                    )
         export("redis_endpoint", Output.concat(self.redis.cluster.cache_nodes[0]['address']))
 
         self.ecs()
