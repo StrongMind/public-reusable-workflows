@@ -27,7 +27,7 @@ class RedisComponent(pulumi.ComponentResource):
         }
 
         self.cluster = aws.elasticache.Cluster(
-            "redis",
+            name,
             cluster_id=f'{stack}-{name}',
             engine="redis",
             node_type=self.node_type,

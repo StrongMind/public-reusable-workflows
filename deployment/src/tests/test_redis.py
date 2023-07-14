@@ -27,16 +27,20 @@ def describe_a_pulumi_redis_component():
         return get_pulumi_mocks(faker)
 
     @pytest.fixture
+    def name(faker):
+        return faker.word()
+
+    @pytest.fixture
     def component_arguments():
         return {}
 
     @pytest.fixture
     def sut(pulumi_set_mocks,
-            component_arguments
-            ):
+            component_arguments,
+            name):
         import strongmind_deployment.redis
 
-        sut = strongmind_deployment.redis.RedisComponent("redis",
+        sut = strongmind_deployment.redis.RedisComponent(name,
                                                          **component_arguments
                                                          )
         return sut
@@ -47,6 +51,13 @@ def describe_a_pulumi_redis_component():
     def describe_a_redis_cluster():
         def it_has_a_cluster(sut):
             assert sut.cluster
+
+        def it_is_named(sut, name):
+            assert sut.cluster._name == name
+
+        @pulumi.runtime.test
+        def it_has_a_cluster_id(sut, name, stack):
+            return assert_output_equals(sut.cluster.cluster_id, f"{stack}-{name}")
 
         @pulumi.runtime.test
         def it_has_engine_redis(sut):
