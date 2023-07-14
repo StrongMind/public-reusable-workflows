@@ -7,7 +7,7 @@ import pulumi_aws as aws
 from pulumi import export, Output
 
 from strongmind_deployment.container import ContainerComponent
-from strongmind_deployment.redis import RedisComponent
+from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
 
 
 class RailsComponent(pulumi.ComponentResource):
@@ -38,18 +38,21 @@ class RailsComponent(pulumi.ComponentResource):
         }
 
         self.rds(project_stack)
-        redis_kwargs = {}
-        if 'redis_node_type' in self.kwargs:
-            redis_kwargs['node_type'] = self.kwargs['redis_node_type']
 
-        if 'redis_num_cache_nodes' in self.kwargs:
-            redis_kwargs['num_cache_nodes'] = self.kwargs['redis_num_cache_nodes']
+        if 'queue_redis' in self.kwargs:
+            if isinstance(self.kwargs['queue_redis'], RedisComponent):
+                self.queue_redis = self.kwargs['queue_redis']
+            elif self.kwargs['queue_redis']:
+                self.queue_redis = QueueComponent("queue-redis")
 
-        self.redis = RedisComponent("redis",
-                                    env_vars=self.env_vars,
-                                    **redis_kwargs
-                                    )
-        export("redis_endpoint", Output.concat(self.redis.cluster.cache_nodes[0]['address']))
+            if self.queue_redis:
+                self.env_vars['QUEUE_REDIS_URL'] = self.queue_redis.get_url()
+
+        if 'cache_redis' in self.kwargs:
+            if isinstance(self.kwargs['cache_redis'], RedisComponent):
+                self.cache_redis = self.kwargs['cache_redis']
+            else:
+                self.cache_redis = CacheComponent("cache-redis")
 
         self.ecs()
 
@@ -84,7 +87,6 @@ class RailsComponent(pulumi.ComponentResource):
             'DB_USERNAME': self.rds_serverless_cluster.master_username,
             'DB_PASSWORD': self.rds_serverless_cluster.master_password,
             'DATABASE_URL': self.get_database_url(),
-            'REDIS_URL': self.get_redis_endpoint(),
             'RAILS_ENV': 'production'
         }
 
@@ -169,8 +171,3 @@ class RailsComponent(pulumi.ComponentResource):
                              '@',
                              self.rds_serverless_cluster.endpoint,
                              ':5432/app')
-
-    def get_redis_endpoint(self):
-        return Output.concat('redis://',
-                             self.redis.cluster.cache_nodes[0]['address'],
-                             ':6379')

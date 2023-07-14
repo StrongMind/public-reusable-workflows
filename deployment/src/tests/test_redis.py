@@ -3,6 +3,7 @@ import os
 import pulumi.runtime
 import pulumi_aws
 import pytest
+from pulumi import Output
 
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
@@ -63,6 +64,13 @@ def describe_a_pulumi_redis_component():
         def it_has_port(sut):
             return assert_output_equals(sut.cluster.port, 6379)
 
+        @pulumi.runtime.test
+        def it_has_url(sut):
+            return assert_outputs_equal(sut.get_url(),
+                                        Output.concat('redis://',
+                                                      sut.cluster.cache_nodes[0].address,
+                                                      ':6379'))
+
         def describe_with_defaults():
             @pulumi.runtime.test
             def test_it_has_node_type(sut):
@@ -115,7 +123,6 @@ def describe_a_pulumi_redis_component():
         def it_sets_the_cache_eviction_policy_to_noeviction(sut):
             assert_output_equals(sut.parameter_group.parameters[0].name, "maxmemory-policy")
             assert_output_equals(sut.parameter_group.parameters[0].value, "noeviction")
-
 
     def describe_a_redis_cache_cluster():
         @pytest.fixture

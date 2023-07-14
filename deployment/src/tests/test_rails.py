@@ -3,6 +3,7 @@ import os
 import pulumi.runtime
 import pytest
 
+from strongmind_deployment.redis import QueueComponent, CacheComponent
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
 
@@ -123,7 +124,7 @@ def describe_a_pulumi_rails_app():
         return None
 
     @pytest.fixture
-    def sut(pulumi_set_mocks,
+    def component_kwargs(
             app_path,
             container_port,
             cpu,
@@ -142,9 +143,8 @@ def describe_a_pulumi_rails_app():
             worker_container_cpu,
             worker_container_memory,
             redis_node_type,
-            redis_num_cache_nodes):
-        import strongmind_deployment.rails
-
+            redis_num_cache_nodes
+    ):
         kwargs = {
             "app_path": app_path,
             "container_port": container_port,
@@ -170,8 +170,15 @@ def describe_a_pulumi_rails_app():
         if redis_num_cache_nodes:
             kwargs["redis_num_cache_nodes"] = redis_num_cache_nodes
 
+        return kwargs
+
+    @pytest.fixture
+    def sut(pulumi_set_mocks,
+            component_kwargs):
+        import strongmind_deployment.rails
+
         sut = strongmind_deployment.rails.RailsComponent("rails",
-                                                         **kwargs
+                                                         **component_kwargs
                                                          )
         return sut
 
@@ -398,37 +405,76 @@ def describe_a_pulumi_rails_app():
                                     sut.rds_serverless_cluster.vpc_security_group_ids[0]) \
             and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
 
-    def describe_a_redis_cluster():
-        @pulumi.runtime.test
-        def it_has_redis(sut):
-            assert sut.redis
+    @pulumi.runtime.test
+    def it_does_not_create_a_queue_redis(sut):
+        # to save money, we don't create a queue redis if it is not requested
+        assert not hasattr(sut, 'queue_redis')
+
+    @pulumi.runtime.test
+    def it_does_not_create_a_cache_redis(sut):
+        # to save money, we don't create a cache redis if it is not requested
+        assert not hasattr(sut, 'cache_redis')
+
+    def describe_with_queue_redis_enabled():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['queue_redis'] = True
+
+            return component_kwargs
 
         @pulumi.runtime.test
-        def it_sends_the_redis_cluster_url_to_the_ecs_environment(sut):
-            def check_redis_endpoint(args):
-                cache_nodes, redis_url = args
-                endpoint = cache_nodes[0]['address']
-                port = cache_nodes[0]['port']
-                expected_redis_url = f'redis://{endpoint}:{port}'
-                assert redis_url == expected_redis_url
+        def it_creates_a_queue_redis(sut):
+            assert isinstance(sut.queue_redis, QueueComponent)
 
-            return pulumi.Output.all(
-                sut.redis.cluster.cache_nodes,
-                sut.env_vars["REDIS_URL"]).apply(check_redis_endpoint)
+        @pulumi.runtime.test
+        def test_it_names_the_queue_redis_with_the_stack_name(sut, stack):
+            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{stack}-queue-redis")
 
-        def describe_redis_cluster_with_scaling_overrides():
-            @pytest.fixture
-            def redis_node_type():
-                return "cache.t3.micro"
+        @pulumi.runtime.test
+        def it_sends_the_url_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["QUEUE_REDIS_URL"], sut.queue_redis.get_url())
 
-            @pytest.fixture
-            def redis_num_cache_nodes():
-                return 2
+    def describe_with_custom_queue_redis():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['queue_redis'] = QueueComponent('custom-queue-redis')
 
-            @pulumi.runtime.test
-            def it_passes_node_type(sut, redis_node_type):
-                assert sut.redis.node_type == redis_node_type
+            return component_kwargs
 
-            @pulumi.runtime.test
-            def it_passes_node_count(sut, redis_num_cache_nodes):
-                assert sut.redis.num_cache_nodes == redis_num_cache_nodes
+        @pulumi.runtime.test
+        def it_creates_a_queue_redis(sut):
+            assert isinstance(sut.queue_redis, QueueComponent)
+
+        @pulumi.runtime.test
+        def test_it_names_the_queue_redis_with_the_stack_name(sut, stack):
+            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{stack}-custom-queue-redis")
+
+    def describe_with_cache_redis_enabled():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['cache_redis'] = True
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_cache_redis(sut):
+            assert isinstance(sut.cache_redis, CacheComponent)
+
+        @pulumi.runtime.test
+        def it_names_the_cache_redis_with_the_stack_name(sut, stack):
+            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{stack}-cache-redis")
+
+    def describe_with_custom_cache_redis():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['cache_redis'] = CacheComponent('custom-cache-redis')
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_cache_redis(sut):
+            assert isinstance(sut.cache_redis, CacheComponent)
+
+        @pulumi.runtime.test
+        def it_names_the_cache_redis_with_the_stack_name(sut, stack):
+            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{stack}-custom-cache-redis")

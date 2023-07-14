@@ -2,6 +2,7 @@ import os
 
 import pulumi
 import pulumi_aws as aws
+from pulumi import Output
 
 
 class RedisComponent(pulumi.ComponentResource):
@@ -17,7 +18,6 @@ class RedisComponent(pulumi.ComponentResource):
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}"
 
         self.tags = {
             "product": project,
@@ -28,7 +28,7 @@ class RedisComponent(pulumi.ComponentResource):
 
         self.cluster = aws.elasticache.Cluster(
             "redis",
-            cluster_id=project_stack,
+            cluster_id=f'{stack}-{name}',
             engine="redis",
             node_type=self.node_type,
             engine_version="7.0",
@@ -40,6 +40,9 @@ class RedisComponent(pulumi.ComponentResource):
         )
 
         self.register_outputs({})
+
+    def get_url(self):
+        return Output.concat("redis://", self.cluster.cache_nodes[0].address, ":6379")
 
 
 class QueueComponent(RedisComponent):
