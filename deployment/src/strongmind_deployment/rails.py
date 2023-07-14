@@ -51,8 +51,11 @@ class RailsComponent(pulumi.ComponentResource):
         if 'cache_redis' in self.kwargs:
             if isinstance(self.kwargs['cache_redis'], RedisComponent):
                 self.cache_redis = self.kwargs['cache_redis']
-            else:
+            elif self.kwargs['cache_redis']:
                 self.cache_redis = CacheComponent("cache-redis")
+
+            if self.cache_redis:
+                self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
 
         self.ecs()
 

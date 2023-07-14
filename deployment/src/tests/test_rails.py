@@ -464,6 +464,10 @@ def describe_a_pulumi_rails_app():
         def it_names_the_cache_redis_with_the_stack_name(sut, stack):
             return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{stack}-cache-redis")
 
+        @pulumi.runtime.test
+        def it_sends_the_url_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["CACHE_REDIS_URL"], sut.cache_redis.url)
+
     def describe_with_custom_cache_redis():
         @pytest.fixture
         def component_kwargs(component_kwargs):
