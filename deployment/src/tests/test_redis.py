@@ -119,12 +119,12 @@ def describe_a_pulumi_redis_component():
 
         @pulumi.runtime.test
         def it_uses_a_queue_parameter_group(sut, stack):
-            return assert_output_equals(sut.cluster.parameter_group_name, f"{stack}.queue.redis7")
+            return assert_output_equals(sut.cluster.parameter_group_name, f"{stack}-queue-redis7")
 
         @pulumi.runtime.test
         def it_creates_its_parameter_group(sut, stack):
             assert isinstance(sut.parameter_group, pulumi_aws.elasticache.ParameterGroup)
-            return assert_output_equals(sut.parameter_group.name, f"{stack}.queue.redis7")
+            return assert_output_equals(sut.parameter_group.name, f"{stack}-queue-redis7")
 
         @pulumi.runtime.test
         def it_sets_the_parameter_group_family(sut):
@@ -147,12 +147,12 @@ def describe_a_pulumi_redis_component():
 
         @pulumi.runtime.test
         def it_uses_a_cache_parameter_group(sut, stack):
-            return assert_output_equals(sut.cluster.parameter_group_name, f"{stack}.cache.redis7")
+            return assert_output_equals(sut.cluster.parameter_group_name, f"{stack}-cache-redis7")
 
         @pulumi.runtime.test
         def it_creates_its_parameter_group(sut, stack):
             assert isinstance(sut.parameter_group, pulumi_aws.elasticache.ParameterGroup)
-            return assert_output_equals(sut.parameter_group.name, f"{stack}.cache.redis7")
+            return assert_output_equals(sut.parameter_group.name, f"{stack}-cache-redis7")
 
         @pulumi.runtime.test
         def it_sets_the_parameter_group_family(sut):

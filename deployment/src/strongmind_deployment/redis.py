@@ -48,7 +48,7 @@ class RedisComponent(pulumi.ComponentResource):
 
 class QueueComponent(RedisComponent):
     def __init__(self, name, opts=None, **kwargs):
-        kwargs['parameter_group_name'] = f'{name}.queue.redis7'
+        kwargs['parameter_group_name'] = f'{name}-queue-redis7'
         self.parameter_group = aws.elasticache.ParameterGroup(
             kwargs['parameter_group_name'],
             family="redis7",
@@ -63,7 +63,7 @@ class QueueComponent(RedisComponent):
 
 class CacheComponent(RedisComponent):
     def __init__(self, name, opts=None, **kwargs):
-        kwargs['parameter_group_name'] = f'{name}.cache.redis7'
+        kwargs['parameter_group_name'] = f'{name}-cache-redis7'
         self.parameter_group = aws.elasticache.ParameterGroup(
             kwargs['parameter_group_name'],
             family="redis7",
