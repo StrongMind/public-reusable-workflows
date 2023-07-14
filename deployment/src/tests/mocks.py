@@ -64,6 +64,11 @@ def get_pulumi_mocks(faker, fake_password=None):
                         }
                     ],
                 }
+            if args.typ == "aws:elasticache/parameterGroup:ParameterGroup":
+                outputs = {
+                    **args.inputs,
+                    "name": args.name,
+                }
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):

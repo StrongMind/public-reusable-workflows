@@ -13,6 +13,7 @@ class RedisComponent(pulumi.ComponentResource):
         self.num_cache_nodes = self.kwargs.get('num_cache_nodes', 1)
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
+        self.parameter_group_name = self.kwargs.get('parameter_group_name', 'default.redis7')
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
@@ -32,10 +33,30 @@ class RedisComponent(pulumi.ComponentResource):
             node_type=self.node_type,
             engine_version="7.0",
             num_cache_nodes=self.num_cache_nodes,
-            parameter_group_name="default.redis7",
+            parameter_group_name=self.parameter_group_name,
             port=6379,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
 
         self.register_outputs({})
+
+
+class QueueComponent(RedisComponent):
+    def __init__(self, name, opts=None, **kwargs):
+        kwargs['parameter_group_name'] = f'{name}.queue.redis7'
+        self.parameter_group = aws.elasticache.ParameterGroup(
+            kwargs['parameter_group_name'],
+            family="redis7",
+        )
+        super().__init__(name, opts, **kwargs)
+
+
+class CacheComponent(RedisComponent):
+    def __init__(self, name, opts=None, **kwargs):
+        kwargs['parameter_group_name'] = f'{name}.cache.redis7'
+        self.parameter_group = aws.elasticache.ParameterGroup(
+            kwargs['parameter_group_name'],
+            family="redis7",
+        )
+        super().__init__(name, opts, **kwargs)
