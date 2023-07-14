@@ -111,6 +111,12 @@ def describe_a_pulumi_redis_component():
         def it_sets_the_parameter_group_family(sut):
             return assert_output_equals(sut.parameter_group.family, "redis7")
 
+        @pulumi.runtime.test
+        def it_sets_the_cache_eviction_policy_to_noeviction(sut):
+            assert_output_equals(sut.parameter_group.parameters[0].name, "maxmemory-policy")
+            assert_output_equals(sut.parameter_group.parameters[0].value, "noeviction")
+
+
     def describe_a_redis_cache_cluster():
         @pytest.fixture
         def sut(component_arguments, stack):
@@ -133,3 +139,8 @@ def describe_a_pulumi_redis_component():
         @pulumi.runtime.test
         def it_sets_the_parameter_group_family(sut):
             return assert_output_equals(sut.parameter_group.family, "redis7")
+
+        @pulumi.runtime.test
+        def it_sets_the_cache_eviction_policy_to_volatile_lru(sut):
+            assert_output_equals(sut.parameter_group.parameters[0].name, "maxmemory-policy")
+            assert_output_equals(sut.parameter_group.parameters[0].value, "volatile-lru")

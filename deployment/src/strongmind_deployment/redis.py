@@ -48,6 +48,11 @@ class QueueComponent(RedisComponent):
         self.parameter_group = aws.elasticache.ParameterGroup(
             kwargs['parameter_group_name'],
             family="redis7",
+            parameters=[
+                aws.elasticache.ParameterGroupParameterArgs(
+                    name="maxmemory-policy",
+                    value="noeviction")
+            ]
         )
         super().__init__(name, opts, **kwargs)
 
