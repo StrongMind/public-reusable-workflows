@@ -2,6 +2,22 @@ name: Build docker and Upload to ECR
 
 on:
   workflow_call:
+    inputs:
+      test_docker_run_extra_params:
+        description: List of extra params to pass to docker run (for things like environment variables that are required to start)
+        required: false
+        type: string
+        default: ""
+      test_docker_timeout:
+        description: Number of seconds to wait for docker to start
+        required: false
+        type: number
+        default: 15
+      skip_test_docker:
+        description: Skip testing the dockerfile
+        required: false
+        type: boolean
+        default: false
 
 env:
   AWS_REGION: us-west-2
@@ -10,6 +26,26 @@ permissions:
   contents: read
 
 jobs:
+  test-docker:
+    if: ${{ !inputs.skip_test_docker == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Test docker
+        run: |
+          docker build -t test-docker .
+          CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d test-docker)
+          echo "Starting docker container $CONTAINER_ID and waiting for ${{ inputs.test_docker_timeout }} seconds"
+          sleep ${{ inputs.test_docker_timeout }}
+          OUTPUT=$(docker logs $CONTAINER_ID --tail 20)
+
+          if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
+            echo "Dockerfile test failed"
+            echo $OUTPUT
+            exit 1
+          fi
   build-image:
     name: Build image
     runs-on: ubuntu-latest

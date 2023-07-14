@@ -74,6 +74,61 @@ class ContainerComponent(pulumi.ComponentResource):
                     host_port=self.container_port,
                     target_group=self.target_group,
                 )]
+
+        execution_role = aws.iam.Role(
+            f"{project_stack}-exec-role",
+            name=f"{project_stack}-exec-role",
+            assume_role_policy=json.dumps(
+                {
+                    "Version": "2008-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "",
+                            "Effect": "Allow",
+                            "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                            "Action": "sts:AssumeRole",
+                        }
+                    ],
+                }
+            ),
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        aws.iam.RolePolicy(
+            f"{project_stack}-policy",
+            name=f"{project_stack}-policy",
+            role=execution_role.id,
+            policy=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "ecs:*",
+                                "ecr:GetAuthorizationToken",
+                                "ecr:BatchCheckLayerAvailability",
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:BatchGetImage",
+                                "ecr:GetRepositoryPolicy",
+                                "ecr:DescribeRepositories",
+                                "ecr:ListImages",
+                                "ecr:DescribeImages",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:UploadLayerPart",
+                                "ecr:CompleteLayerUpload",
+                                "ecr:PutImage",
+                                "logs:CreateLogStream",
+                                "logs:PutLogEvents",
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*",
+                        }
+                    ],
+                }
+            ),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
             family=project_stack,
