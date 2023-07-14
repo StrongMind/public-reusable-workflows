@@ -432,7 +432,7 @@ def describe_a_pulumi_rails_app():
 
         @pulumi.runtime.test
         def it_sends_the_url_to_the_ecs_environment(sut):
-            return assert_outputs_equal(sut.env_vars["QUEUE_REDIS_URL"], sut.queue_redis.get_url())
+            return assert_outputs_equal(sut.env_vars["QUEUE_REDIS_URL"], sut.queue_redis.url)
 
     def describe_with_custom_queue_redis():
         @pytest.fixture

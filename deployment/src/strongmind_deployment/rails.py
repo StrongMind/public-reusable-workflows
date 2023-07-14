@@ -46,7 +46,7 @@ class RailsComponent(pulumi.ComponentResource):
                 self.queue_redis = QueueComponent("queue-redis")
 
             if self.queue_redis:
-                self.env_vars['QUEUE_REDIS_URL'] = self.queue_redis.get_url()
+                self.env_vars['QUEUE_REDIS_URL'] = self.queue_redis.url
 
         if 'cache_redis' in self.kwargs:
             if isinstance(self.kwargs['cache_redis'], RedisComponent):

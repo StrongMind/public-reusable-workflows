@@ -41,7 +41,8 @@ class RedisComponent(pulumi.ComponentResource):
 
         self.register_outputs({})
 
-    def get_url(self):
+    @property
+    def url(self):
         return Output.concat("redis://", self.cluster.cache_nodes[0].address, ":6379")
 
 

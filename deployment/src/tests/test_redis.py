@@ -66,7 +66,7 @@ def describe_a_pulumi_redis_component():
 
         @pulumi.runtime.test
         def it_has_url(sut):
-            return assert_outputs_equal(sut.get_url(),
+            return assert_outputs_equal(sut.url,
                                         Output.concat('redis://',
                                                       sut.cluster.cache_nodes[0].address,
                                                       ':6379'))
