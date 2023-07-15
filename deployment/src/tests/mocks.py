@@ -66,8 +66,7 @@ def get_pulumi_mocks(faker, fake_password=None):
                 }
             if args.typ == "aws:elasticache/parameterGroup:ParameterGroup":
                 outputs = {
-                    **args.inputs,
-                    "name": args.name,
+                    **args.inputs
                 }
             if args.typ == "aws:elasticache/parameterGroup:ParameterGroupParameterArgs":
                 outputs = {

@@ -427,8 +427,8 @@ def describe_a_pulumi_rails_app():
             assert isinstance(sut.queue_redis, QueueComponent)
 
         @pulumi.runtime.test
-        def test_it_names_the_queue_redis_with_the_stack_name(sut, stack):
-            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{stack}-queue-redis")
+        def test_it_names_the_queue_redis(sut, app_name, stack):
+            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{app_name}-{stack}-queue-redis")
 
         @pulumi.runtime.test
         def it_sends_the_url_to_the_ecs_environment(sut):
@@ -446,8 +446,8 @@ def describe_a_pulumi_rails_app():
             assert isinstance(sut.queue_redis, QueueComponent)
 
         @pulumi.runtime.test
-        def test_it_names_the_queue_redis_with_the_stack_name(sut, stack):
-            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{stack}-custom-queue-redis")
+        def test_it_names_the_queue_redis(sut, app_name, stack):
+            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{app_name}-{stack}-custom-queue-redis")
 
     def describe_with_cache_redis_enabled():
         @pytest.fixture
@@ -461,8 +461,8 @@ def describe_a_pulumi_rails_app():
             assert isinstance(sut.cache_redis, CacheComponent)
 
         @pulumi.runtime.test
-        def it_names_the_cache_redis_with_the_stack_name(sut, stack):
-            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{stack}-cache-redis")
+        def it_names_the_cache_redis(sut, app_name, stack):
+            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{app_name}-{stack}-cache-redis")
 
         @pulumi.runtime.test
         def it_sends_the_url_to_the_ecs_environment(sut):
@@ -480,5 +480,5 @@ def describe_a_pulumi_rails_app():
             assert isinstance(sut.cache_redis, CacheComponent)
 
         @pulumi.runtime.test
-        def it_names_the_cache_redis_with_the_stack_name(sut, stack):
-            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{stack}-custom-cache-redis")
+        def it_names_the_cache_redis(sut, app_name, stack):
+            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{app_name}-{stack}-custom-cache-redis")
