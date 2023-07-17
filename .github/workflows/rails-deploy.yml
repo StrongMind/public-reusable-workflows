@@ -41,6 +41,7 @@ jobs:
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
         ENVIRONMENT_NAME: ${{ inputs.environment-name }}
+        BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
       run: |
         cd ./infrastructure/
         pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
