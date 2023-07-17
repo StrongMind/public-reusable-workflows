@@ -10,6 +10,10 @@ from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
 
 
+def sidekiq_present():  # pragma: no cover
+    return os.path.exists('../Gemfile') and 'sidekiq' in open('../Gemfile').read()
+
+
 class RailsComponent(pulumi.ComponentResource):
     """
     RailsComponent is a resource that produces a Rails application running on AWS Fargate.
@@ -58,15 +62,27 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.rds(project_stack)
 
-        if self.sidekiq_present() or 'queue_redis' in self.kwargs:
+        self.setup_redis()
+
+        self.ecs()
+
+        self.security()
+
+        self.register_outputs({})
+
+    def setup_redis(self):
+        if sidekiq_present():
+            self.env_vars['REDIS_PROVIDER'] = 'QUEUE_REDIS_URL'
+            if 'queue_redis' not in self.kwargs:
+                self.kwargs['queue_redis'] = True
+        if 'queue_redis' in self.kwargs:
             if isinstance(self.kwargs['queue_redis'], RedisComponent):
                 self.queue_redis = self.kwargs['queue_redis']
-            elif self.kwargs['queue_redis'] or self.sidekiq_present():
+            elif self.kwargs['queue_redis']:
                 self.queue_redis = QueueComponent("queue-redis")
 
             if self.queue_redis:
                 self.env_vars['QUEUE_REDIS_URL'] = self.queue_redis.url
-
         if 'cache_redis' in self.kwargs:
             if isinstance(self.kwargs['cache_redis'], RedisComponent):
                 self.cache_redis = self.kwargs['cache_redis']
@@ -75,12 +91,6 @@ class RailsComponent(pulumi.ComponentResource):
 
             if self.cache_redis:
                 self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
-
-        self.ecs()
-
-        self.security()
-
-        self.register_outputs({})
 
     def security(self):
         container_security_group_id = self.kwargs.get(
@@ -131,13 +141,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.need_worker = self.kwargs.get('need_worker', None)
         if self.need_worker is None:  # pragma: no cover
             # If we don't know if we need a worker, check for sidekiq in the Gemfile
-            self.need_worker = self.sidekiq_present()
+            self.need_worker = sidekiq_present()
 
         if self.need_worker:
             self.setup_worker()
-
-    def sidekiq_present(self):
-        return os.path.exists('../Gemfile') # and 'sidekiq' in open('../Gemfile').read()
 
     def setup_worker(self):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])

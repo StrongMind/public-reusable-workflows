@@ -1,5 +1,4 @@
 import os
-from io import StringIO
 
 import pulumi.runtime
 import pytest
@@ -151,7 +150,6 @@ def describe_a_pulumi_rails_app():
             "container_port": container_port,
             "cpu": cpu,
             "memory": memory,
-            "need_worker": True,
             "worker_entry_point": worker_container_entry_point,
             "worker_app_path": worker_container_app_path,
             "worker_cpu": worker_container_cpu,
@@ -370,34 +368,41 @@ def describe_a_pulumi_rails_app():
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
 
-        @pulumi.runtime.test
-        def it_creates_a_worker_container_component(sut,
-                                                    worker_container_app_path,
-                                                    worker_container_cpu,
-                                                    worker_container_memory):
-            def check_machine_specs(args):
-                container_app_path, container_cpu, container_memory = args
-                assert container_app_path == worker_container_app_path
-                assert container_cpu == worker_container_cpu
-                assert container_memory == worker_container_memory
 
-            return pulumi.Output.all(
-                sut.worker_container.app_path,
-                sut.worker_container.cpu,
-                sut.worker_container.memory
-            ).apply(check_machine_specs)
+        def describe_need_worker():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['need_worker'] = True
+                return component_kwargs
 
-    @pulumi.runtime.test
-    def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
-        assert sut.worker_container.entry_point == worker_container_entry_point
+            @pulumi.runtime.test
+            def it_creates_a_worker_container_component(sut,
+                                                        worker_container_app_path,
+                                                        worker_container_cpu,
+                                                        worker_container_memory):
+                def check_machine_specs(args):
+                    container_app_path, container_cpu, container_memory = args
+                    assert container_app_path == worker_container_app_path
+                    assert container_cpu == worker_container_cpu
+                    assert container_memory == worker_container_memory
 
-    @pulumi.runtime.test
-    def it_does_not_need_load_balancer(sut):
-        assert not sut.worker_container.need_load_balancer
+                return pulumi.Output.all(
+                    sut.worker_container.app_path,
+                    sut.worker_container.cpu,
+                    sut.worker_container.memory
+                ).apply(check_machine_specs)
 
-    @pulumi.runtime.test
-    def it_uses_cluster_from_web_container(sut):
-        assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster.arn
+            @pulumi.runtime.test
+            def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
+                assert sut.worker_container.entry_point == worker_container_entry_point
+
+            @pulumi.runtime.test
+            def it_does_not_need_load_balancer(sut):
+                assert not sut.worker_container.need_load_balancer
+
+            @pulumi.runtime.test
+            def it_uses_cluster_from_web_container(sut):
+                assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster.arn
 
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_group):
@@ -416,28 +421,27 @@ def describe_a_pulumi_rails_app():
         # to save money, we don't create a cache redis if it is not requested
         assert not hasattr(sut, 'cache_redis')
 
+    @pulumi.runtime.test
+    def it_does_not_create_a_worker_container(sut):
+        assert sut.worker_container is None
+
     def describe_with_sidekiq_present():
         @pytest.fixture
-        def gemfile_exists(when):
-            # Using mockito, mock the os.path.exists function to return True if the path is ../Gemfile
-            when(os.path).exists('../Gemfile').thenReturn(True)
+        def sidekiq_present(when):
+            from strongmind_deployment import rails
+            when(rails).sidekiq_present().thenReturn(True)
 
         @pytest.fixture
-        def gemfile(when):
-            # Mock the open function to return a StringIO object with the contents of the Gemfile
-            # when(open)('../Gemfile').thenReturn(StringIO('gem "sidekiq"'))
-            pass
-
-        @pytest.fixture
-        def sut(gemfile_exists, sut):
+        def sut(sidekiq_present, sut):
             return sut
 
         @pulumi.runtime.test
-        def it_creates_a_queue_redis(sut, gemfile_exists, gemfile):
+        def it_creates_a_queue_redis(sut):
             assert hasattr(sut, 'queue_redis')
 
         @pulumi.runtime.test
-        def it_configures_redis_provider():
+        def it_configures_redis_provider(sut):
+            assert sut.env_vars["REDIS_PROVIDER"] == "QUEUE_REDIS_URL"
             pass
 
     def describe_with_queue_redis_enabled():
@@ -458,6 +462,10 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_url_to_the_ecs_environment(sut):
             return assert_outputs_equal(sut.env_vars["QUEUE_REDIS_URL"], sut.queue_redis.url)
+
+        @pulumi.runtime.test
+        def it_creates_a_worker_container(sut):
+            assert hasattr(sut, 'worker_container')
 
     def describe_with_custom_queue_redis():
         @pytest.fixture
