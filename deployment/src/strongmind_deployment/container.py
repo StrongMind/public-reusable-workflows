@@ -160,6 +160,7 @@ class ContainerComponent(pulumi.ComponentResource):
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
             assign_public_ip=True,
+            propagate_tags="SERVICE",
             task_definition_args=task_definition_args,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),

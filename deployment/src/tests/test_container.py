@@ -300,6 +300,10 @@ def describe_a_pulumi_containerized_app():
             @pulumi.runtime.test
             def it_creates_a_fargate_service(sut):
                 assert sut.fargate_service
+            
+            @pulumi.runtime.test
+            def it_propagate_tags(sut):
+                return assert_output_equals(sut.fargate_service.propagate_tags, "SERVICE")
 
             @pulumi.runtime.test
             def it_has_the_cluster(sut):

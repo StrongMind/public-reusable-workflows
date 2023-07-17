@@ -25,6 +25,7 @@ def get_pulumi_mocks(faker, fake_password=None):
                 outputs = {
                     **args.inputs,
                     "task_definition_args": args.inputs["taskDefinitionArgs"],
+                    "propagate_tags": args.inputs.get("propagateTags"),
                 }
             if args.typ == "aws:rds/cluster:Cluster":
                 outputs = {
