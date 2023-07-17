@@ -29,9 +29,9 @@ class RailsComponent(pulumi.ComponentResource):
                                                               "rails server --port 3000 -b 0.0.0.0"]`
     :param need_worker: Whether or not to create a worker container. Defaults to True if sidekiq is in the Gemfile.
     :param worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
-    :param cpu: The number of CPU units to reserve for the container. Defaults to 256.
-    :param memory: The amount of memory (in MiB) to allow the container to use. Defaults to 512.
-    :param app_path: The path to the Rails application. Defaults to `./`.
+    :param cpu: The number of CPU units to reserve for the web container. Defaults to 256.
+    :param memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
+    :param app_path: The path to the Rails application for the web. Defaults to `./`.
     :param worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
     :param worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
     :param worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
