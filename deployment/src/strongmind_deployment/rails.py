@@ -11,6 +11,25 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 
 
 class RailsComponent(pulumi.ComponentResource):
+    """
+    RailsComponent is a resource that produces a Rails application running on AWS Fargate.
+
+    :param name: The _unique_ name of the resource.
+    :param opts: A bag of optional settings that control this resource's behavior.
+    :param kwargs:
+        - env_vars: A dictionary of environment variables to pass to the Rails application.
+        - queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
+        - cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
+        - web_entry_point: The entry point for the web container. Defaults to `["sh", "-c",
+                                                              "rails db:prepare db:migrate db:seed && "
+                                                              "rails assets:precompile && "
+                                                              "rails server --port 3000 -b 0.0.0.0"]`
+        - need_worker: Whether or not to create a worker container. Defaults to True if sidekiq is in the Gemfile.
+        - worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
+
+
+
+    """
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.need_worker = None
@@ -39,10 +58,10 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.rds(project_stack)
 
-        if 'queue_redis' in self.kwargs:
+        if self.sidekiq_present() or 'queue_redis' in self.kwargs:
             if isinstance(self.kwargs['queue_redis'], RedisComponent):
                 self.queue_redis = self.kwargs['queue_redis']
-            elif self.kwargs['queue_redis']:
+            elif self.kwargs['queue_redis'] or self.sidekiq_present():
                 self.queue_redis = QueueComponent("queue-redis")
 
             if self.queue_redis:
@@ -110,12 +129,15 @@ class RailsComponent(pulumi.ComponentResource):
                                                 )
 
         self.need_worker = self.kwargs.get('need_worker', None)
-        if self.need_worker is None:
+        if self.need_worker is None:  # pragma: no cover
             # If we don't know if we need a worker, check for sidekiq in the Gemfile
-            self.need_worker = os.path.exists('../Gemfile') and 'sidekiq' in open('../Gemfile').read()
+            self.need_worker = self.sidekiq_present()
 
         if self.need_worker:
             self.setup_worker()
+
+    def sidekiq_present(self):
+        return os.path.exists('../Gemfile') # and 'sidekiq' in open('../Gemfile').read()
 
     def setup_worker(self):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])

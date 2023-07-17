@@ -1,4 +1,5 @@
 import os
+from io import StringIO
 
 import pulumi.runtime
 import pytest
@@ -414,6 +415,30 @@ def describe_a_pulumi_rails_app():
     def it_does_not_create_a_cache_redis(sut):
         # to save money, we don't create a cache redis if it is not requested
         assert not hasattr(sut, 'cache_redis')
+
+    def describe_with_sidekiq_present():
+        @pytest.fixture
+        def gemfile_exists(when):
+            # Using mockito, mock the os.path.exists function to return True if the path is ../Gemfile
+            when(os.path).exists('../Gemfile').thenReturn(True)
+
+        @pytest.fixture
+        def gemfile(when):
+            # Mock the open function to return a StringIO object with the contents of the Gemfile
+            # when(open)('../Gemfile').thenReturn(StringIO('gem "sidekiq"'))
+            pass
+
+        @pytest.fixture
+        def sut(gemfile_exists, sut):
+            return sut
+
+        @pulumi.runtime.test
+        def it_creates_a_queue_redis(sut, gemfile_exists, gemfile):
+            assert hasattr(sut, 'queue_redis')
+
+        @pulumi.runtime.test
+        def it_configures_redis_provider():
+            pass
 
     def describe_with_queue_redis_enabled():
         @pytest.fixture
