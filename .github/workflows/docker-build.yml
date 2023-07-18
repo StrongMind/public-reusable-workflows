@@ -18,6 +18,11 @@ on:
         required: false
         type: boolean
         default: false
+      build_args:
+        description: List of build args to pass to docker build
+        required: false
+        type: string
+        default: ""
 
 env:
   AWS_REGION: us-west-2
@@ -80,5 +85,5 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
         BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
       run: |
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ${{ inputs.build_args }} .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
