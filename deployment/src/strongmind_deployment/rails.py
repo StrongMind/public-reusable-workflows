@@ -15,28 +15,30 @@ def sidekiq_present():  # pragma: no cover
 
 
 class RailsComponent(pulumi.ComponentResource):
-    """
-    RailsComponent is a resource that produces a Rails application running on AWS Fargate.
 
-    :param name: The _unique_ name of the resource.
-    :param opts: A bag of optional settings that control this resource's behavior.
-    :param env_vars: A dictionary of environment variables to pass to the Rails application.
-    :param queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
-    :param cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
-    :param web_entry_point: The entry point for the web container. Defaults to `["sh", "-c",
-                                                              "rails db:prepare db:migrate db:seed && "
-                                                              "rails assets:precompile && "
-                                                              "rails server --port 3000 -b 0.0.0.0"]`
-    :param need_worker: Whether or not to create a worker container. Defaults to True if sidekiq is in the Gemfile.
-    :param worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
-    :param cpu: The number of CPU units to reserve for the web container. Defaults to 256.
-    :param memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
-    :param app_path: The path to the Rails application for the web. Defaults to `./`.
-    :param worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
-    :param worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
-    :param worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
-    """
     def __init__(self, name, opts=None, **kwargs):
+        """
+        Resource that produces a Rails application running on AWS Fargate.
+
+        :param name: The _unique_ name of the resource.
+        :param opts: A bag of optional settings that control this resource's behavior.
+        :param kwargs: See below.
+        :key env_vars: A dictionary of environment variables to pass to the Rails application.
+        :key queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
+        :key cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
+        :key web_entry_point: The entry point for the web container. Defaults to `["sh", "-c",
+                                                                                "rails db:prepare db:migrate db:seed && "
+                                                                                "rails assets:precompile && "
+                                                                                "rails server --port 3000 -b 0.0.0.0"]`
+        :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
+        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
+        :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
+        :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
+        :key app_path: The path to the Rails application for the web. Defaults to `./`.
+        :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
+        :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
+        :key worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
+        """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.need_worker = None
         self.cname_record = None
