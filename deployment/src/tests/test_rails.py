@@ -3,6 +3,7 @@ import os
 import pulumi.runtime
 import pytest
 
+from strongmind_deployment.redis import QueueComponent, CacheComponent
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
 
@@ -115,7 +116,15 @@ def describe_a_pulumi_rails_app():
         return key
 
     @pytest.fixture
-    def sut(pulumi_set_mocks,
+    def redis_node_type():
+        return None
+
+    @pytest.fixture
+    def redis_num_cache_nodes():
+        return None
+
+    @pytest.fixture
+    def component_kwargs(
             app_path,
             container_port,
             cpu,
@@ -132,28 +141,43 @@ def describe_a_pulumi_rails_app():
             worker_container_app_path,
             worker_container_entry_point,
             worker_container_cpu,
-            worker_container_memory):
+            worker_container_memory,
+            redis_node_type,
+            redis_num_cache_nodes
+    ):
+        kwargs = {
+            "app_path": app_path,
+            "container_port": container_port,
+            "cpu": cpu,
+            "memory": memory,
+            "worker_entry_point": worker_container_entry_point,
+            "worker_app_path": worker_container_app_path,
+            "worker_cpu": worker_container_cpu,
+            "worker_memory": worker_container_memory,
+            "container_security_group_id": ecs_security_group,
+            "load_balancer_arn": load_balancer_arn,
+            "target_group_arn": target_group_arn,
+            "load_balancer_dns_name": load_balancer_dns_name,
+            "domain_validation_options": domain_validation_options,
+            "zone_id": zone_id,
+            "env_vars": {
+                "ENVIRONMENT_NAME": environment
+            }
+        }
+        if redis_node_type:
+            kwargs["redis_node_type"] = redis_node_type
+        if redis_num_cache_nodes:
+            kwargs["redis_num_cache_nodes"] = redis_num_cache_nodes
+
+        return kwargs
+
+    @pytest.fixture
+    def sut(pulumi_set_mocks,
+            component_kwargs):
         import strongmind_deployment.rails
 
         sut = strongmind_deployment.rails.RailsComponent("rails",
-                                                         app_path=app_path,
-                                                         container_port=container_port,
-                                                         cpu=cpu,
-                                                         memory=memory,
-                                                         need_worker=True,
-                                                         worker_entry_point=worker_container_entry_point,
-                                                         worker_app_path=worker_container_app_path,
-                                                         worker_cpu=worker_container_cpu,
-                                                         worker_memory=worker_container_memory,
-                                                         container_security_group_id=ecs_security_group,
-                                                         load_balancer_arn=load_balancer_arn,
-                                                         target_group_arn=target_group_arn,
-                                                         load_balancer_dns_name=load_balancer_dns_name,
-                                                         domain_validation_options=domain_validation_options,
-                                                         zone_id=zone_id,
-                                                         env_vars={
-                                                             "ENVIRONMENT_NAME": environment
-                                                         }
+                                                         **component_kwargs
                                                          )
         return sut
 
@@ -344,34 +368,41 @@ def describe_a_pulumi_rails_app():
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
 
-        @pulumi.runtime.test
-        def it_creates_a_worker_container_component(sut,
-                                                    worker_container_app_path,
-                                                    worker_container_cpu,
-                                                    worker_container_memory):
-            def check_machine_specs(args):
-                container_app_path, container_cpu, container_memory = args
-                assert container_app_path == worker_container_app_path
-                assert container_cpu == worker_container_cpu
-                assert container_memory == worker_container_memory
 
-            return pulumi.Output.all(
-                sut.worker_container.app_path,
-                sut.worker_container.cpu,
-                sut.worker_container.memory
-            ).apply(check_machine_specs)
+        def describe_need_worker():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['need_worker'] = True
+                return component_kwargs
 
-    @pulumi.runtime.test
-    def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
-        assert sut.worker_container.entry_point == worker_container_entry_point
+            @pulumi.runtime.test
+            def it_creates_a_worker_container_component(sut,
+                                                        worker_container_app_path,
+                                                        worker_container_cpu,
+                                                        worker_container_memory):
+                def check_machine_specs(args):
+                    container_app_path, container_cpu, container_memory = args
+                    assert container_app_path == worker_container_app_path
+                    assert container_cpu == worker_container_cpu
+                    assert container_memory == worker_container_memory
 
-    @pulumi.runtime.test
-    def it_does_not_need_load_balancer(sut):
-        assert not sut.worker_container.need_load_balancer
+                return pulumi.Output.all(
+                    sut.worker_container.app_path,
+                    sut.worker_container.cpu,
+                    sut.worker_container.memory
+                ).apply(check_machine_specs)
 
-    @pulumi.runtime.test
-    def it_uses_cluster_from_web_container(sut):
-        assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster.arn
+            @pulumi.runtime.test
+            def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
+                assert sut.worker_container.entry_point == worker_container_entry_point
+
+            @pulumi.runtime.test
+            def it_does_not_need_load_balancer(sut):
+                assert not sut.worker_container.need_load_balancer
+
+            @pulumi.runtime.test
+            def it_uses_cluster_from_web_container(sut):
+                assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster.arn
 
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_group):
@@ -380,20 +411,107 @@ def describe_a_pulumi_rails_app():
                                     sut.rds_serverless_cluster.vpc_security_group_ids[0]) \
             and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
 
-    def describe_a_redis_cluster():
-        @pulumi.runtime.test
-        def it_has_redis(sut):
-            assert sut.redis
+    @pulumi.runtime.test
+    def it_does_not_create_a_queue_redis(sut):
+        # to save money, we don't create a queue redis if it is not requested
+        assert not hasattr(sut, 'queue_redis')
+
+    @pulumi.runtime.test
+    def it_does_not_create_a_cache_redis(sut):
+        # to save money, we don't create a cache redis if it is not requested
+        assert not hasattr(sut, 'cache_redis')
+
+    @pulumi.runtime.test
+    def it_does_not_create_a_worker_container(sut):
+        assert sut.worker_container is None
+
+    def describe_with_sidekiq_present():
+        @pytest.fixture
+        def sidekiq_present(when):
+            from strongmind_deployment import rails
+            when(rails).sidekiq_present().thenReturn(True)
+
+        @pytest.fixture
+        def sut(sidekiq_present, sut):
+            return sut
 
         @pulumi.runtime.test
-        def test_it_sends_the_redis_cluster_url_to_the_ecs_environment(sut):
-            def check_redis_endpoint(args):
-                cache_nodes, redis_url = args
-                endpoint = cache_nodes[0]['address']
-                port = cache_nodes[0]['port']
-                expected_redis_url = f'redis://{endpoint}:{port}'
-                assert redis_url == expected_redis_url
+        def it_creates_a_queue_redis(sut):
+            assert hasattr(sut, 'queue_redis')
 
-            return pulumi.Output.all(
-                sut.redis.cluster.cache_nodes,
-                sut.env_vars["REDIS_URL"]).apply(check_redis_endpoint)
+        @pulumi.runtime.test
+        def it_configures_redis_provider(sut):
+            assert sut.env_vars["REDIS_PROVIDER"] == "QUEUE_REDIS_URL"
+            pass
+
+    def describe_with_queue_redis_enabled():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['queue_redis'] = True
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_queue_redis(sut):
+            assert isinstance(sut.queue_redis, QueueComponent)
+
+        @pulumi.runtime.test
+        def test_it_names_the_queue_redis(sut, app_name, stack):
+            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{app_name}-{stack}-queue-redis")
+
+        @pulumi.runtime.test
+        def it_sends_the_url_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["QUEUE_REDIS_URL"], sut.queue_redis.url)
+
+        @pulumi.runtime.test
+        def it_creates_a_worker_container(sut):
+            assert hasattr(sut, 'worker_container')
+
+    def describe_with_custom_queue_redis():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['queue_redis'] = QueueComponent('custom-queue-redis')
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_queue_redis(sut):
+            assert isinstance(sut.queue_redis, QueueComponent)
+
+        @pulumi.runtime.test
+        def test_it_names_the_queue_redis(sut, app_name, stack):
+            return assert_output_equals(sut.queue_redis.cluster.cluster_id, f"{app_name}-{stack}-custom-queue-redis")
+
+    def describe_with_cache_redis_enabled():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['cache_redis'] = True
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_cache_redis(sut):
+            assert isinstance(sut.cache_redis, CacheComponent)
+
+        @pulumi.runtime.test
+        def it_names_the_cache_redis(sut, app_name, stack):
+            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{app_name}-{stack}-cache-redis")
+
+        @pulumi.runtime.test
+        def it_sends_the_url_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["CACHE_REDIS_URL"], sut.cache_redis.url)
+
+    def describe_with_custom_cache_redis():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['cache_redis'] = CacheComponent('custom-cache-redis')
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_cache_redis(sut):
+            assert isinstance(sut.cache_redis, CacheComponent)
+
+        @pulumi.runtime.test
+        def it_names_the_cache_redis(sut, app_name, stack):
+            return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{app_name}-{stack}-custom-cache-redis")

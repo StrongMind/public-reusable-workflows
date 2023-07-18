@@ -6,5 +6,7 @@ pulumi-random
 
 pytest-describe
 faker
+mockito
+pytest-mockito
 
 wheel
