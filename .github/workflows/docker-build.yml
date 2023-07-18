@@ -85,5 +85,5 @@ jobs:
         IMAGE_TAG: ${{ github.sha }}
         BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
       run: |
-        docker build --build_arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        docker build --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
