@@ -55,11 +55,6 @@ def get_pulumi_mocks(faker, fake_password=None):
                     **args.inputs,
                     "arn": f"arn:aws:elasticloadbalancing:us-west-2:123456789012:targetgroup/{faker.word()}",
                 }
-            if args.typ == "aws:secretsmanager/secret:Secret":
-                outputs = {
-                    **args.inputs,
-                    "arn": f"arn:aws:secretsmanager:us-west-2:123456789012:secret/{faker.word()}",
-                }
             if args.typ == "aws:elasticache/cluster:Cluster":
                 outputs = {
                     **args.inputs,
@@ -81,11 +76,6 @@ def get_pulumi_mocks(faker, fake_password=None):
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
-            if args.token == "aws:secretsmanager/getSecretVersion:getSecretVersion":
-                return {
-                    "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/{faker.word()}",
-                    "secretString": f"{{\"{faker.word()}\":\"{faker.password()}\"}}",
-                }
             return {}
 
     return PulumiMocks()
