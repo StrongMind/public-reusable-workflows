@@ -10,4 +10,5 @@ class DynamoComponent(pulumi.ComponentResource):
         self.table = aws.dynamodb.Table(
             name,
             name=f"{project}-{stack}-{name}",
+            attributes=kwargs.get("attributes")
         )
