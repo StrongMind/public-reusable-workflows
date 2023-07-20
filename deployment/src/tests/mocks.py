@@ -84,7 +84,7 @@ def get_pulumi_mocks(faker, fake_password=None):
             if args.token == "aws:secretsmanager/getSecretVersion:getSecretVersion":
                 return {
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/{faker.word()}",
-                    "secretString": f"{{\"{faker.word()}\":\"{faker.password()}\"}}",
+                    "secretString": f"{{\"delete_me\":\"dummy\"}}",
                 }
             return {}
 

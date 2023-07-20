@@ -30,6 +30,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.memory = kwargs.get("memory", 512)
         self.entry_point = kwargs.get('entry_point')
         self.env_vars = kwargs.get('env_vars', {})
+        self.secrets = None
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -130,7 +131,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         sm_secret = self.create_secretmanager_secret(project_stack, self.tags)
-        secrets = self.retrieve_secrets_from_secretmanager(sm_secret)
+        self.secrets = self.retrieve_secrets_from_secretmanager(sm_secret)
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
@@ -151,7 +152,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 entry_point=self.entry_point,
                 essential=True,
                 port_mappings=port_mappings,
-                secrets=secrets,
+                secrets=self.secrets,
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
