@@ -93,4 +93,3 @@ def describe_a_dynamo_component():
                 assert_output_equals(sut.table.attributes[0].type, attributes[0].type)
                 assert_output_equals(sut.table.attributes[1].name, attributes[1].name)
                 return assert_output_equals(sut.table.attributes[1].type, attributes[1].type)
-
