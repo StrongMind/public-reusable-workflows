@@ -31,6 +31,23 @@ jobs:
       run: |
         make build
 
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ github.sha }}
+        path: 'dist/*'
+
+  Upload-Package:
+    name: Upload Package
+    needs: Build-Publish
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Artifacts
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ github.sha }}
+        path: 'dist'
+
     - name: Publish a Python distribution to PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
