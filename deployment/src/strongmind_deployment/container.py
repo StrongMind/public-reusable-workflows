@@ -148,7 +148,6 @@ class ContainerComponent(pulumi.ComponentResource):
                 entry_point=self.entry_point,
                 essential=True,
                 port_mappings=port_mappings,
-                secrets=secrets,
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
