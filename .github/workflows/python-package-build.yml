@@ -20,7 +20,7 @@ jobs:
     # hardcoded pip version to avoid bug in pip 23.2 (please reference to https://strongmind.atlassian.net/browse/DEVOPS-9181?focusedCommentId=234025)
     - name: Install Dependencies
       run: |
-        python -m pip install --upgrade pip==23.1.2
+        python -m pip install --upgrade pip
         make install
 
     - name: Pytest
