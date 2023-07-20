@@ -130,7 +130,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         sm_secret = self.create_secretmanager_secret(project_stack, self.tags)
-        secrets = self.retrieve_secrets_from_secretmanager(sm_secret.arn)
+        secrets = self.retrieve_secrets_from_secretmanager(sm_secret)
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
@@ -314,7 +314,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def retrieve_secrets_from_secretmanager(self, sm_secret):
         pretty_secrets = []
         secret_value = aws.secretsmanager.get_secret_version(
-            secret_id=sm_secret,
+            secret_id=sm_secret.id,
         )
         secrets = json.loads(secret_value.secret_string)
         for secret in secrets.keys():
