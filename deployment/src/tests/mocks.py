@@ -78,6 +78,11 @@ def get_pulumi_mocks(faker, fake_password=None):
                 outputs = {
                     **args.inputs
                 }
+            if args.typ == "aws:dynamodb/table:Table":
+                outputs = {
+                    **args.inputs,
+                    "arn": f"arn:aws:dynamodb:us-west-2:123456789012:table/{faker.word()}",
+                }
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
