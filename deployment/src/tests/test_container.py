@@ -323,8 +323,8 @@ def describe_a_pulumi_containerized_app():
                     assert container["cpu"] == cpu
                     assert container["memory"] == memory
                     assert container["essential"]
-                    assert container["secrets"]
                     assert container["entryPoint"] == entry_point
+                    assert container["secrets"]
                     assert container["portMappings"][0]["containerPort"] == container_port
                     assert container["portMappings"][0]["hostPort"] == container_port
                     assert container["logConfiguration"]["logDriver"] == "awslogs"
