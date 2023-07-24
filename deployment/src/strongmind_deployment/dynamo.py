@@ -17,7 +17,9 @@ class DynamoComponent(pulumi.ComponentResource):
         super().__init__('strongmind:global_build:commons:dynamo', name, None, opts)
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        table_opts = ResourceOptions(ignore_changes=["read_capacity", "write_capacity"])  # pragma: no cover
+        table_opts = ResourceOptions(
+            parent=self,
+            ignore_changes=["read_capacity", "write_capacity"])  # pragma: no cover
         hash_key = kwargs.get("hash_key")
         if not hash_key:
             raise ValueError("hash_key is required")
@@ -33,7 +35,7 @@ class DynamoComponent(pulumi.ComponentResource):
             write_capacity=1,
             hash_key=hash_key,
             range_key=kwargs.get("range_key"),
-            deletion_protection_enabled=True,
+            deletion_protection_enabled=True
         )
 
         self.read_autoscaling_target = aws.appautoscaling.Target(
@@ -42,7 +44,10 @@ class DynamoComponent(pulumi.ComponentResource):
             max_capacity=40000,
             min_capacity=1,
             scalable_dimension="dynamodb:table:ReadCapacityUnits",
-            service_namespace="dynamodb"
+            service_namespace="dynamodb",
+            opts=ResourceOptions(
+                parent=self,
+                depends_on=[self.table])
         )
         self.write_autoscaling_target = aws.appautoscaling.Target(
             f"{name}-write-autoscaling-target",
@@ -50,7 +55,10 @@ class DynamoComponent(pulumi.ComponentResource):
             max_capacity=40000,
             min_capacity=1,
             scalable_dimension="dynamodb:table:WriteCapacityUnits",
-            service_namespace="dynamodb"
+            service_namespace="dynamodb",
+            opts=ResourceOptions(
+                parent=self,
+                depends_on=[self.table])
         )
 
         self.register_outputs({})
