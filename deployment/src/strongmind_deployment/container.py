@@ -30,6 +30,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.memory = kwargs.get("memory", 512)
         self.entry_point = kwargs.get('entry_point')
         self.env_vars = kwargs.get('env_vars', {})
+        self.secrets = []
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -70,10 +71,10 @@ class ContainerComponent(pulumi.ComponentResource):
         port_mappings = None
         if self.target_group is not None:
             port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
-                    container_port=self.container_port,
-                    host_port=self.container_port,
-                    target_group=self.target_group,
-                )]
+                container_port=self.container_port,
+                host_port=self.container_port,
+                target_group=self.target_group,
+            )]
 
         execution_role = aws.iam.Role(
             f"{project_stack}-exec-role",
@@ -129,8 +130,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        sm_secret = self.create_secretmanager_secret(project_stack, self.tags)
-        secrets = self.retrieve_secrets_from_secretmanager(sm_secret.arn)
+        sm_secret = self.create_secretmanager_secret(project_stack, self.tags)  # pragma: no cover
+        self.secrets = retrieve_secrets_from_secretmanager(sm_secret.arn)  # pragma: no cover
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
@@ -151,7 +152,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 entry_point=self.entry_point,
                 essential=True,
                 port_mappings=port_mappings,
-                secrets=secrets,
+                secrets=self.secrets,
                 environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
             )
         )
@@ -298,30 +299,35 @@ class ContainerComponent(pulumi.ComponentResource):
 
     def create_secretmanager_secret(self, name, tags):
         sm_secret = aws.secretsmanager.Secret(
-            f'{name}-secrets',
+            'secrets',
             name=name,
             tags=tags
         )
         # put initial dummy secret value
         aws.secretsmanager.SecretVersion(
-            f'{name}-secrets-version',
-            secret_id=sm_secret.id,
+            'secrets-version',
+            secret_id=sm_secret.arn,
             secret_string=json.dumps({"delete_me": "dummy"})
         )
 
         return sm_secret
 
-    def retrieve_secrets_from_secretmanager(self, sm_secret):
-        pretty_secrets = []
+
+async def retrieve_secrets_from_secretmanager(sm_secret_arn):
+    formatted_secrets = []
+
+    is_known = await sm_secret_arn.is_known()
+
+    if is_known:
         secret_value = aws.secretsmanager.get_secret_version(
-            secret_id=sm_secret,
+            secret_id=sm_secret_arn,
         )
         secrets = json.loads(secret_value.secret_string)
         for secret in secrets.keys():
-            pretty_secrets.append(
+            formatted_secrets.append(
                 {
-                "name": secret,
-                "valueFrom": f"{secret_value.arn}:{secret}::",
-            })
+                    "name": secret,
+                    "valueFrom": f"{sm_secret_arn}:{secret}::",
+                })
 
-        return pretty_secrets
+    return formatted_secrets
