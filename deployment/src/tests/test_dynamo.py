@@ -166,6 +166,39 @@ def describe_a_dynamo_component():
         def it_has_service_namespace_of_dynamodb(sut):
             return assert_output_equals(sut.read_autoscaling_target.service_namespace, "dynamodb")
 
+    def describe_table_read_policy():
+        @pulumi.runtime.test
+        def it_exists(sut):
+            assert sut.table_read_policy
+
+        @pulumi.runtime.test
+        def it_has_policy_type(sut):
+            return assert_output_equals(sut.table_read_policy.policy_type, "TargetTrackingScaling")
+
+        @pulumi.runtime.test
+        def it_points_to_read_autoscaling_target(sut, app_name, stack, name):
+            return assert_output_equals(sut.table_read_policy.resource_id, f"table/{app_name}-{stack}-{name}")
+
+        @pulumi.runtime.test
+        def it_has_scalable_dimension_of_dynamodb_read_capacity_utilization(sut):
+            return assert_output_equals(sut.read_autoscaling_target.scalable_dimension,
+                                        "dynamodb:table:ReadCapacityUnits")
+
+        @pulumi.runtime.test
+        def it_has_service_namespace_of_dynamodb(sut):
+            return assert_output_equals(sut.read_autoscaling_target.service_namespace, "dynamodb")
+
+        @pulumi.runtime.test
+        def it_has_target_tracking_scaling_policy_configuration(sut):
+            return assert_output_equals(sut.table_read_policy.target_tracking_scaling_policy_configuration.predefined_metric_specification.predefined_metric_type,
+                                        "DynamoDBReadCapacityUtilization")
+
+        @pulumi.runtime.test
+        def it_has_target_value_of_70(sut):
+            return assert_output_equals(
+                sut.table_read_policy.target_tracking_scaling_policy_configuration.target_value,
+                70)
+
     def describe_write_autoscaling_target():
         @pulumi.runtime.test
         def it_exists(sut):
@@ -191,3 +224,36 @@ def describe_a_dynamo_component():
         @pulumi.runtime.test
         def it_has_service_namespace_of_dynamodb(sut):
             return assert_output_equals(sut.write_autoscaling_target.service_namespace, "dynamodb")
+
+    def describe_table_write_policy():
+        @pulumi.runtime.test
+        def it_exists(sut):
+            assert sut.table_write_policy
+
+        @pulumi.runtime.test
+        def it_has_policy_type(sut):
+            return assert_output_equals(sut.table_write_policy.policy_type, "TargetTrackingScaling")
+
+        @pulumi.runtime.test
+        def it_points_to_write_autoscaling_target(sut, app_name, stack, name):
+            return assert_output_equals(sut.table_write_policy.resource_id, f"table/{app_name}-{stack}-{name}")
+
+        @pulumi.runtime.test
+        def it_has_scalable_dimension_of_dynamodb_write_capacity_utilization(sut):
+            return assert_output_equals(sut.write_autoscaling_target.scalable_dimension,
+                                        "dynamodb:table:WriteCapacityUnits")
+
+        @pulumi.runtime.test
+        def it_has_service_namespace_of_dynamodb(sut):
+            return assert_output_equals(sut.write_autoscaling_target.service_namespace, "dynamodb")
+
+        @pulumi.runtime.test
+        def it_has_target_tracking_scaling_policy_configuration(sut):
+            return assert_output_equals(sut.table_write_policy.target_tracking_scaling_policy_configuration.predefined_metric_specification.predefined_metric_type,
+                                        "DynamoDBWriteCapacityUtilization")
+
+        @pulumi.runtime.test
+        def it_has_target_value_of_70(sut):
+            return assert_output_equals(
+                sut.table_write_policy.target_tracking_scaling_policy_configuration.target_value,
+                70)

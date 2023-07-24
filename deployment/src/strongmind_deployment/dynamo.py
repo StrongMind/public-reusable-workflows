@@ -49,7 +49,25 @@ class DynamoComponent(pulumi.ComponentResource):
             service_namespace="dynamodb",
             opts=ResourceOptions(
                 parent=self,
-                depends_on=[self.table])
+                depends_on=[self.table]
+            )
+        )
+        self.table_read_policy = aws.appautoscaling.Policy(
+            f"{name}-read-autoscaling-policy",
+            policy_type="TargetTrackingScaling",
+            resource_id=f"table/{table_name}",
+            scalable_dimension="dynamodb:table:ReadCapacityUnits",
+            service_namespace="dynamodb",
+            target_tracking_scaling_policy_configuration=aws.appautoscaling.PolicyTargetTrackingScalingPolicyConfigurationArgs(
+                predefined_metric_specification=aws.appautoscaling.PolicyTargetTrackingScalingPolicyConfigurationPredefinedMetricSpecificationArgs(
+                    predefined_metric_type="DynamoDBReadCapacityUtilization",
+                ),
+                target_value=70,
+            ),
+            opts=ResourceOptions(
+                parent=self,
+                depends_on=[self.table]
+            )
         )
         self.write_autoscaling_target = aws.appautoscaling.Target(
             f"{name}-write-autoscaling-target",
@@ -60,7 +78,25 @@ class DynamoComponent(pulumi.ComponentResource):
             service_namespace="dynamodb",
             opts=ResourceOptions(
                 parent=self,
-                depends_on=[self.table])
+                depends_on=[self.table]
+            )
+        )
+        self.table_write_policy = aws.appautoscaling.Policy(
+            f"{name}-write-autoscaling-policy",
+            policy_type="TargetTrackingScaling",
+            resource_id=f"table/{table_name}",
+            scalable_dimension="dynamodb:table:WriteCapacityUnits",
+            service_namespace="dynamodb",
+            target_tracking_scaling_policy_configuration=aws.appautoscaling.PolicyTargetTrackingScalingPolicyConfigurationArgs(
+                predefined_metric_specification=aws.appautoscaling.PolicyTargetTrackingScalingPolicyConfigurationPredefinedMetricSpecificationArgs(
+                    predefined_metric_type="DynamoDBWriteCapacityUtilization",
+                ),
+                target_value=70,
+            ),
+            opts=ResourceOptions(
+                parent=self,
+                depends_on=[self.table]
+            )
         )
 
         self.register_outputs({})
