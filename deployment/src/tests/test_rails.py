@@ -513,7 +513,7 @@ def describe_a_pulumi_rails_app():
         def dynamo_tables(dynamo_table_names):
             tables = []
             for table_name in dynamo_table_names:
-                tables.append(DynamoComponent(table_name))
+                tables.append(DynamoComponent(table_name, hash_key='id'))
 
             return tables
 
