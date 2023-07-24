@@ -303,23 +303,24 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=tags
         )
         # put initial dummy secret value
-        aws.secretsmanager.SecretVersion(
+        secret_version = aws.secretsmanager.SecretVersion(
             f'{name}-secrets-version',
             secret_id=sm_secret.arn,
             secret_string=json.dumps({"delete_me": "dummy"})
         )
 
         pretty_secrets = []
-        if sm_secret.id != None:
+        if sm_secret.arn != None:
+            secret_arn = sm_secret.arn
             secret_value = aws.secretsmanager.get_secret_version(
-                secret_id=sm_secret.id
+                secret_id=secret_arn
             )
             secrets = json.loads(secret_value.secret_string)
             for secret in secrets.keys():
                 pretty_secrets.append(
                     {
                     "name": secret,
-                    "valueFrom": f"{secret_value.arn}:{secret}::",
+                    "valueFrom": f"{secret_arn}:{secret}::",
                 })
 
         return pretty_secrets
