@@ -22,7 +22,6 @@ class RailsComponent(pulumi.ComponentResource):
 
         :param name: The _unique_ name of the resource.
         :param opts: A bag of optional settings that control this resource's behavior.
-        :param kwargs: See below.
         :key env_vars: A dictionary of environment variables to pass to the Rails application.
         :key queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
         :key cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
@@ -38,6 +37,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
         :key worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
+        :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.need_worker = None
@@ -68,12 +68,12 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds(project_stack)
 
         self.setup_dynamo()
+
         self.setup_redis()
 
         self.ecs()
 
         self.security()
-
 
         self.register_outputs({})
 
