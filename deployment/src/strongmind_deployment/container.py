@@ -322,7 +322,7 @@ class ContainerComponent(pulumi.ComponentResource):
         #    })
 #
         #return pretty_secrets
-        return {
+        return [{
                 "name": "delete_me",
                 "valueFrom": f"{sm_secret.arn}:delete_me::",
-            }
+            }]
