@@ -544,7 +544,11 @@ def describe_a_pulumi_rails_app():
         def it_creates_dynamo_tables(sut, dynamo_tables):
             assert sut.dynamo_tables == dynamo_tables
 
-        # @pulumi.runtime.test
-        # def it_adds_the_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
-        #     for table_component in dynamo_tables:
-        #         assert_outputs_equal(sut.env_vars[table_component.table.name.upper()], table_component.table.name)
+        @pulumi.runtime.test
+        def it_adds_the_first_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
+            env_name = dynamo_table_names[0].upper() + "_DYNAMO_TABLE_NAME"
+            return assert_outputs_equal(sut.env_vars[env_name], dynamo_tables[0].table.name)
+        @pulumi.runtime.test
+        def it_adds_the_second_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
+            env_name = dynamo_table_names[1].upper() + "_DYNAMO_TABLE_NAME"
+            return assert_outputs_equal(sut.env_vars[env_name], dynamo_tables[1].table.name)

@@ -67,11 +67,13 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.rds(project_stack)
 
+        self.setup_dynamo()
         self.setup_redis()
 
         self.ecs()
 
         self.security()
+
 
         self.register_outputs({})
 
@@ -208,3 +210,9 @@ class RailsComponent(pulumi.ComponentResource):
                              '@',
                              self.rds_serverless_cluster.endpoint,
                              ':5432/app')
+
+    def setup_dynamo(self):
+        for table_component in self.dynamo_tables:
+            env_var_name = table_component._name.upper() + '_DYNAMO_TABLE_NAME'
+            self.env_vars[env_var_name] = table_component.table.name
+
