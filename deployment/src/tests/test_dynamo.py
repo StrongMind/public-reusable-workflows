@@ -19,7 +19,6 @@ def describe_a_dynamo_component():
     def name(faker):
         return faker.word()
 
-
     @pytest.fixture
     def app_name(faker):
         return faker.word()
@@ -60,17 +59,19 @@ def describe_a_dynamo_component():
 
         def describe_with_attributes():
             @pytest.fixture
-            def attributes(faker):
-                return [
-                    aws.dynamodb.TableAttributeArgs(
-                        name=faker.word(),
-                        type="S",
-                    ),
-                    aws.dynamodb.TableAttributeArgs(
-                        name=faker.word(),
-                        type="N",
-                    ),
-                ]
+            def attribute_name_1(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def attribute_name_2(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def attributes(attribute_name_1, attribute_name_2, faker):
+                return {
+                    attribute_name_1: "S",
+                    attribute_name_2: "N"
+                }
 
             @pytest.fixture
             def sut(name, attributes, pulumi_set_mocks):
@@ -78,18 +79,17 @@ def describe_a_dynamo_component():
                 return strongmind_deployment.dynamo.DynamoComponent(name, attributes=attributes)
 
             @pulumi.runtime.test
-            def it_passes_through_attributes(sut, attributes):
-                translated_attributes = [
-                    {
-                        "name": attributes[0].name,
-                        "type": attributes[0].type
-                    },
-                    {
-                        "name": attributes[1].name,
-                        "type": attributes[1].type
-                    }
-                ]
-                assert_output_equals(sut.table.attributes[0].name, attributes[0].name)
-                assert_output_equals(sut.table.attributes[0].type, attributes[0].type)
-                assert_output_equals(sut.table.attributes[1].name, attributes[1].name)
-                return assert_output_equals(sut.table.attributes[1].type, attributes[1].type)
+            def it_creates_the_first_dynamo_attribute(sut, attribute_name_1):
+                return assert_output_equals(sut.table.attributes[0].name, attribute_name_1)
+
+            @pulumi.runtime.test
+            def it_creates_the_first_dynamo_type(sut, ):
+                return assert_output_equals(sut.table.attributes[0].type, "S")
+
+            @pulumi.runtime.test
+            def it_creates_the_second_dynamo_attribute(sut, attribute_name_2):
+                return assert_output_equals(sut.table.attributes[1].name, attribute_name_2)
+
+            @pulumi.runtime.test
+            def it_creates_the_second_dynamo_type(sut, ):
+                return assert_output_equals(sut.table.attributes[1].type, "N")

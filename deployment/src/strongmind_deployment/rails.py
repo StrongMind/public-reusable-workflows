@@ -49,6 +49,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
+        self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
