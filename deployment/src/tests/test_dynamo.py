@@ -3,7 +3,7 @@ import pulumi_aws as aws
 import pytest
 
 from tests.mocks import get_pulumi_mocks
-from tests.shared import assert_output_equals
+from tests.shared import assert_output_equals, assert_outputs_equal
 
 
 def describe_a_dynamo_component():
@@ -154,8 +154,8 @@ def describe_a_dynamo_component():
             return assert_output_equals(sut.read_autoscaling_target.min_capacity, 1)
 
         @pulumi.runtime.test
-        def it_points_to_dynamo_table(sut):
-            return assert_output_equals(sut.read_autoscaling_target.resource_id, f"table/{sut.table.name}")
+        def it_points_to_dynamo_table(sut, app_name, stack, name):
+            return assert_output_equals(sut.read_autoscaling_target.resource_id, f"table/{app_name}-{stack}-{name}")
 
         @pulumi.runtime.test
         def it_has_scalable_dimension_of_dynamodb_read_capacity_utilization(sut):
@@ -180,8 +180,8 @@ def describe_a_dynamo_component():
             return assert_output_equals(sut.write_autoscaling_target.min_capacity, 1)
 
         @pulumi.runtime.test
-        def it_points_to_dynamo_table(sut):
-            return assert_output_equals(sut.write_autoscaling_target.resource_id, f"table/{sut.table.name}")
+        def it_points_to_dynamo_table(sut, app_name, stack, name):
+            return assert_output_equals(sut.write_autoscaling_target.resource_id, f"table/{app_name}-{stack}-{name}")
 
         @pulumi.runtime.test
         def it_has_scalable_dimension_of_dynamodb_write_capacity_utilization(sut):

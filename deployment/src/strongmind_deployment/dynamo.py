@@ -26,9 +26,11 @@ class DynamoComponent(pulumi.ComponentResource):
         attributes = []
         for attribute_name, attribute_type in kwargs.get("attributes", {}).items():
             attributes.append(aws.dynamodb.TableAttributeArgs(name=attribute_name, type=attribute_type))
+
+        table_name = f"{project}-{stack}-{name}"
         self.table = aws.dynamodb.Table(
             name,
-            name=f"{project}-{stack}-{name}",
+            name=table_name,
             attributes=attributes,
             opts=table_opts,
             read_capacity=1,
@@ -40,7 +42,7 @@ class DynamoComponent(pulumi.ComponentResource):
 
         self.read_autoscaling_target = aws.appautoscaling.Target(
             f"{name}-read-autoscaling-target",
-            resource_id=f"table/{self.table.name}",
+            resource_id=f"table/{table_name}",
             max_capacity=40000,
             min_capacity=1,
             scalable_dimension="dynamodb:table:ReadCapacityUnits",
@@ -51,7 +53,7 @@ class DynamoComponent(pulumi.ComponentResource):
         )
         self.write_autoscaling_target = aws.appautoscaling.Target(
             f"{name}-write-autoscaling-target",
-            resource_id=f"table/{self.table.name}",
+            resource_id=f"table/{table_name}",
             max_capacity=40000,
             min_capacity=1,
             scalable_dimension="dynamodb:table:WriteCapacityUnits",
