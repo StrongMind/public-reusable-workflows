@@ -5,7 +5,7 @@ import re
 import pulumi
 import pulumi_aws as aws
 import pulumi_awsx as awsx
-from pulumi import Config, export, Output
+from pulumi import Config, export, Output, InvokeOptions
 from pulumi_cloudflare import get_zone, Record
 
 
@@ -310,9 +310,12 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         pretty_secrets = []
-        if sm_secret.arn:
+        if sm_secret.arn != None:
             secret_value = aws.secretsmanager.get_secret_version(
                 secret_id=sm_secret.arn,
+                opts=InvokeOptions(
+                    parent=sm_secret,
+                )
             )
             secrets = json.loads(secret_value.secret_string)
             for secret in secrets.keys():
