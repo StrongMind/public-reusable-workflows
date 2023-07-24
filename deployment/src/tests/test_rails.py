@@ -117,14 +117,6 @@ def describe_a_pulumi_rails_app():
         return key
 
     @pytest.fixture
-    def redis_node_type():
-        return None
-
-    @pytest.fixture
-    def redis_num_cache_nodes():
-        return None
-
-    @pytest.fixture
     def component_kwargs(
             app_path,
             container_port,
@@ -143,8 +135,6 @@ def describe_a_pulumi_rails_app():
             worker_container_entry_point,
             worker_container_cpu,
             worker_container_memory,
-            redis_node_type,
-            redis_num_cache_nodes
     ):
         kwargs = {
             "app_path": app_path,
@@ -165,10 +155,6 @@ def describe_a_pulumi_rails_app():
                 "ENVIRONMENT_NAME": environment
             }
         }
-        if redis_node_type:
-            kwargs["redis_node_type"] = redis_node_type
-        if redis_num_cache_nodes:
-            kwargs["redis_num_cache_nodes"] = redis_num_cache_nodes
 
         return kwargs
 
