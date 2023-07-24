@@ -11,5 +11,5 @@ on:
 jobs:
   build:
     name: Build and Publish
-    uses: strongmind/public-reusable-workflows/.github/workflows/python-package-build.yml@devops-9181
+    uses: strongmind/public-reusable-workflows/.github/workflows/python-package-build.yml@main
     secrets: inherit
