@@ -300,7 +300,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def create_secretmanager_secret(self, name, tags):
         sm_secret = aws.secretsmanager.Secret(
             'secrets',
-            name=name,
+            name=f"{name}-secrets",
             tags=tags
         )
         # put initial dummy secret value
