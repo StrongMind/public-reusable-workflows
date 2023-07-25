@@ -307,7 +307,7 @@ class ContainerComponent(pulumi.ComponentResource):
         aws.secretsmanager.SecretVersion(
             f"{name}-secrets-version",
             secret_id=sm_secret.arn,
-            secret_string=json.dumps({"delete_me": "dummy"})
+            secret_string=json.dumps({})
         )
 
         return sm_secret
