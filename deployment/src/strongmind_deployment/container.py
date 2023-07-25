@@ -299,13 +299,13 @@ class ContainerComponent(pulumi.ComponentResource):
 
     def create_secretmanager_secret(self, name, tags):
         sm_secret = aws.secretsmanager.Secret(
-            'secrets',
+            f"{name}-secrets",
             name=f"{name}-secrets",
             tags=tags
         )
         # put initial dummy secret value
         aws.secretsmanager.SecretVersion(
-            'secrets-version',
+            f"{name}-secrets-version",
             secret_id=sm_secret.arn,
             secret_string=json.dumps({"delete_me": "dummy"})
         )
