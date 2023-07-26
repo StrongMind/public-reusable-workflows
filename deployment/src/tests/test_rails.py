@@ -3,6 +3,7 @@ import os
 import pulumi.runtime
 import pytest
 
+from strongmind_deployment.dynamo import DynamoComponent
 from strongmind_deployment.redis import QueueComponent, CacheComponent
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
@@ -116,14 +117,6 @@ def describe_a_pulumi_rails_app():
         return key
 
     @pytest.fixture
-    def redis_node_type():
-        return None
-
-    @pytest.fixture
-    def redis_num_cache_nodes():
-        return None
-
-    @pytest.fixture
     def component_kwargs(
             app_path,
             container_port,
@@ -142,8 +135,6 @@ def describe_a_pulumi_rails_app():
             worker_container_entry_point,
             worker_container_cpu,
             worker_container_memory,
-            redis_node_type,
-            redis_num_cache_nodes
     ):
         kwargs = {
             "app_path": app_path,
@@ -164,10 +155,6 @@ def describe_a_pulumi_rails_app():
                 "ENVIRONMENT_NAME": environment
             }
         }
-        if redis_node_type:
-            kwargs["redis_node_type"] = redis_node_type
-        if redis_num_cache_nodes:
-            kwargs["redis_num_cache_nodes"] = redis_num_cache_nodes
 
         return kwargs
 
@@ -183,6 +170,9 @@ def describe_a_pulumi_rails_app():
 
     def it_exists(sut):
         assert sut
+
+    def it_has_no_dynamo_tables(sut):
+        assert sut.dynamo_tables == []
 
     def describe_a_rds_postgres_cluster():
         @pulumi.runtime.test
@@ -368,7 +358,6 @@ def describe_a_pulumi_rails_app():
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
 
-
         def describe_need_worker():
             @pytest.fixture
             def component_kwargs(component_kwargs):
@@ -515,3 +504,37 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_names_the_cache_redis(sut, app_name, stack):
             return assert_output_equals(sut.cache_redis.cluster.cluster_id, f"{app_name}-{stack}-custom-cache-redis")
+
+    def describe_with_dynamo_tables():
+        @pytest.fixture
+        def dynamo_table_names(faker):
+            return [faker.word(), faker.word()]
+        @pytest.fixture
+        def dynamo_tables(dynamo_table_names):
+            tables = []
+            for table_name in dynamo_table_names:
+                tables.append(DynamoComponent(table_name, hash_key='id'))
+
+            return tables
+
+        @pytest.fixture
+        def sut(component_kwargs, dynamo_tables, pulumi_set_mocks):
+            import strongmind_deployment.rails
+            component_kwargs['dynamo_tables'] = dynamo_tables
+
+            return strongmind_deployment.rails.RailsComponent("rails",
+                                                              **component_kwargs
+                                                              )
+
+        @pulumi.runtime.test
+        def it_creates_dynamo_tables(sut, dynamo_tables):
+            assert sut.dynamo_tables == dynamo_tables
+
+        @pulumi.runtime.test
+        def it_adds_the_first_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
+            env_name = dynamo_table_names[0].upper() + "_DYNAMO_TABLE_NAME"
+            return assert_outputs_equal(sut.env_vars[env_name], dynamo_tables[0].table.name)
+        @pulumi.runtime.test
+        def it_adds_the_second_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
+            env_name = dynamo_table_names[1].upper() + "_DYNAMO_TABLE_NAME"
+            return assert_outputs_equal(sut.env_vars[env_name], dynamo_tables[1].table.name)
