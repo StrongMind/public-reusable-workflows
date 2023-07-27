@@ -8,6 +8,7 @@ from pulumi import export, Output
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
+from strongmind_deployment.secretsmanager import SecretsComponent
 
 
 def sidekiq_present():  # pragma: no cover
@@ -70,6 +71,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.setup_dynamo()
 
         self.setup_redis()
+
+        self.secrets()
 
         self.ecs()
 
@@ -139,6 +142,7 @@ class RailsComponent(pulumi.ComponentResource):
                                                               "rails server --port 3000 -b 0.0.0.0"])
 
         self.kwargs['entry_point'] = web_entry_point
+        self.kwargs['secrets'] = self.secret.get_secrets(self.secret.sm_secret_version.arn)
 
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self),
@@ -161,10 +165,17 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['app_path'] = self.kwargs.get('worker_app_path')
         self.kwargs['need_load_balancer'] = False
         self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
+        self.kwargs['secrets'] = self.secret.get_secrets(self.secret.sm_secret_version.arn)
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self),
                                                    **self.kwargs
                                                    )
+    
+    def secrets(self):
+        self.secret = SecretsComponent("secrets",
+                                        pulumi.ResourceOptions(parent=self),
+                                        **self.kwargs
+                                        )
 
     def rds(self, project_stack):
         self.db_password = random.RandomPassword("password",
