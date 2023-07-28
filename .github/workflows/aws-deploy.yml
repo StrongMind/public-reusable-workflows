@@ -1,4 +1,4 @@
-name: Deploy Rails
+name: Deploy to AWS
 
 on:
   workflow_call:

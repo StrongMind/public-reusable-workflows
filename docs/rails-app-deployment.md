@@ -55,7 +55,7 @@ jobs:
   deploy:
     name: Deploy Rails to ECS
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
     with:
       environment-name: stage
     secrets: inherit
@@ -74,7 +74,7 @@ on:
 jobs:
   deploy:
     name: Deploy Rails to ECS
-    uses: strongmind/public-reusable-workflows/.github/workflows/rails-deploy.yml@main
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
     with:
       environment-name: prod
     secrets: inherit
