@@ -16,10 +16,11 @@ class SecretsComponent(pulumi.ComponentResource):
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.formatted_secrets = []
+        self.secret_string = kwargs.get('secret_string', '{}')
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}-devops-9495"
+        project_stack = f"{project}-{stack}"
 
         self.tags = {
             "product": project,
@@ -38,7 +39,7 @@ class SecretsComponent(pulumi.ComponentResource):
         self.sm_secret_version = aws.secretsmanager.SecretVersion(
             f"{project_stack}-secrets-version",
             secret_id=self.sm_secret.arn,
-            secret_string=json.dumps({})
+            secret_string=json.dumps(self.secret_string)
         )
         self.register_outputs({})
     

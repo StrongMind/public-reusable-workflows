@@ -83,6 +83,12 @@ def describe_a_pulumi_rails_app():
     @pytest.fixture
     def target_group_arn(faker):
         return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
+    
+    #@pytest.fixture
+    #def secrets(faker):
+    #    return [{
+    #        faker.word(): faker.password(),
+    #    }]
 
     @pytest.fixture
     def domain_validation_options(faker):
@@ -153,7 +159,7 @@ def describe_a_pulumi_rails_app():
             "zone_id": zone_id,
             "env_vars": {
                 "ENVIRONMENT_NAME": environment
-            }
+            },
         }
 
         return kwargs
@@ -168,11 +174,26 @@ def describe_a_pulumi_rails_app():
                                                          )
         return sut
 
+    @pulumi.runtime.test
     def it_exists(sut):
         assert sut
 
+    @pulumi.runtime.test
     def it_has_no_dynamo_tables(sut):
         assert sut.dynamo_tables == []
+
+    def describe_secretmanager_secret():
+        @pulumi.runtime.test
+        def it_has_a_secret(sut):
+            assert sut.secret.sm_secret
+        
+        @pulumi.runtime.test
+        def it_has_a_secret_version(sut):
+            assert sut.secret.sm_secret_version
+        
+        @pulumi.runtime.test
+        def it_has_a_sm_secret_version_secret_string(sut):
+            return assert_output_equals(sut.secret.sm_secret_version.secret_string, "{}")
 
     def describe_a_rds_postgres_cluster():
         @pulumi.runtime.test

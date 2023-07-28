@@ -58,6 +58,12 @@ def describe_a_pulumi_containerized_app():
         return {
             "ENVIRONMENT_NAME": environment,
         }
+    
+    @pytest.fixture
+    def secrets(faker):
+        return [{
+            faker.word(): faker.password(),
+        }]
 
     @pytest.fixture
     def load_balancer_arn(faker):
@@ -113,6 +119,7 @@ def describe_a_pulumi_containerized_app():
             entry_point,
             container_image,
             env_vars,
+            secrets,
             load_balancer_arn,
             target_group_arn,
             zone_id,
@@ -128,6 +135,7 @@ def describe_a_pulumi_containerized_app():
                                                                   entry_point=entry_point,
                                                                   container_image=container_image,
                                                                   env_vars=env_vars,
+                                                                  secrets=secrets,
                                                                   load_balancer_arn=load_balancer_arn,
                                                                   target_group_arn=target_group_arn,
                                                                   zone_id=zone_id,

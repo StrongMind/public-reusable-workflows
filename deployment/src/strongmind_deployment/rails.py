@@ -47,6 +47,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.db_password = None
         self.web_container = None
         self.worker_container = None
+        self.secret = None
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
@@ -142,7 +143,7 @@ class RailsComponent(pulumi.ComponentResource):
                                                               "rails server --port 3000 -b 0.0.0.0"])
 
         self.kwargs['entry_point'] = web_entry_point
-        self.kwargs['secrets'] = self.secret.get_secrets(self.secret.sm_secret_version.arn)
+        self.kwargs['secrets'] = self.secret.get_secrets(self.secret.sm_secret.arn)
 
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self),
@@ -165,7 +166,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['app_path'] = self.kwargs.get('worker_app_path')
         self.kwargs['need_load_balancer'] = False
         self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
-        self.kwargs['secrets'] = self.secret.get_secrets(self.secret.sm_secret_version.arn)
+        self.kwargs['secrets'] = self.secret.get_secrets(self.secret.sm_secret.arn)
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self),
                                                    **self.kwargs
