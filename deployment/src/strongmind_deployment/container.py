@@ -30,7 +30,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.memory = kwargs.get("memory", 512)
         self.entry_point = kwargs.get('entry_point')
         self.env_vars = kwargs.get('env_vars', {})
-        self.secrets = []
+        self.secrets = kwargs.get('secrets', [])
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -129,9 +129,6 @@ class ContainerComponent(pulumi.ComponentResource):
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
-
-        sm_secret = self.create_secretmanager_secret(project_stack, self.tags)  # pragma: no cover
-        self.secrets = retrieve_secrets_from_secretmanager(sm_secret.arn)  # pragma: no cover
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             skip_destroy=True,
@@ -296,38 +293,3 @@ class ContainerComponent(pulumi.ComponentResource):
             validation_record_fqdns=[self.cert_validation_record.hostname],
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
         )
-
-    def create_secretmanager_secret(self, name, tags):
-        sm_secret = aws.secretsmanager.Secret(
-            f"{name}-secrets",
-            name=f"{name}-secrets",
-            tags=tags
-        )
-        # put initial dummy secret value
-        aws.secretsmanager.SecretVersion(
-            f"{name}-secrets-version",
-            secret_id=sm_secret.arn,
-            secret_string=json.dumps({})
-        )
-
-        return sm_secret
-
-
-async def retrieve_secrets_from_secretmanager(sm_secret_arn):
-    formatted_secrets = []
-
-    is_known = await sm_secret_arn.is_known()
-
-    if is_known:
-        secret_value = aws.secretsmanager.get_secret_version(
-            secret_id=sm_secret_arn,
-        )
-        secrets = json.loads(secret_value.secret_string)
-        for secret in secrets.keys():
-            formatted_secrets.append(
-                {
-                    "name": secret,
-                    "valueFrom": f"{sm_secret_arn}:{secret}::",
-                })
-
-    return formatted_secrets
