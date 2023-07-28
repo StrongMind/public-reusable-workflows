@@ -16,7 +16,7 @@ class SecretsComponent(pulumi.ComponentResource):
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.formatted_secrets = []
-        self.secret_string = kwargs.get('secret_string', '{}')
+        self.secret_string = kwargs.get('secret_string', {})
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
@@ -43,19 +43,20 @@ class SecretsComponent(pulumi.ComponentResource):
         )
         self.register_outputs({})
     
-    def get_secrets(self, sm_secret_arn):
+    async def get_secrets(self, sm_secret_arn):
         formatted_secrets = []
-
-        secret_value = aws.secretsmanager.get_secret_version(
-            secret_id=sm_secret_arn,
-        )
-        secrets = json.loads(secret_value.secret_string)
-        for secret in secrets.keys():
-            formatted_secrets.append(
-                {
-                    "name": secret,
-                    "valueFrom": f"{secret_value.arn}:{secret}",
-                }
+        is_known = await sm_secret_arn.is_known()
+        if is_known:
+            secret_value = aws.secretsmanager.get_secret_version(
+                secret_id=sm_secret_arn,
             )
+            secrets = json.loads(secret_value.secret_string)
+            for secret in secrets.keys():
+                formatted_secrets.append(
+                    {
+                        "name": secret,
+                        "valueFrom": f"{secret_value.arn}:{secret}",
+                    }
+                )
 
-        return formatted_secrets
+            return formatted_secrets

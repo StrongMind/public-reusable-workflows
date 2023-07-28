@@ -83,12 +83,6 @@ def describe_a_pulumi_rails_app():
     @pytest.fixture
     def target_group_arn(faker):
         return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
-    
-    #@pytest.fixture
-    #def secrets(faker):
-    #    return [{
-    #        faker.word(): faker.password(),
-    #    }]
 
     @pytest.fixture
     def domain_validation_options(faker):
