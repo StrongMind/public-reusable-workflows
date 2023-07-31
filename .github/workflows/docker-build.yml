@@ -32,7 +32,7 @@ permissions:
 
 jobs:
   test-docker:
-    if: ${{ !inputs.skip_test_docker == 'false' }}
+    if: ${{ !inputs.skip_test_docker }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
