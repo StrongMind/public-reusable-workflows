@@ -13,11 +13,6 @@ on:
         required: false
         type: number
         default: 15
-      skip_test_docker:
-        description: Skip testing the dockerfile
-        required: false
-        type: boolean
-        default: false
       build_args:
         description: List of build args to pass to docker build
         required: false
@@ -32,15 +27,16 @@ permissions:
 
 jobs:
   test-docker:
-    if: ${{ !inputs.skip_test_docker }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Test docker
+        env:
+          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
         run: |
-          docker build -t test-docker .
+          docker build --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} -t test-docker .
           CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d test-docker)
           echo "Starting docker container $CONTAINER_ID and waiting for ${{ inputs.test_docker_timeout }} seconds"
           sleep ${{ inputs.test_docker_timeout }}
