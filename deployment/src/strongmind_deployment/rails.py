@@ -191,6 +191,8 @@ class RailsComponent(pulumi.ComponentResource):
             database_name="app",
             master_username=project_stack.replace('-', '_'),
             master_password=self.db_password.result,
+            deletion_protection=True,
+            skip_final_snapshot=False,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=0.5,
                 max_capacity=16,
