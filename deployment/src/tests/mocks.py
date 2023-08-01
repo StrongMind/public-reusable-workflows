@@ -7,7 +7,7 @@ import pulumi_aws.ecs
 from pulumi_aws.ecs import ServiceNetworkConfigurationArgs
 
 
-def get_pulumi_mocks(faker, fake_password=None):
+def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
     class PulumiMocks(pulumi.runtime.Mocks):
         def __init__(self):
             super().__init__()
@@ -87,15 +87,15 @@ def get_pulumi_mocks(faker, fake_password=None):
                 outputs = {
                     **args.inputs,
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789012:secret/{faker.word()}",
-                    "secret_string": "{}",
+                    "secret_string": args.inputs["secretString"],
                 }
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
             if args.token == "aws:secretsmanager/getSecretVersion:getSecretVersion":
                 return {
-                    "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/{faker.word()}",
-                    "secretString": "{}",
+                    "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
+                    "secretString": secret_string
                 }
             return {}
 

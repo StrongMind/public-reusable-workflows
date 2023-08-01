@@ -39,11 +39,11 @@ def describe_a_pulumi_secretsmanager_component():
     def sut(pulumi_set_mocks,
             component_arguments,
             name):
-        import strongmind_deployment.secretsmanager
+        import strongmind_deployment.secrets
 
-        sut = strongmind_deployment.secretsmanager.SecretsComponent(name,
-                                                         **component_arguments
-                                                         )
+        sut = strongmind_deployment.secrets.SecretsComponent(name,
+                                                             **component_arguments
+                                                             )
         return sut
 
     @pulumi.runtime.test
@@ -96,14 +96,14 @@ def describe_a_pulumi_secretsmanager_component():
             def sut(component_arguments,
                     name,
                     secret_string):
-                import strongmind_deployment.secretsmanager
+                import strongmind_deployment.secrets
 
-                sut = strongmind_deployment.secretsmanager.SecretsComponent(name,
-                                                        **component_arguments,
-                                                        secret_string=secret_string,
-                                                        )
+                sut = strongmind_deployment.secrets.SecretsComponent(name,
+                                                                     **component_arguments,
+                                                                     secret_string=secret_string,
+                                                                     )
                 return sut
-            
+
             @pulumi.runtime.test
             def it_should_return_secrets(sut, secret_string):
                 secret_arn = sut.sm_secret.arn

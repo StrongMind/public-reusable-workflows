@@ -324,14 +324,14 @@ def describe_a_pulumi_containerized_app():
                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
-            def it_has_task_definition(sut, container_port, cpu, memory, entry_point, stack, app_name):
+            def it_has_task_definition(sut, container_port, cpu, memory, entry_point, stack, app_name, secrets):
                 def check_task_definition(args):
                     task_definition_dict = args[0]
                     container = task_definition_dict["container"]
                     assert container["cpu"] == cpu
                     assert container["memory"] == memory
                     assert container["essential"]
-                    assert container["secrets"]
+                    assert container["secrets"] == secrets
                     assert container["entryPoint"] == entry_point
                     assert container["portMappings"][0]["containerPort"] == container_port
                     assert container["portMappings"][0]["hostPort"] == container_port
