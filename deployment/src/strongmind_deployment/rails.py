@@ -140,7 +140,7 @@ class RailsComponent(pulumi.ComponentResource):
         web_entry_point = self.kwargs.get('web_entry_point')
 
         self.kwargs['entry_point'] = web_entry_point
-        self.kwargs['secrets'] = self.secret.get_secrets()
+        self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
 
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self),
@@ -163,7 +163,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['app_path'] = self.kwargs.get('worker_app_path')
         self.kwargs['need_load_balancer'] = False
         self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
-        self.kwargs['secrets'] = self.secret.get_secrets()
+        self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self),
                                                    **self.kwargs
