@@ -3,7 +3,12 @@ from pulumi import Output
 
 def assert_output_equals(output, expected):
     def compare(value):
-        assert value == expected
+        try:
+            assert value == expected
+        except AssertionError as e:
+            print("value: ", value)
+            print("expected: ", expected)
+            raise e
 
     return output.apply(compare)
 
