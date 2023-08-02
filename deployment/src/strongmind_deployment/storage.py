@@ -10,10 +10,10 @@ class StorageComponent(pulumi.ComponentResource):
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        bucket_name = f"{project}-{stack}-courseware"
+        bucket_name = f"strongmind-{project}-{stack}"
 
         self.bucket = aws.s3.Bucket("bucket",
-                                    acl="private",
+                                    acl="public-read",
                                     bucket=bucket_name,
                                     tags={
                                         "product": project,

@@ -5,6 +5,7 @@ import pytest
 
 from strongmind_deployment.dynamo import DynamoComponent
 from strongmind_deployment.redis import QueueComponent, CacheComponent
+from strongmind_deployment.storage import StorageComponent
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
 
@@ -561,3 +562,18 @@ def describe_a_pulumi_rails_app():
         def it_adds_the_second_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
             env_name = dynamo_table_names[1].upper() + "_DYNAMO_TABLE_NAME"
             return assert_outputs_equal(sut.env_vars[env_name], dynamo_tables[1].table.name)
+
+    def describe_with_storage_enabled():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['storage'] = True
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_a_storage_bucket(sut):
+            assert isinstance(sut.storage, StorageComponent)
+
+        @pulumi.runtime.test
+        def it_sends_the_bucket_name_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["S3_BUCKET_NAME"], sut.storage.bucket.bucket)

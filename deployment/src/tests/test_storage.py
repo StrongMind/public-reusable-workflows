@@ -50,11 +50,11 @@ def describe_a_pulumi_storage_component():
 
         @pulumi.runtime.test
         def it_has_a_bucket_name(sut, app_name, stack):
-            return assert_output_equals(sut.bucket.bucket, f"{app_name}-{stack}-courseware")
+            return assert_output_equals(sut.bucket.bucket, f"strongmind-{app_name}-{stack}")
 
         @pulumi.runtime.test
-        def it_has_a_bucket_acl(sut):
-            return assert_output_equals(sut.bucket.acl, "private")
+        def it_is_available_for_read_publicly(sut):
+            return assert_output_equals(sut.bucket.acl, "public-read")
 
         @pulumi.runtime.test
         def it_has_tags(sut, app_name):
