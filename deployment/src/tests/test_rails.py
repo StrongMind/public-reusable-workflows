@@ -1,3 +1,4 @@
+import json
 import os
 
 import pulumi.runtime
@@ -40,9 +41,8 @@ def describe_a_pulumi_rails_app():
 
     @pytest.fixture
     def container_entry_point():
-        return ["sh", "-c", "rails db:prepare db:migrate db:seed && "
-                            "rails assets:precompile && "
-                            "rails server --port 3000 -b 0.0.0.0"]
+        # We will use the entry point from Dockerfile by default
+        return None
 
     @pytest.fixture
     def worker_container_app_path(faker):
@@ -180,14 +180,66 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_has_a_secret(sut):
             assert sut.secret.sm_secret
-        
+
         @pulumi.runtime.test
         def it_has_a_secret_version(sut):
             assert sut.secret.sm_secret_version
-        
+
         @pulumi.runtime.test
         def it_has_a_sm_secret_version_secret_string(sut):
             return assert_output_equals(sut.secret.sm_secret_version.secret_string, "{}")
+
+        def describe_with_secrets_provided():
+            @pytest.fixture()
+            def secret_key_1(faker):
+                return faker.word()
+
+            @pytest.fixture()
+            def secret_value_1(faker):
+                return faker.word()
+
+            @pytest.fixture()
+            def secret_key_2(faker):
+                return faker.word()
+
+            @pytest.fixture()
+            def secret_value_2(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def secrets_string(secret_key_1, secret_value_1, secret_key_2, secret_value_2):
+                return json.dumps({secret_key_1: secret_value_1, secret_key_2: secret_value_2})
+
+            @pytest.fixture
+            def pulumi_mocks(faker, master_db_password, secrets_string):
+                return get_pulumi_mocks(faker, master_db_password, secrets_string)
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, secrets_string):
+                component_kwargs['secrets_string'] = secrets_string
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_passes_secrets_to_web_container(sut):
+                # Not sure how to best compare two coroutines, but this at least ensures they are named the same
+                assert sut.web_container.secrets.__name__ == sut.secret.get_secrets().__name__
+
+            @pytest.fixture
+            def actual_secrets(sut):
+                return sut.secret.get_known_secrets()
+
+            @pulumi.runtime.test
+            def it_formats_secrets_for_web_container(actual_secrets, secret_key_1, secret_key_2):
+                assert actual_secrets == [
+                    {
+                        'name': secret_key_1,
+                         'valueFrom': f'arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets:{secret_key_1}::'
+                    },
+                    {
+                        'name': secret_key_2,
+                        'valueFrom': f'arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets:{secret_key_2}::'
+                    }
+                ]
 
     def describe_a_rds_postgres_cluster():
         @pulumi.runtime.test
@@ -532,6 +584,7 @@ def describe_a_pulumi_rails_app():
         @pytest.fixture
         def dynamo_table_names(faker):
             return [faker.word(), faker.word()]
+
         @pytest.fixture
         def dynamo_tables(dynamo_table_names):
             tables = []
@@ -557,6 +610,7 @@ def describe_a_pulumi_rails_app():
         def it_adds_the_first_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
             env_name = dynamo_table_names[0].upper() + "_DYNAMO_TABLE_NAME"
             return assert_outputs_equal(sut.env_vars[env_name], dynamo_tables[0].table.name)
+
         @pulumi.runtime.test
         def it_adds_the_second_table_name_to_the_env_vars(sut, dynamo_table_names, dynamo_tables):
             env_name = dynamo_table_names[1].upper() + "_DYNAMO_TABLE_NAME"
