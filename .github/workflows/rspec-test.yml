@@ -6,23 +6,27 @@ on:
 jobs:
   run-tests:
     runs-on: ubuntu-latest
+    container: ruby:3.2.2
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
 
-      - name: Setup PostgreSQL with PostgreSQL extensions and unprivileged user
-        uses: Daniel-Marynicz/postgresql-action@1.0.0
-
-      - name: Setup Ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          bundler-cache: true
-          ruby-version: '3.2'
       - run: |
+          bundle install
           bundle exec rails db:setup db:migrate
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
+          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
