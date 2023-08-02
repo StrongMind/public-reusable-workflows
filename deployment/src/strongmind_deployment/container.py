@@ -6,6 +6,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_awsx as awsx
 from pulumi import Config, export, Output
+from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
 
 
@@ -120,6 +121,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "ecr:PutImage",
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
+                                "secretsmanager:GetSecretValue",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -131,6 +133,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
+            execution_role=DefaultRoleWithPolicyArgs(role_arn=execution_role.arn),
             skip_destroy=True,
             family=project_stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(

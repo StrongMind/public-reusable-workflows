@@ -4,6 +4,7 @@ from pulumi import Output
 import os
 import json
 
+
 class SecretsComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
@@ -16,7 +17,7 @@ class SecretsComponent(pulumi.ComponentResource):
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.formatted_secrets = []
-        self.secret_string = kwargs.get('secret_string', {})
+        self.secret_string = kwargs.get('secret_string', '{}')
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
@@ -39,24 +40,26 @@ class SecretsComponent(pulumi.ComponentResource):
         self.sm_secret_version = aws.secretsmanager.SecretVersion(
             f"{project_stack}-secrets-version",
             secret_id=self.sm_secret.arn,
-            secret_string=json.dumps(self.secret_string)
+            secret_string=self.secret_string
         )
         self.register_outputs({})
-    
-    async def get_secrets(self, sm_secret_arn):
-        formatted_secrets = []
-        is_known = await sm_secret_arn.is_known()
-        if is_known:
-            secret_value = aws.secretsmanager.get_secret_version(
-                secret_id=sm_secret_arn,
-            )
-            secrets = json.loads(secret_value.secret_string)
-            for secret in secrets.keys():
-                formatted_secrets.append(
-                    {
-                        "name": secret,
-                        "valueFrom": f"{secret_value.arn}:{secret}",
-                    }
-                )
 
-            return formatted_secrets
+    async def get_secrets(self):
+        is_known = await self.sm_secret.arn.is_known()
+        if is_known:
+            return self.get_known_secrets()
+
+    def get_known_secrets(self):
+        formatted_secrets = []
+        secret_value = aws.secretsmanager.get_secret_version(
+            secret_id=self.sm_secret.arn,
+        )
+        secrets = json.loads(secret_value.secret_string)
+        for secret in secrets.keys():
+            formatted_secrets.append(
+                {
+                    "name": secret,
+                    "valueFrom": f"{secret_value.arn}:{secret}::",
+                }
+            )
+        return formatted_secrets
