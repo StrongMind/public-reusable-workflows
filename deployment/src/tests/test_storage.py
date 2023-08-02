@@ -62,5 +62,5 @@ def describe_a_pulumi_storage_component():
                 "product": app_name,
                 "repository": app_name,
                 "service": app_name,
-                "environment": "stage",
+                "environment": sut.env_name,
             })
