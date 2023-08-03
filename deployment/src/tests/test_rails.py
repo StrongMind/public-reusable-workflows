@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 
 import pulumi.runtime
@@ -245,6 +246,16 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_has_a_password(sut):
             assert sut.db_password
+
+        @pulumi.runtime.test
+        def it_has_an_md5_password_hashed_with_the_username_as_a_salt(sut):
+            def check_password(pwd):
+                m = hashlib.md5()
+                m.update(sut.db_password)
+                assert pwd.startswith('md5')
+                assert pwd.endswith(sut.db_username.result)
+
+            return sut.db_password.result.apply(check_password)
 
         @pulumi.runtime.test
         def it_has_a_password_with_30_chars(sut):
