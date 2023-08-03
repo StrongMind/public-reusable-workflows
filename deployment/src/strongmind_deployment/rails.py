@@ -40,8 +40,10 @@ class RailsComponent(pulumi.ComponentResource):
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
         :key worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
+        :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.storage = None
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
