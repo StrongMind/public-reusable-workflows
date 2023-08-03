@@ -28,6 +28,15 @@ permissions:
 jobs:
   test-docker:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres
+        env:
+          POSTGRES_DB: app
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout
         uses: actions/checkout@v2
