@@ -1,6 +1,7 @@
 import os
 
 import pulumi.runtime
+import pulumi_aws as aws
 import pytest
 
 from tests.mocks import get_pulumi_mocks
@@ -451,21 +452,74 @@ def describe_a_pulumi_containerized_app():
             return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
                                         [sut.cert_validation_record.hostname])
 
-        def describe_with_custom_health_check_path():
+        def describe_with_custom_health_check():
             @pytest.fixture
-            def custom_health_check_path(faker):
+            def health_check_path(faker):
                 return f"/{faker.word()}"
 
             @pytest.fixture
-            def component_kwargs(component_kwargs, custom_health_check_path):
-                component_kwargs["custom_health_check_path"] = custom_health_check_path
+            def health_check_interval(faker):
+                return faker.random_int()
+
+            @pytest.fixture
+            def health_check_timeout(faker):
+                return faker.random_int()
+
+            @pytest.fixture
+            def health_check_healthy_threshold(faker):
+                return faker.random_int()
+
+            @pytest.fixture
+            def health_check_unhealthy_threshold(faker):
+                return faker.random_int()
+
+            @pytest.fixture
+            def custom_health_check(health_check_path,
+                                    health_check_interval,
+                                    health_check_timeout,
+                                    health_check_healthy_threshold,
+                                    health_check_unhealthy_threshold
+                                    ):
+                return aws.lb.TargetGroupHealthCheckArgs(
+                    enabled=True,
+                    path=health_check_path,
+                    protocol="HTTP",
+                    matcher="200",
+                    interval=health_check_interval,
+                    timeout=health_check_timeout,
+                    healthy_threshold=health_check_healthy_threshold,
+                    unhealthy_threshold=health_check_unhealthy_threshold,
+                )
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, custom_health_check):
+                component_kwargs["custom_health_check"] = custom_health_check
                 return component_kwargs
 
             @pulumi.runtime.test
-            def it_sets_the_target_group_health_check_path(sut, custom_health_check_path):
-                return assert_output_equals(sut.target_group.health_check.path, custom_health_check_path)
+            def it_sets_the_target_group_health_check_path(sut, health_check_path):
+                return assert_output_equals(sut.target_group.health_check.path, health_check_path)
 
-    def describe_with_existing_cluster():
+            @pulumi.runtime.test
+            def it_sets_the_target_group_health_check_interval(sut, health_check_interval):
+                return assert_output_equals(sut.target_group.health_check.interval, health_check_interval)
+
+            @pulumi.runtime.test
+            def it_sets_the_target_group_health_check_timeout(sut, health_check_timeout):
+                return assert_output_equals(sut.target_group.health_check.timeout, health_check_timeout)
+
+            @pulumi.runtime.test
+            def it_sets_the_target_group_health_check_healthy_threshold(sut, health_check_healthy_threshold):
+                return assert_output_equals(sut.target_group.health_check.healthy_threshold,
+                                            health_check_healthy_threshold)
+
+            @pulumi.runtime.test
+            def it_sets_the_target_group_health_check_unhealthy_threshold(sut, health_check_unhealthy_threshold):
+                return assert_output_equals(sut.target_group.health_check.unhealthy_threshold,
+                                            health_check_unhealthy_threshold)
+
+
+def describe_with_existing_cluster():
         @pytest.fixture
         def existing_cluster_arn(faker):
             return faker.word()

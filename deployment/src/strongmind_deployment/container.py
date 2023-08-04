@@ -5,9 +5,9 @@ import re
 import pulumi
 import pulumi_aws as aws
 import pulumi_awsx as awsx
-from pulumi import Config, export, Output
+from pulumi import Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
-from pulumi_cloudflare import get_zone, Record
+from pulumi_cloudflare import Record
 
 
 class ContainerComponent(pulumi.ComponentResource):
@@ -27,7 +27,7 @@ class ContainerComponent(pulumi.ComponentResource):
         :key secrets: A list of secrets to pass to the container. Each secret is a dictionary with the following keys:
         - name: The name of the secret.
         - value_from: The ARN of the secret.
-        :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
+        :key custom_health_check: The aws.lb.TargetGroupHealthCheckArgs to use for the load balancer health check. Optional.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
@@ -191,7 +191,16 @@ class ContainerComponent(pulumi.ComponentResource):
 
     def setup_load_balancer(self, kwargs, project, project_stack):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
-        health_check_path = kwargs.get('custom_health_check_path', '/up')
+        health_check = kwargs.get('custom_health_check', aws.lb.TargetGroupHealthCheckArgs(
+                enabled=True,
+                path="/up",
+                protocol="HTTP",
+                matcher="200",
+                interval=30,
+                timeout=5,
+                healthy_threshold=5,
+                unhealthy_threshold=2,
+            ))
 
         self.target_group = aws.lb.TargetGroup(
             "targetgroup",
@@ -200,17 +209,7 @@ class ContainerComponent(pulumi.ComponentResource):
             protocol="HTTP",
             target_type="ip",
             vpc_id=default_vpc.vpc_id,
-            health_check=aws.lb.TargetGroupHealthCheckArgs(
-                enabled=True,
-                path=health_check_path,
-                port=str(self.container_port),
-                protocol="HTTP",
-                matcher="200",
-                interval=30,
-                timeout=5,
-                healthy_threshold=5,
-                unhealthy_threshold=2,
-            ),
+            health_check=health_check,
         )
 
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(

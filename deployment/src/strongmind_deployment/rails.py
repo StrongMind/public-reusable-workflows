@@ -41,7 +41,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
-        :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
+        :key custom_health_check: The aws.lb.TargetGroupHealthCheckArgs to use for the load balancer health check. Optional.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.queue_redis = None
