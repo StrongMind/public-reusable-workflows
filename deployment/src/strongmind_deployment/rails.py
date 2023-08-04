@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 
@@ -40,6 +41,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
         :key worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
+        :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
@@ -47,7 +49,9 @@ class RailsComponent(pulumi.ComponentResource):
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
+        self.db_username = None
         self.db_password = None
+        self.hashed_password = None
         self.web_container = None
         self.worker_container = None
         self.secret = None
@@ -130,8 +134,8 @@ class RailsComponent(pulumi.ComponentResource):
         additional_env_vars = {
             'RAILS_MASTER_KEY': master_key,
             'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
-            'DB_USERNAME': self.rds_serverless_cluster.master_username,
-            'DB_PASSWORD': self.rds_serverless_cluster.master_password,
+            'DB_USERNAME': self.db_username,
+            'DB_PASSWORD': self.db_password.result,
             'DATABASE_URL': self.get_database_url(),
             'RAILS_ENV': 'production'
         }
@@ -181,10 +185,22 @@ class RailsComponent(pulumi.ComponentResource):
                                        **self.kwargs
                                        )
 
+    def salt_and_hash_password(self, pwd):
+        string_to_hash = f'{pwd}{self.db_username}'
+        hashed = hashlib.md5(string_to_hash.encode('utf-8')).hexdigest()
+        return f'md5{hashed}'
+
     def rds(self, project_stack):
+        self.db_username = project_stack.replace('-', '_')
         self.db_password = random.RandomPassword("password",
                                                  length=30,
                                                  special=False)
+        self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)
+
+        master_db_password = self.db_password.result
+        if self.kwargs.get('md5_hash_db_password'):
+            master_db_password = self.hashed_password
+
         self.rds_serverless_cluster = aws.rds.Cluster(
             'rds_serverless_cluster',
             cluster_identifier=project_stack,
@@ -192,8 +208,8 @@ class RailsComponent(pulumi.ComponentResource):
             engine_mode='provisioned',
             engine_version='15.2',
             database_name="app",
-            master_username=project_stack.replace('-', '_'),
-            master_password=self.db_password.result,
+            master_username=self.db_username,
+            master_password=master_db_password,
             deletion_protection=True,
             skip_final_snapshot=False,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
@@ -223,7 +239,7 @@ class RailsComponent(pulumi.ComponentResource):
         return Output.concat('postgres://',
                              self.rds_serverless_cluster.master_username,
                              ':',
-                             self.rds_serverless_cluster.master_password,
+                             self.db_password.result,
                              '@',
                              self.rds_serverless_cluster.endpoint,
                              ':5432/app')

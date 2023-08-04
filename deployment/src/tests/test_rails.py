@@ -1,4 +1,5 @@
 import json
+import hashlib
 import os
 
 import pulumi.runtime
@@ -234,7 +235,7 @@ def describe_a_pulumi_rails_app():
                 assert actual_secrets == [
                     {
                         'name': secret_key_1,
-                         'valueFrom': f'arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets:{secret_key_1}::'
+                        'valueFrom': f'arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets:{secret_key_1}::'
                     },
                     {
                         'name': secret_key_2,
@@ -246,6 +247,19 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_has_a_password(sut):
             assert sut.db_password
+
+        @pulumi.runtime.test
+        def it_has_an_md5_password_hashed_with_the_username_as_a_salt(sut):
+            def check_password(args):
+                pwd, hashed_pwd = args
+                m = hashlib.md5()
+
+                string_to_hash = f"{pwd}{sut.db_username}"
+                m.update(string_to_hash.encode())
+                assert hashed_pwd.startswith('md5')
+                assert hashed_pwd == f"md5{m.hexdigest()}"
+
+            return pulumi.Output.all(sut.db_password.result, sut.hashed_password).apply(check_password)
 
         @pulumi.runtime.test
         def it_has_a_password_with_30_chars(sut):
@@ -285,8 +299,8 @@ def describe_a_pulumi_rails_app():
                                         f'{app_name}-{stack}'.replace('-', '_'))
 
         @pulumi.runtime.test
-        def it_sets_the_master_password(sut, master_db_password):
-            return assert_output_equals(sut.rds_serverless_cluster.master_password, master_db_password)
+        def it_sets_the_master_password(sut):
+            return assert_outputs_equal(sut.rds_serverless_cluster.master_password, sut.db_password.result)
 
         @pulumi.runtime.test
         def it_turns_on_deletion_protection(sut):
@@ -320,7 +334,7 @@ def describe_a_pulumi_rails_app():
                 sut.web_container.env_vars["DATABASE_URL"],
                 sut.rds_serverless_cluster.endpoint,
                 sut.rds_serverless_cluster.master_username,
-                sut.rds_serverless_cluster.master_password
+                sut.db_password.result
             ).apply(check_ecs_environment)
 
         @pulumi.runtime.test
@@ -357,8 +371,18 @@ def describe_a_pulumi_rails_app():
 
             return pulumi.Output.all(
                 sut.web_container.env_vars["DB_PASSWORD"],
-                sut.rds_serverless_cluster.master_password
+                sut.db_password.result
             ).apply(check_ecs_environment)
+
+        def describe_with_md5_passwords_on():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['md5_hash_db_password'] = True
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_sets_the_master_password(sut):
+                return assert_outputs_equal(sut.rds_serverless_cluster.master_password, sut.hashed_password)
 
     def describe_a_rds_postgres_cluster_instance():
         @pulumi.runtime.test
