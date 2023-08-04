@@ -89,6 +89,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789012:secret/{faker.word()}",
                     "secret_string": args.inputs["secretString"],
                 }
+
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
