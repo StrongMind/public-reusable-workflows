@@ -8,6 +8,7 @@ from pulumi import export, Output
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
+from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.secrets import SecretsComponent
 
 
@@ -39,8 +40,10 @@ class RailsComponent(pulumi.ComponentResource):
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
         :key worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
+        :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.storage = None
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
@@ -155,6 +158,9 @@ class RailsComponent(pulumi.ComponentResource):
         if self.need_worker:
             self.setup_worker()
 
+        if self.kwargs.get('storage', False):
+            self.setup_storage()
+
     def setup_worker(self):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
         self.kwargs['entry_point'] = worker_entry_point
@@ -226,3 +232,11 @@ class RailsComponent(pulumi.ComponentResource):
         for table_component in self.dynamo_tables:
             env_var_name = table_component._name.upper() + '_DYNAMO_TABLE_NAME'
             self.env_vars[env_var_name] = table_component.table.name
+
+    def setup_storage(self):
+        self.storage = StorageComponent("storage",
+                                        pulumi.ResourceOptions(parent=self),
+                                        **self.kwargs
+                                        )
+        self.env_vars['S3_BUCKET_NAME'] = self.storage.bucket.bucket
+
