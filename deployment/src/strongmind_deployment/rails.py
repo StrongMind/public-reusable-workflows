@@ -36,15 +36,16 @@ class RailsComponent(pulumi.ComponentResource):
         :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
         :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
-        :key app_path: The path to the Rails application for the web. Defaults to `./`.
         :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
-        :key worker_app_path: The path to the Rails application for the worker. Defaults to `./`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
+        :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.queue_redis = None
+        self.cache_redis = None
         self.storage = None
         self.need_worker = None
         self.cname_record = None
@@ -170,7 +171,6 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = worker_entry_point
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')
-        self.kwargs['app_path'] = self.kwargs.get('worker_app_path')
         self.kwargs['need_load_balancer'] = False
         self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover

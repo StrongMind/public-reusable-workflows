@@ -58,7 +58,7 @@ def describe_a_pulumi_containerized_app():
         return {
             "ENVIRONMENT_NAME": environment,
         }
-    
+
     @pytest.fixture
     def secrets(faker):
         return [{
@@ -110,37 +110,43 @@ def describe_a_pulumi_containerized_app():
         return True
 
     @pytest.fixture
-    def sut(pulumi_set_mocks,
-            app_name,
-            app_path,
-            container_port,
-            cpu,
-            memory,
-            entry_point,
-            container_image,
-            env_vars,
-            secrets,
-            load_balancer_arn,
-            target_group_arn,
-            zone_id,
-            load_balancer_dns_name,
-            domain_validation_options,
-            ):
+    def component_kwargs(pulumi_set_mocks,
+                         app_name,
+                         app_path,
+                         container_port,
+                         cpu,
+                         memory,
+                         entry_point,
+                         container_image,
+                         env_vars,
+                         secrets,
+                         load_balancer_arn,
+                         target_group_arn,
+                         zone_id,
+                         load_balancer_dns_name,
+                         domain_validation_options,
+                         ):
+        return {
+            "app_path": app_path,
+            "container_port": container_port,
+            "cpu": cpu,
+            "memory": memory,
+            "entry_point": entry_point,
+            "container_image": container_image,
+            "env_vars": env_vars,
+            "secrets": secrets,
+            "load_balancer_arn": load_balancer_arn,
+            "target_group_arn": target_group_arn,
+            "zone_id": zone_id,
+            "load_balancer_dns_name": load_balancer_dns_name,
+            "domain_validation_options": domain_validation_options
+        }
+
+    @pytest.fixture
+    def sut(component_kwargs):
         import strongmind_deployment.container
         return strongmind_deployment.container.ContainerComponent("container",
-                                                                  app_path=app_path,
-                                                                  container_port=container_port,
-                                                                  cpu=cpu,
-                                                                  memory=memory,
-                                                                  entry_point=entry_point,
-                                                                  container_image=container_image,
-                                                                  env_vars=env_vars,
-                                                                  secrets=secrets,
-                                                                  load_balancer_arn=load_balancer_arn,
-                                                                  target_group_arn=target_group_arn,
-                                                                  zone_id=zone_id,
-                                                                  load_balancer_dns_name=load_balancer_dns_name,
-                                                                  domain_validation_options=domain_validation_options,
+                                                                  **component_kwargs
                                                                   )
 
     def it_exists(sut):
@@ -186,7 +192,6 @@ def describe_a_pulumi_containerized_app():
             @pulumi.runtime.test
             def it_sets_the_load_balancer_name(sut, stack, app_name):
                 return assert_output_equals(sut.load_balancer.name, f"{app_name}-{stack}")
-
 
             def describe_target_group():
                 @pulumi.runtime.test
@@ -308,7 +313,7 @@ def describe_a_pulumi_containerized_app():
             @pulumi.runtime.test
             def it_creates_a_fargate_service(sut):
                 assert sut.fargate_service
-            
+
             @pulumi.runtime.test
             def it_propagate_tags(sut):
                 return assert_output_equals(sut.fargate_service.propagate_tags, "SERVICE")
@@ -445,6 +450,20 @@ def describe_a_pulumi_containerized_app():
         def it_adds_validation_cert_with_fqdns(sut):
             return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
                                         [sut.cert_validation_record.hostname])
+
+        def describe_with_custom_health_check_path():
+            @pytest.fixture
+            def custom_health_check_path(faker):
+                return f"/{faker.word()}"
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, custom_health_check_path):
+                component_kwargs["custom_health_check_path"] = custom_health_check_path
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_sets_the_target_group_health_check_path(sut, custom_health_check_path):
+                return assert_output_equals(sut.target_group.health_check.path, custom_health_check_path)
 
     def describe_with_existing_cluster():
         @pytest.fixture

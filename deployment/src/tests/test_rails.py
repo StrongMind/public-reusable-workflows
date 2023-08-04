@@ -34,10 +34,6 @@ def describe_a_pulumi_rails_app():
         return get_pulumi_mocks(faker, master_db_password)
 
     @pytest.fixture
-    def app_path(faker):
-        return f'./{faker.word()}'
-
-    @pytest.fixture
     def container_port(faker):
         return faker.random_int()
 
@@ -45,10 +41,6 @@ def describe_a_pulumi_rails_app():
     def container_entry_point():
         # We will use the entry point from Dockerfile by default
         return None
-
-    @pytest.fixture
-    def worker_container_app_path(faker):
-        return f'./{faker.word()}'
 
     @pytest.fixture
     def worker_container_memory(faker):
@@ -120,7 +112,6 @@ def describe_a_pulumi_rails_app():
 
     @pytest.fixture
     def component_kwargs(
-            app_path,
             container_port,
             cpu,
             memory,
@@ -133,18 +124,15 @@ def describe_a_pulumi_rails_app():
             environment,
             container_image,
             rails_master_key,
-            worker_container_app_path,
             worker_container_entry_point,
             worker_container_cpu,
             worker_container_memory,
     ):
         kwargs = {
-            "app_path": app_path,
             "container_port": container_port,
             "cpu": cpu,
             "memory": memory,
             "worker_entry_point": worker_container_entry_point,
-            "worker_app_path": worker_container_app_path,
             "worker_cpu": worker_container_cpu,
             "worker_memory": worker_container_memory,
             "container_security_group_id": ecs_security_group,
@@ -436,19 +424,16 @@ def describe_a_pulumi_rails_app():
     def describe_a_ecs_task():
         @pulumi.runtime.test
         def it_creates_a_web_container_component(sut,
-                                                 app_path,
                                                  container_port,
                                                  cpu,
                                                  memory):
             def check_machine_specs(args):
-                container_app_path, port, container_cpu, container_memory = args
-                assert container_app_path == app_path
+                port, container_cpu, container_memory = args
                 assert port == container_port
                 assert container_cpu == cpu
                 assert container_memory == memory
 
             return pulumi.Output.all(
-                sut.web_container.app_path,
                 sut.web_container.container_port,
                 sut.web_container.cpu,
                 sut.web_container.memory
@@ -466,17 +451,14 @@ def describe_a_pulumi_rails_app():
 
             @pulumi.runtime.test
             def it_creates_a_worker_container_component(sut,
-                                                        worker_container_app_path,
                                                         worker_container_cpu,
                                                         worker_container_memory):
                 def check_machine_specs(args):
-                    container_app_path, container_cpu, container_memory = args
-                    assert container_app_path == worker_container_app_path
+                    container_cpu, container_memory = args
                     assert container_cpu == worker_container_cpu
                     assert container_memory == worker_container_memory
 
                 return pulumi.Output.all(
-                    sut.worker_container.app_path,
                     sut.worker_container.cpu,
                     sut.worker_container.memory
                 ).apply(check_machine_specs)
@@ -503,12 +485,12 @@ def describe_a_pulumi_rails_app():
     @pulumi.runtime.test
     def it_does_not_create_a_queue_redis(sut):
         # to save money, we don't create a queue redis if it is not requested
-        assert not hasattr(sut, 'queue_redis')
+        assert sut.queue_redis is None
 
     @pulumi.runtime.test
     def it_does_not_create_a_cache_redis(sut):
         # to save money, we don't create a cache redis if it is not requested
-        assert not hasattr(sut, 'cache_redis')
+        assert sut.cache_redis is None
 
     @pulumi.runtime.test
     def it_does_not_create_a_worker_container(sut):
