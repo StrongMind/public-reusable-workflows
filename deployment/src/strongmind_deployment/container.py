@@ -175,6 +175,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
     def setup_load_balancer(self, kwargs, project, project_stack):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
+        health_check_path = kwargs.get('custom_health_check_path', '/up')
 
         self.target_group = aws.lb.TargetGroup(
             "targetgroup",
@@ -185,7 +186,7 @@ class ContainerComponent(pulumi.ComponentResource):
             vpc_id=default_vpc.vpc_id,
             health_check=aws.lb.TargetGroupHealthCheckArgs(
                 enabled=True,
-                path="/up",
+                path=health_check_path,
                 port=str(self.container_port),
                 protocol="HTTP",
                 matcher="200",
