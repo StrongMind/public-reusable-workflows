@@ -518,8 +518,7 @@ def describe_a_pulumi_containerized_app():
                 return assert_output_equals(sut.target_group.health_check.unhealthy_threshold,
                                             health_check_unhealthy_threshold)
 
-
-def describe_with_existing_cluster():
+    def describe_with_existing_cluster():
         @pytest.fixture
         def existing_cluster_arn(faker):
             return faker.word()
