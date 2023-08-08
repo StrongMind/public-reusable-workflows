@@ -319,6 +319,10 @@ def describe_a_pulumi_containerized_app():
                 return assert_output_equals(sut.fargate_service.propagate_tags, "SERVICE")
 
             @pulumi.runtime.test
+            def it_has_a_ten_minute_grace_period(sut):
+                return assert_output_equals(sut.fargate_service.health_check_grace_period_seconds, 600)
+
+            @pulumi.runtime.test
             def it_has_the_cluster(sut):
                 # arn is None at design time so this test doesn't really work
                 def check_cluster(args):
@@ -370,6 +374,19 @@ def describe_a_pulumi_containerized_app():
                 return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"]).apply(
                     check_image_tag)
 
+        def describe_with_custom_health_check_path():
+            @pytest.fixture
+            def custom_health_check_path(faker):
+                return f"/{faker.word()}"
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, custom_health_check_path):
+                component_kwargs["custom_health_check_path"] = custom_health_check_path
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_sets_the_target_group_health_check_path(sut, custom_health_check_path):
+                return assert_output_equals(sut.target_group.health_check.path, custom_health_check_path)
     def describe_dns():
         @pulumi.runtime.test
         def it_has_cname_record(sut):
@@ -451,19 +468,6 @@ def describe_a_pulumi_containerized_app():
             return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
                                         [sut.cert_validation_record.hostname])
 
-        def describe_with_custom_health_check_path():
-            @pytest.fixture
-            def custom_health_check_path(faker):
-                return f"/{faker.word()}"
-
-            @pytest.fixture
-            def component_kwargs(component_kwargs, custom_health_check_path):
-                component_kwargs["custom_health_check_path"] = custom_health_check_path
-                return component_kwargs
-
-            @pulumi.runtime.test
-            def it_sets_the_target_group_health_check_path(sut, custom_health_check_path):
-                return assert_output_equals(sut.target_group.health_check.path, custom_health_check_path)
 
     def describe_with_existing_cluster():
         @pytest.fixture
