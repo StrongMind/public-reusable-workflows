@@ -28,10 +28,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key env_vars: A dictionary of environment variables to pass to the Rails application.
         :key queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
         :key cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
-        :key web_entry_point: The entry point for the web container. Defaults to `["sh", "-c",
-                                                                                "rails db:prepare db:migrate db:seed && "
-                                                                                "rails assets:precompile && "
-                                                                                "rails server --port 3000 -b 0.0.0.0"]`
+        :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
         :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
         :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
