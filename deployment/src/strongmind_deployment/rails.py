@@ -165,6 +165,8 @@ class RailsComponent(pulumi.ComponentResource):
 
     def setup_worker(self):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
+        if "WORKER_CONTAINER_IMAGE" in os.environ:
+            self.kwargs['container_image'] = os.environ["WORKER_CONTAINER_IMAGE"]
         self.kwargs['entry_point'] = worker_entry_point
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')

@@ -5,6 +5,7 @@ import os
 import pulumi.runtime
 import pytest
 
+from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.dynamo import DynamoComponent
 from strongmind_deployment.redis import QueueComponent, CacheComponent
 from strongmind_deployment.storage import StorageComponent
@@ -513,7 +514,25 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_configures_redis_provider(sut):
             assert sut.env_vars["REDIS_PROVIDER"] == "QUEUE_REDIS_URL"
-            pass
+
+        @pulumi.runtime.test
+        def it_creates_a_worker_container(sut):
+            assert isinstance(sut.worker_container, ContainerComponent)
+
+        @pulumi.runtime.test
+        def it_has_same_container_image(sut):
+            return assert_outputs_equal(sut.worker_container.container_image, sut.web_container.container_image)
+
+        def describe_with_different_worker_container():
+            @pytest.fixture
+            def container_image(faker):
+                name = faker.word()
+                os.environ["WORKER_CONTAINER_IMAGE"] = name
+                return name
+
+            @pulumi.runtime.test
+            def it_has_different_container_image(sut, container_image):
+                return assert_outputs_equal(sut.worker_container.container_image, container_image)
 
     def describe_with_queue_redis_enabled():
         @pytest.fixture
@@ -533,10 +552,6 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_url_to_the_ecs_environment(sut):
             return assert_outputs_equal(sut.env_vars["QUEUE_REDIS_URL"], sut.queue_redis.url)
-
-        @pulumi.runtime.test
-        def it_creates_a_worker_container(sut):
-            assert hasattr(sut, 'worker_container')
 
     def describe_with_custom_queue_redis():
         @pytest.fixture
