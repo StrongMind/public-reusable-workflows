@@ -10,6 +10,10 @@ on:
         required: true
         type: string
         default: ${{ github.event.repository.name }}:${{ github.sha }}
+      worker-container-image:
+        required: true
+        type: string
+        default: ${{ github.event.repository.name }}:${{ github.sha }}
 
 env:
   AWS_REGION: us-west-2
@@ -42,6 +46,7 @@ jobs:
       env:
         PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
         CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.container-image }}
+        WORKER_CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.worker-container-image }}
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
         ENVIRONMENT_NAME: ${{ inputs.environment-name }}
