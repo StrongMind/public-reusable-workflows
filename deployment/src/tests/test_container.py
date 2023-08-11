@@ -184,6 +184,11 @@ def describe_a_pulumi_containerized_app():
             def test_it_does_not_create_a_load_balancer(sut, need_load_balancer):
                 assert not sut.load_balancer
 
+            @pulumi.runtime.test
+            def it_has_no_grace_period(sut):
+                return assert_output_equals(sut.fargate_service.health_check_grace_period_seconds, None)
+
+
         def describe_load_balancer():
             @pulumi.runtime.test
             def it_creates_a_load_balancer(sut):

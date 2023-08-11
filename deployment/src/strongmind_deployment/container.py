@@ -181,7 +181,7 @@ class ContainerComponent(pulumi.ComponentResource):
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
             assign_public_ip=True,
-            health_check_grace_period_seconds=600,
+            health_check_grace_period_seconds=600 if self.need_load_balancer else None,
             propagate_tags="SERVICE",
             task_definition_args=task_definition_args,
             tags=self.tags,
