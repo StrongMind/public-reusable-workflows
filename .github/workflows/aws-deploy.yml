@@ -7,11 +7,11 @@ on:
         required: true
         type: string
       container-image:
-        required: true
+        required: false
         type: string
         default: ${{ github.event.repository.name }}:${{ github.sha }}
       worker-container-image:
-        required: true
+        required: false
         type: string
         default: ${{ github.event.repository.name }}:${{ github.sha }}
 
