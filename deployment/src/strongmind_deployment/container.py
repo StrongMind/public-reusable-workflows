@@ -148,7 +148,7 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
+        self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=execution_role.arn),
             skip_destroy=True,
             family=project_stack,
@@ -178,12 +178,13 @@ class ContainerComponent(pulumi.ComponentResource):
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
             name=project_stack,
+            desired_count=kwargs.get('desired_count', 1),
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
             assign_public_ip=True,
             health_check_grace_period_seconds=600 if self.need_load_balancer else None,
             propagate_tags="SERVICE",
-            task_definition_args=task_definition_args,
+            task_definition_args=self.task_definition_args,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )

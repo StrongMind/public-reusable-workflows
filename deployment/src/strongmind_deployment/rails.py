@@ -1,11 +1,12 @@
 import hashlib
-import json
 import os
+import time
 
 import pulumi
 import pulumi_random as random
 import pulumi_aws as aws
 from pulumi import export, Output
+from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
@@ -41,6 +42,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.ecs_cluster = None
+        self.migration_container = None
         self.queue_redis = None
         self.cache_redis = None
         self.storage = None
@@ -127,6 +130,16 @@ class RailsComponent(pulumi.ComponentResource):
         )
 
     def ecs(self):
+        stack = pulumi.get_stack()
+        project = pulumi.get_project()
+        project_stack = f"{project}-{stack}"
+        self.ecs_cluster = aws.ecs.Cluster("cluster",
+                                           name=project_stack,
+                                           tags=self.tags,
+                                           opts=pulumi.ResourceOptions(parent=self),
+                                           )
+        self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
+
         container_image = os.environ['CONTAINER_IMAGE']
         master_key = os.environ['RAILS_MASTER_KEY']
         additional_env_vars = {
@@ -142,13 +155,27 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['env_vars'] = self.env_vars
         self.kwargs['container_image'] = container_image
 
+        self.kwargs['entry_point'] = ["sh", "-c",
+                                      "bundle exec rails db:migrate && sleep 10 && echo 'Migration complete!'"]
+        self.migration_container = ContainerComponent("migration",
+                                                      need_load_balancer=False,
+                                                      desired_count=0,
+                                                      opts=pulumi.ResourceOptions(parent=self),
+                                                      **self.kwargs
+                                                      )
+
+        execution = ExecutionComponent("execution",
+                                       opts=pulumi.ResourceOptions(parent=self,
+                                                                   depends_on=[self.migration_container]))
+
         web_entry_point = self.kwargs.get('web_entry_point')
 
-        self.kwargs['entry_point'] = web_entry_point
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
-
+        self.kwargs['entry_point'] = web_entry_point
         self.web_container = ContainerComponent("container",
-                                                pulumi.ResourceOptions(parent=self),
+                                                pulumi.ResourceOptions(parent=self,
+                                                                       depends_on=[execution]
+                                                                       ),
                                                 **self.kwargs
                                                 )
 
@@ -158,12 +185,26 @@ class RailsComponent(pulumi.ComponentResource):
             self.need_worker = sidekiq_present()
 
         if self.need_worker:
-            self.setup_worker()
+            self.setup_worker(execution)
 
         if self.kwargs.get('storage', False):
             self.setup_storage()
 
-    def setup_worker(self):
+    def get_execution(self):
+        execution = get_task_execution_output(
+            cluster=self.ecs_cluster.arn,
+            task_definition=self.migration_container.fargate_service.task_definition.family,
+            launch_type="FARGATE",
+            network_configuration=GetTaskExecutionNetworkConfigurationArgs(
+                assign_public_ip=True,
+                subnets=self.migration_container.fargate_service.service.network_configuration.subnets,
+                security_groups=self.migration_container.fargate_service.service.network_configuration.security_groups
+            ),
+            started_by="rails-component"
+        )
+        return execution
+
+    def setup_worker(self, execution):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
         if "WORKER_CONTAINER_IMAGE" in os.environ:
             self.kwargs['container_image'] = os.environ["WORKER_CONTAINER_IMAGE"]
@@ -171,10 +212,11 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')
         self.kwargs['need_load_balancer'] = False
-        self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.worker_container = ContainerComponent("worker",
-                                                   pulumi.ResourceOptions(parent=self),
+                                                   pulumi.ResourceOptions(parent=self,
+                                                                          depends_on=[execution]
+                                                                          ),
                                                    **self.kwargs
                                                    )
 
@@ -255,3 +297,20 @@ class RailsComponent(pulumi.ComponentResource):
                                         )
         self.env_vars['S3_BUCKET_NAME'] = self.storage.bucket.bucket
 
+
+class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
+    def create(self, inputs):
+        time.sleep(10)
+        return pulumi.dynamic.CreateResult(id_="0", outs={})
+
+    def update(self, id, _olds, props):
+        time.sleep(10)
+        return pulumi.dynamic.UpdateResult(outs={})
+
+    def diff(self, _id: str, _olds, _news):
+        return pulumi.dynamic.DiffResult(changes=True)
+
+
+class ExecutionComponent(pulumi.dynamic.Resource):
+    def __init__(self, name: str, props={}, opts=None):
+        super().__init__(ExecutionResourceProvider(), name, props, opts)
