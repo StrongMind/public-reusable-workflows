@@ -1,16 +1,17 @@
 import hashlib
-import json
 import os
 
 import pulumi
-import pulumi_random as random
 import pulumi_aws as aws
+import pulumi_random as random
 from pulumi import export, Output
+from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
 from strongmind_deployment.container import ContainerComponent
+from strongmind_deployment.execution import ExecutionComponent, ExecutionResourceInputs
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
-from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.secrets import SecretsComponent
+from strongmind_deployment.storage import StorageComponent
 
 
 def sidekiq_present():  # pragma: no cover
@@ -41,6 +42,10 @@ class RailsComponent(pulumi.ComponentResource):
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.container_security_groups = None
+        self.execution = None
+        self.ecs_cluster = None
+        self.migration_container = None
         self.queue_redis = None
         self.cache_redis = None
         self.storage = None
@@ -109,10 +114,6 @@ class RailsComponent(pulumi.ComponentResource):
                 self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
 
     def security(self):
-        container_security_group_id = self.kwargs.get(
-            'container_security_group_id',
-            self.web_container.fargate_service.service.network_configuration.security_groups[0])  # pragma: no cover
-
         self.firewall_rule = aws.ec2.SecurityGroupRule(
             'rds_security_group_rule',
             type='ingress',
@@ -120,13 +121,23 @@ class RailsComponent(pulumi.ComponentResource):
             to_port=5432,
             protocol='tcp',
             security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
-            source_security_group_id=container_security_group_id,
+            source_security_group_id=self.container_security_groups[0],
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance,
                                                     self.web_container])
         )
 
     def ecs(self):
+        stack = pulumi.get_stack()
+        project = pulumi.get_project()
+        project_stack = f"{project}-{stack}"
+        self.ecs_cluster = aws.ecs.Cluster("cluster",
+                                           name=project_stack,
+                                           tags=self.tags,
+                                           opts=pulumi.ResourceOptions(parent=self),
+                                           )
+        self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
+
         container_image = os.environ['CONTAINER_IMAGE']
         master_key = os.environ['RAILS_MASTER_KEY']
         additional_env_vars = {
@@ -142,13 +153,40 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['env_vars'] = self.env_vars
         self.kwargs['container_image'] = container_image
 
+        self.kwargs['entry_point'] = ["sh", "-c",
+                                      "bundle exec rails db:migrate && echo 'Migrations complete'"]
+        self.migration_container = ContainerComponent("migration",
+                                                      need_load_balancer=False,
+                                                      desired_count=0,
+                                                      opts=pulumi.ResourceOptions(parent=self),
+                                                      **self.kwargs
+                                                      )
+
+        subnets = self.kwargs.get(
+            'container_subnets',
+            self.migration_container.fargate_service.service.network_configuration.subnets)  # pragma: no cover
+        self.container_security_groups = self.kwargs.get(
+            'container_security_groups',
+            self.migration_container.fargate_service.service.network_configuration.security_groups)  # pragma: no cover
+        execution_inputs = ExecutionResourceInputs(
+            cluster=self.ecs_cluster.arn,
+            family=self.migration_container.project_stack,
+            subnets=subnets,
+            security_groups=self.container_security_groups,
+        )
+        self.execution = ExecutionComponent("execution",
+                                            execution_inputs,
+                                            opts=pulumi.ResourceOptions(parent=self,
+                                                                        depends_on=[self.migration_container]))
+
         web_entry_point = self.kwargs.get('web_entry_point')
 
-        self.kwargs['entry_point'] = web_entry_point
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
-
+        self.kwargs['entry_point'] = web_entry_point
         self.web_container = ContainerComponent("container",
-                                                pulumi.ResourceOptions(parent=self),
+                                                pulumi.ResourceOptions(parent=self,
+                                                                       depends_on=[self.execution]
+                                                                       ),
                                                 **self.kwargs
                                                 )
 
@@ -158,23 +196,25 @@ class RailsComponent(pulumi.ComponentResource):
             self.need_worker = sidekiq_present()
 
         if self.need_worker:
-            self.setup_worker()
+            self.setup_worker()  # execution)
 
         if self.kwargs.get('storage', False):
             self.setup_storage()
 
-    def setup_worker(self):
+    def setup_worker(self):  # , execution):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
         if "WORKER_CONTAINER_IMAGE" in os.environ:
             self.kwargs['container_image'] = os.environ["WORKER_CONTAINER_IMAGE"]
         self.kwargs['entry_point'] = worker_entry_point
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')
+        self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
         self.kwargs['need_load_balancer'] = False
-        self.kwargs['ecs_cluster_arn'] = self.web_container.ecs_cluster_arn
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.worker_container = ContainerComponent("worker",
-                                                   pulumi.ResourceOptions(parent=self),
+                                                   pulumi.ResourceOptions(parent=self,
+                                                                          depends_on=[self.execution]
+                                                                          ),
                                                    **self.kwargs
                                                    )
 
@@ -254,4 +294,3 @@ class RailsComponent(pulumi.ComponentResource):
                                         **self.kwargs
                                         )
         self.env_vars['S3_BUCKET_NAME'] = self.storage.bucket.bucket
-

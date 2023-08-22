@@ -3,6 +3,7 @@ pulumi-aws
 pulumi-awsx
 pulumi_cloudflare
 pulumi-random
+boto3
 
 pytest-describe
 faker

@@ -2,8 +2,10 @@ import json
 import hashlib
 import os
 
+import boto3
 import pulumi.runtime
 import pytest
+from botocore.stub import Stubber
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.dynamo import DynamoComponent
@@ -68,7 +70,11 @@ def describe_a_pulumi_rails_app():
         return faker.random_int()
 
     @pytest.fixture
-    def ecs_security_group(faker):
+    def ecs_security_groups(faker):
+        return [faker.word(), faker.word()]
+
+    @pytest.fixture
+    def ecs_subnets(faker):
         return faker.word()
 
     @pytest.fixture
@@ -116,7 +122,8 @@ def describe_a_pulumi_rails_app():
             container_port,
             cpu,
             memory,
-            ecs_security_group,
+            ecs_security_groups,
+            ecs_subnets,
             load_balancer_arn,
             target_group_arn,
             load_balancer_dns_name,
@@ -128,6 +135,7 @@ def describe_a_pulumi_rails_app():
             worker_container_entry_point,
             worker_container_cpu,
             worker_container_memory,
+            stubbed_ecs_client
     ):
         kwargs = {
             "container_port": container_port,
@@ -136,7 +144,8 @@ def describe_a_pulumi_rails_app():
             "worker_entry_point": worker_container_entry_point,
             "worker_cpu": worker_container_cpu,
             "worker_memory": worker_container_memory,
-            "container_security_group_id": ecs_security_group,
+            "container_security_groups": ecs_security_groups,
+            "container_subnets": ecs_subnets,
             "load_balancer_arn": load_balancer_arn,
             "target_group_arn": target_group_arn,
             "load_balancer_dns_name": load_balancer_dns_name,
@@ -145,6 +154,7 @@ def describe_a_pulumi_rails_app():
             "env_vars": {
                 "ENVIRONMENT_NAME": environment
             },
+            "ecs_client": stubbed_ecs_client,
         }
 
         return kwargs
@@ -158,6 +168,42 @@ def describe_a_pulumi_rails_app():
                                                          **component_kwargs
                                                          )
         return sut
+
+    @pytest.fixture
+    def stubbed_ecs_client():
+        ecs_client = boto3.client('ecs')
+        stubber = Stubber(ecs_client)
+        stubber.add_response(
+            'run_task',
+            {"tasks": [{
+                "taskArn": "arn",
+            }]},
+            {
+                "taskDefinition": "family",
+                "cluster": "test_ecs_cluster",
+                "launchType": "FARGATE",
+                "networkConfiguration": {
+                    "awsvpcConfiguration": {
+                        "subnets": ["subnets"],
+                        "securityGroups": ["security_groups"],
+                        "assignPublicIp": "ENABLED"
+                    }
+                },
+                "startedBy": "rails-component"
+            }
+        )
+        stubber.add_response('describe_tasks', {"tasks":
+            [{
+                "lastStatus": "STOPPED",
+                "containers": [{
+                    "exitCode": 0,
+                }]
+            }]
+        }
+                             )
+        stubber.activate()
+        yield ecs_client
+        stubber.deactivate()
 
     @pulumi.runtime.test
     def it_exists(sut):
@@ -444,7 +490,7 @@ def describe_a_pulumi_rails_app():
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
 
-        def describe_need_worker():
+        def describe_with_need_worker_set():
             @pytest.fixture
             def component_kwargs(component_kwargs):
                 component_kwargs['need_worker'] = True
@@ -474,14 +520,14 @@ def describe_a_pulumi_rails_app():
 
             @pulumi.runtime.test
             def it_uses_cluster_from_web_container(sut):
-                assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster.arn
+                assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster_arn
 
     @pulumi.runtime.test
-    def it_allows_container_to_talk_to_rds(sut, ecs_security_group):
+    def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
         assert sut.firewall_rule
         return assert_outputs_equal(sut.firewall_rule.security_group_id,
                                     sut.rds_serverless_cluster.vpc_security_group_ids[0]) \
-            and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
+            and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_groups[0])
 
     @pulumi.runtime.test
     def it_does_not_create_a_queue_redis(sut):
@@ -616,9 +662,10 @@ def describe_a_pulumi_rails_app():
             return tables
 
         @pytest.fixture
-        def sut(component_kwargs, dynamo_tables, pulumi_set_mocks):
+        def sut(component_kwargs, dynamo_tables, pulumi_set_mocks, stubbed_ecs_client):
             import strongmind_deployment.rails
             component_kwargs['dynamo_tables'] = dynamo_tables
+            component_kwargs['ecs_client'] = stubbed_ecs_client
 
             return strongmind_deployment.rails.RailsComponent("rails",
                                                               **component_kwargs
