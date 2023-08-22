@@ -169,6 +169,14 @@ def describe_a_pulumi_containerized_app():
         def it_has_environment_variables(sut, app_name, env_vars):
             assert sut.env_vars == env_vars
 
+        @pulumi.runtime.test
+        def it_has_an_execution_role(sut):
+            assert sut.execution_role
+
+        @pulumi.runtime.test
+        def its_execution_role_has_an_arn(sut):
+            return assert_output_equals(sut.execution_role.arn, "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy")
+
         def describe_with_no_load_balancer():
             @pytest.fixture
             def need_load_balancer():

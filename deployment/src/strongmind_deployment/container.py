@@ -94,7 +94,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 target_group=self.target_group,
             )]
 
-        execution_role = aws.iam.Role(
+        self.execution_role = aws.iam.Role(
             f"{self.project_stack}-exec-role",
             name=f"{self.project_stack}-exec-role",
             assume_role_policy=json.dumps(
@@ -116,7 +116,7 @@ class ContainerComponent(pulumi.ComponentResource):
         aws.iam.RolePolicy(
             f"{self.project_stack}-policy",
             name=f"{self.project_stack}-policy",
-            role=execution_role.id,
+            role=self.execution_role.id,
             policy=json.dumps(
                 {
                     "Version": "2012-10-17",
@@ -150,7 +150,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
-            execution_role=DefaultRoleWithPolicyArgs(role_arn=execution_role.arn),
+            execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
             skip_destroy=True,
             family=self.project_stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(

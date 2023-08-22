@@ -11,13 +11,15 @@ class ExecutionResourceInputs:
     family: pulumi.Input[str]
     subnets: pulumi.Input[str]
     security_groups: pulumi.Input[str]
+    task_role_arn: pulumi.Input[str]
     ecs_client: pulumi.Input[boto3.client]
 
-    def __init__(self, cluster, family, subnets, security_groups, ecs_client=None):
+    def __init__(self, cluster, family, subnets, security_groups, task_role_arn, ecs_client=None):
         self.cluster = cluster
         self.family = family
         self.subnets = subnets
         self.security_groups = security_groups
+        self.task_role_arn = task_role_arn
         self.ecs_client = ecs_client
 
 
@@ -26,13 +28,15 @@ class _ExecutionResourceProviderInputs:
     family: str
     subnets: str
     security_groups: str
+    task_role_arn: str
     ecs_client: boto3.client
 
-    def __init__(self, cluster, family, subnets, security_groups, ecs_client=None):
+    def __init__(self, cluster, family, subnets, security_groups, task_role_arn, ecs_client=None):
         self.cluster = cluster
         self.family = family
         self.subnets = subnets
         self.security_groups = security_groups
+        self.task_role_arn = task_role_arn
         self.ecs_client = ecs_client
 
 

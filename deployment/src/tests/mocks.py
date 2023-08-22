@@ -96,6 +96,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "secret_string": args.inputs["secretString"],
                 }
 
+            if args.typ == "aws:iam/role:Role":
+                outputs = {
+                    **args.inputs,
+                    "arn": f"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
+                }
+
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
