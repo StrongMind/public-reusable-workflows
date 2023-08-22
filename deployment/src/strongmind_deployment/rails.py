@@ -8,7 +8,7 @@ from pulumi import export, Output
 from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
 from strongmind_deployment.container import ContainerComponent
-from strongmind_deployment.execution import ExecutionComponent
+from strongmind_deployment.execution import ExecutionComponent, ExecutionResourceInputs
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
@@ -42,6 +42,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.execution = None
         self.ecs_cluster = None
         self.migration_container = None
         self.queue_redis = None
@@ -59,6 +60,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
+        self.ecs_client = self.kwargs.get('ecs_client', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
 
@@ -74,6 +76,7 @@ class RailsComponent(pulumi.ComponentResource):
             "service": project,
             "environment": self.env_name,
         }
+
 
         self.rds(project_stack)
 
@@ -164,21 +167,18 @@ class RailsComponent(pulumi.ComponentResource):
                                                       **self.kwargs
                                                       )
 
-        def execute(args):
-            cluster, family, subnets, security_groups = args
-            return ExecutionComponent("execution",
-                                      cluster=cluster,
-                                      family=family,
-                                      subnets=subnets,
-                                      security_groups=security_groups,
-                                      opts=pulumi.ResourceOptions(parent=self,
-                                                                  depends_on=[self.migration_container]))
+        execution_inputs = ExecutionResourceInputs(
+            cluster=self.ecs_cluster.arn,
+            family=self.migration_container.fargate_service.task_definition.family,
+            subnets=self.migration_container.fargate_service.service.network_configuration.subnets,
+            security_groups=self.migration_container.fargate_service.service.network_configuration.security_groups,
+            ecs_client=self.ecs_client
+        )
+        self.execution = ExecutionComponent("execution",
+                                       execution_inputs,
+                                       opts=pulumi.ResourceOptions(parent=self,
+                                                                   depends_on=[self.migration_container]))
 
-        execution = Output.all(self.ecs_cluster.arn,
-                               self.migration_container.fargate_service.task_definition.family,
-                               self.migration_container.fargate_service.service.network_configuration.subnets,
-                               self.migration_container.fargate_service.service.network_configuration.security_groups).apply(
-            execute)
 
         web_entry_point = self.kwargs.get('web_entry_point')
 
@@ -186,7 +186,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
-                                                                       depends_on=[execution]
+                                                                       # depends_on=[self.execution]
                                                                        ),
                                                 **self.kwargs
                                                 )
@@ -197,37 +197,24 @@ class RailsComponent(pulumi.ComponentResource):
             self.need_worker = sidekiq_present()
 
         if self.need_worker:
-            self.setup_worker(execution)
+            self.setup_worker()  # execution)
 
         if self.kwargs.get('storage', False):
             self.setup_storage()
 
-    def get_execution(self):
-        execution = get_task_execution_output(
-            cluster=self.ecs_cluster.arn,
-            task_definition=self.migration_container.fargate_service.task_definition.family,
-            launch_type="FARGATE",
-            network_configuration=GetTaskExecutionNetworkConfigurationArgs(
-                assign_public_ip=True,
-                subnets=self.migration_container.fargate_service.service.network_configuration.subnets,
-                security_groups=self.migration_container.fargate_service.service.network_configuration.security_groups
-            ),
-            started_by="rails-component"
-        )
-        return execution
-
-    def setup_worker(self, execution):
+    def setup_worker(self):  # , execution):
         worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
         if "WORKER_CONTAINER_IMAGE" in os.environ:
             self.kwargs['container_image'] = os.environ["WORKER_CONTAINER_IMAGE"]
         self.kwargs['entry_point'] = worker_entry_point
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')
+        self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
         self.kwargs['need_load_balancer'] = False
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
-                                                                          depends_on=[execution]
+                                                                          # depends_on=[self.execution]
                                                                           ),
                                                    **self.kwargs
                                                    )
@@ -308,4 +295,3 @@ class RailsComponent(pulumi.ComponentResource):
                                         **self.kwargs
                                         )
         self.env_vars['S3_BUCKET_NAME'] = self.storage.bucket.bucket
-

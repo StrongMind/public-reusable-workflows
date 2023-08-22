@@ -2,53 +2,117 @@ import pulumi
 import pytest
 import boto3
 import moto
+from botocore.stub import Stubber
 
-
-def describe_an_execution_component():
-    @pytest.fixture
-    def sut():
-        from strongmind_deployment.execution import ExecutionComponent
-        return ExecutionComponent("provider", "name", {})
-
-    def it_is_a_dynamic_resource(sut):
-        assert isinstance(sut, pulumi.dynamic.Resource)
-
-    @pytest.skip("Not implemented")
-    def it_uses_the_resource_provider(sut):
-        pass
+from strongmind_deployment.execution import ExecutionResourceProvider, ExecutionResourceInputs
 
 
 def describe_an_execution_resource_provider():
+    # region fixtures
     @pytest.fixture
-    def ecs_cluster(ecs_client):
-        return ecs_client.create_cluster(clusterName="test_ecs_cluster")
+    def inputs(stubbed_ecs_client):
+        return ExecutionResourceInputs(
+            cluster="test_ecs_cluster",
+            family="family",
+            subnets=["subnets"],
+            security_groups=["security_groups"],
+            ecs_client=stubbed_ecs_client
+        )
 
     @pytest.fixture
-    def sut(ecs_client, ecs_cluster):
+    def sut(stubbed_ecs_client):
         from strongmind_deployment.execution import ExecutionResourceProvider
-        return ExecutionResourceProvider(ecs_client=ecs_client)
+        return ExecutionResourceProvider()
 
     @pytest.fixture
     def ecs_client(aws_credentials):
-        with moto.mock_ecs():
-            yield boto3.client('ecs')
+        yield boto3.client('ecs')
 
+    @pytest.fixture
+    def stubber(ecs_client):
+        yield Stubber(ecs_client)
+
+    @pytest.fixture
+    def container_exit_code():
+        return 0
+
+    @pytest.fixture
+    def stubbed_ecs_client(stubber, ecs_client, container_exit_code):
+        stubber.add_response(
+            'run_task',
+            {"tasks": [{"taskArn": "arn"}]},
+            {
+                "taskDefinition": "family",
+                "cluster": "test_ecs_cluster",
+                "launchType": "FARGATE",
+                "networkConfiguration": {
+                    "awsvpcConfiguration": {
+                        "subnets": ["subnets"],
+                        "securityGroups": ["security_groups"],
+                        "assignPublicIp": "ENABLED"
+                    }
+                },
+                "startedBy": "rails-component"
+            }
+        )
+        stubber.add_response('describe_tasks', {"tasks":
+            [{
+                "lastStatus": "STOPPED",
+                "containers": [{
+                    "exitCode": container_exit_code,
+                }]
+            }]
+        }
+                             )
+        stubber.activate()
+        yield ecs_client
+        stubber.deactivate()
+
+    # endregion fixtures
     def it_is_a_dynamic_resource_provider(sut):
         assert isinstance(sut, pulumi.dynamic.ResourceProvider)
 
     def it_acts_as_though_it_has_changed(sut):
         # so that we always run the execution
-        assert sut.diff("id", {}, {}).changes == True
+        assert sut.diff("id", {}, {}).changes
 
     def describe_when_creating():
         @pytest.fixture
-        def result(sut):
-            return sut.create({"cluster": "test_ecs_cluster", "family": "family", "subnets": ["subnets"],
-                               "security_groups": ["security_groups"]})
+        def result(sut: ExecutionResourceProvider, stubbed_ecs_client, inputs):
+            return sut.create(inputs=inputs)
 
+        def it_runs_an_ecs_task(result, stubbed_ecs_client, stubber):
+            stubber.assert_no_pending_responses()
+
+        def it_returns_a_pulumi_create_result(result):
+            assert isinstance(result, pulumi.dynamic.CreateResult)
+
+        def describe_when_the_task_fails():
+            @pytest.fixture
+            def container_exit_code():
+                return 1
+
+            def it_raises_an_exception(sut):
+                with pytest.raises(Exception):
+                    sut.create({"cluster": "test_ecs_cluster", "family": "family", "subnets": ["subnets"],
+                                "security_groups": ["security_groups"]})
+
+    def describe_when_updating():
         @pytest.fixture
-        def running_tasks(result, ecs_client, sut):
-            return ecs_client.list_tasks(cluster="test_ecs_cluster")['taskArns']
+        def result(sut: ExecutionResourceProvider, inputs):
+            return sut.update("id", {}, inputs)
 
-        def it_runs_an_ecs_task(running_tasks):
-            assert running_tasks
+        def it_runs_an_ecs_task(result, stubbed_ecs_client, stubber):
+            stubber.assert_no_pending_responses()
+
+        def it_returns_a_pulumi_update_result(result):
+            assert isinstance(result, pulumi.dynamic.UpdateResult)
+
+        def describe_when_the_task_fails():
+            @pytest.fixture
+            def container_exit_code():
+                return 1
+
+            def it_raises_an_exception(sut):
+                with pytest.raises(Exception):
+                    sut.update("id", {}, {})
