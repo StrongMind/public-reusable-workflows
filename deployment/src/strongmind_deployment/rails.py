@@ -251,6 +251,7 @@ class RailsComponent(pulumi.ComponentResource):
             master_password=master_db_password,
             deletion_protection=True,
             skip_final_snapshot=False,
+            backup_retention_period=14,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=0.5,
                 max_capacity=16,

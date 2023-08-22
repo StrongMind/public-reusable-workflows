@@ -344,6 +344,10 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sets_skip_final_snapshot_to_false(sut):
             return assert_output_equals(sut.rds_serverless_cluster.skip_final_snapshot, False)
+        
+        @pulumi.runtime.test
+        def it_sets_the_backup_retention_period_to_14_days(sut):
+            return assert_output_equals(sut.rds_serverless_cluster.backup_retention_period, 14)
 
         @pulumi.runtime.test
         def it_sets_a_serverlessv2_scaling_configuration(sut):
