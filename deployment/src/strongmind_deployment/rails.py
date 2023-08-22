@@ -42,6 +42,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
+        self.container_security_groups = None
         self.execution = None
         self.ecs_cluster = None
         self.migration_container = None
@@ -60,7 +61,6 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
-        self.ecs_client = self.kwargs.get('ecs_client', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
 
@@ -76,7 +76,6 @@ class RailsComponent(pulumi.ComponentResource):
             "service": project,
             "environment": self.env_name,
         }
-
 
         self.rds(project_stack)
 
@@ -115,10 +114,6 @@ class RailsComponent(pulumi.ComponentResource):
                 self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
 
     def security(self):
-        container_security_group_id = self.kwargs.get(
-            'container_security_group_id',
-            self.web_container.fargate_service.service.network_configuration.security_groups[0])  # pragma: no cover
-
         self.firewall_rule = aws.ec2.SecurityGroupRule(
             'rds_security_group_rule',
             type='ingress',
@@ -126,7 +121,7 @@ class RailsComponent(pulumi.ComponentResource):
             to_port=5432,
             protocol='tcp',
             security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
-            source_security_group_id=container_security_group_id,
+            source_security_group_id=self.container_security_groups[0],
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance,
                                                     self.web_container])
@@ -167,18 +162,22 @@ class RailsComponent(pulumi.ComponentResource):
                                                       **self.kwargs
                                                       )
 
+        subnets = self.kwargs.get(
+            'container_subnets',
+            self.migration_container.fargate_service.service.network_configuration.subnets)  # pragma: no cover
+        self.container_security_groups = self.kwargs.get(
+            'container_security_groups',
+            self.migration_container.fargate_service.service.network_configuration.security_groups)  # pragma: no cover
         execution_inputs = ExecutionResourceInputs(
             cluster=self.ecs_cluster.arn,
-            family=self.migration_container.fargate_service.task_definition.family,
-            subnets=self.migration_container.fargate_service.service.network_configuration.subnets,
-            security_groups=self.migration_container.fargate_service.service.network_configuration.security_groups,
-            ecs_client=self.ecs_client
+            family=self.migration_container.project_stack,
+            subnets=subnets,
+            security_groups=self.container_security_groups,
         )
         self.execution = ExecutionComponent("execution",
-                                       execution_inputs,
-                                       opts=pulumi.ResourceOptions(parent=self,
-                                                                   depends_on=[self.migration_container]))
-
+                                            execution_inputs,
+                                            opts=pulumi.ResourceOptions(parent=self,
+                                                                        depends_on=[self.migration_container]))
 
         web_entry_point = self.kwargs.get('web_entry_point')
 

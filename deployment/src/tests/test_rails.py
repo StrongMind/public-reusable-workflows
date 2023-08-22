@@ -70,7 +70,11 @@ def describe_a_pulumi_rails_app():
         return faker.random_int()
 
     @pytest.fixture
-    def ecs_security_group(faker):
+    def ecs_security_groups(faker):
+        return [faker.word(), faker.word()]
+
+    @pytest.fixture
+    def ecs_subnets(faker):
         return faker.word()
 
     @pytest.fixture
@@ -118,7 +122,8 @@ def describe_a_pulumi_rails_app():
             container_port,
             cpu,
             memory,
-            ecs_security_group,
+            ecs_security_groups,
+            ecs_subnets,
             load_balancer_arn,
             target_group_arn,
             load_balancer_dns_name,
@@ -139,7 +144,8 @@ def describe_a_pulumi_rails_app():
             "worker_entry_point": worker_container_entry_point,
             "worker_cpu": worker_container_cpu,
             "worker_memory": worker_container_memory,
-            "container_security_group_id": ecs_security_group,
+            "container_security_groups": ecs_security_groups,
+            "container_subnets": ecs_subnets,
             "load_balancer_arn": load_balancer_arn,
             "target_group_arn": target_group_arn,
             "load_balancer_dns_name": load_balancer_dns_name,
@@ -517,11 +523,11 @@ def describe_a_pulumi_rails_app():
                 assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster_arn
 
     @pulumi.runtime.test
-    def it_allows_container_to_talk_to_rds(sut, ecs_security_group):
+    def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
         assert sut.firewall_rule
         return assert_outputs_equal(sut.firewall_rule.security_group_id,
                                     sut.rds_serverless_cluster.vpc_security_group_ids[0]) \
-            and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_group)
+            and assert_output_equals(sut.firewall_rule.source_security_group_id, ecs_security_groups[0])
 
     @pulumi.runtime.test
     def it_does_not_create_a_queue_redis(sut):

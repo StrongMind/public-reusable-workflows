@@ -25,7 +25,7 @@ def pulumi_set_mocks(pulumi_mocks, app_name, stack):
         loop.set_default_executor(ThreadPoolExecutor())
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def aws_credentials():
     os.environ["AWS_ACCESS_KEY_ID"] = "testing"
     os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"

@@ -53,9 +53,10 @@ class ContainerComponent(pulumi.ComponentResource):
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
-        project_stack = f"{project}-{stack}"
+        self.project_stack = f"{project}-{stack}"
         if name != 'container':
-            project_stack = f"{project_stack}-{name}"
+            self.project_stack = f"{self.project_stack}-{name}"
+
 
         self.tags = {
             "product": project,
@@ -67,14 +68,14 @@ class ContainerComponent(pulumi.ComponentResource):
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:
             self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                               name=project_stack,
+                                               name=self.project_stack,
                                                tags=self.tags,
                                                opts=pulumi.ResourceOptions(parent=self),
                                                )
             self.ecs_cluster_arn = self.ecs_cluster.arn
 
         if self.need_load_balancer:
-            self.setup_load_balancer(kwargs, project, project_stack)
+            self.setup_load_balancer(kwargs, project, self.project_stack)
 
         log_name = 'log'
         if name != 'container':
@@ -82,7 +83,7 @@ class ContainerComponent(pulumi.ComponentResource):
         logs = aws.cloudwatch.LogGroup(
             log_name,
             retention_in_days=14,
-            name=f'/aws/ecs/{project_stack}',
+            name=f'/aws/ecs/{self.project_stack}',
             tags=self.tags
         )
         port_mappings = None
@@ -94,8 +95,8 @@ class ContainerComponent(pulumi.ComponentResource):
             )]
 
         execution_role = aws.iam.Role(
-            f"{project_stack}-exec-role",
-            name=f"{project_stack}-exec-role",
+            f"{self.project_stack}-exec-role",
+            name=f"{self.project_stack}-exec-role",
             assume_role_policy=json.dumps(
                 {
                     "Version": "2008-10-17",
@@ -113,8 +114,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
         aws.iam.RolePolicy(
-            f"{project_stack}-policy",
-            name=f"{project_stack}-policy",
+            f"{self.project_stack}-policy",
+            name=f"{self.project_stack}-policy",
             role=execution_role.id,
             policy=json.dumps(
                 {
@@ -151,9 +152,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=execution_role.arn),
             skip_destroy=True,
-            family=project_stack,
+            family=self.project_stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=project_stack,
+                name=self.project_stack,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
@@ -177,7 +178,7 @@ class ContainerComponent(pulumi.ComponentResource):
             service_name = f'{name}-service'
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
-            name=project_stack,
+            name=self.project_stack,
             desired_count=kwargs.get('desired_count', 1),
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
