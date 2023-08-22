@@ -1,7 +1,6 @@
 import pulumi
 import pytest
 import boto3
-import moto
 from botocore.stub import Stubber
 
 from strongmind_deployment.execution import ExecutionResourceProvider, ExecutionResourceInputs
