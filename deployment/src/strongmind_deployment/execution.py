@@ -39,13 +39,13 @@ class _ExecutionResourceProviderInputs:
 class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
     ecs_client: boto3.client
 
-    def create(self, inputs: _ExecutionResourceProviderInputs):
-        self.ecs_client = inputs.ecs_client or boto3.client('ecs')
-        output = self.run_task(inputs)
+    def create(self, props):
+        self.ecs_client = props.get('ecs_client', boto3.client('ecs'))
+        output = self.run_task(props)
         return pulumi.dynamic.CreateResult(id_="0", outs={"output": output})
 
     def update(self, id, _olds, props):
-        self.ecs_client = props.ecs_client or boto3.client('ecs')
+        self.ecs_client = props.get('ecs_client', boto3.client('ecs'))
         output = self.run_task(props)
         return pulumi.dynamic.UpdateResult(outs={"output": output})
 
@@ -56,13 +56,13 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
     #
     def run_task(self, inputs):
         response = self.ecs_client.run_task(
-            taskDefinition=inputs.family,
-            cluster=inputs.cluster,
+            taskDefinition=inputs['family'],
+            cluster=inputs['cluster'],
             launchType='FARGATE',
             networkConfiguration={
                 'awsvpcConfiguration': {
-                    'subnets': inputs.subnets,
-                    'securityGroups': inputs.security_groups,
+                    'subnets': inputs['subnets'],
+                    'securityGroups': inputs['security_groups'],
                     'assignPublicIp': 'ENABLED'
                 }
             },
@@ -71,13 +71,13 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
         task_arn = response['tasks'][0]['taskArn']
         task_id = task_arn.split('/')[-1]
         task = self.ecs_client.describe_tasks(
-            cluster=inputs.cluster,
+            cluster=inputs['cluster'],
             tasks=[task_id]
         )
         while task['tasks'][0]['lastStatus'] != 'STOPPED':
             time.sleep(5)
             task = self.ecs_client.describe_tasks(
-                cluster=inputs.cluster,
+                cluster=inputs['cluster'],
                 tasks=[task_id]
             )
         exit_code = task['tasks'][0]['containers'][0]['exitCode']

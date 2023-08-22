@@ -185,7 +185,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
-                                                                       # depends_on=[self.execution]
+                                                                       depends_on=[self.execution]
                                                                        ),
                                                 **self.kwargs
                                                 )
@@ -213,7 +213,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
-                                                                          # depends_on=[self.execution]
+                                                                          depends_on=[self.execution]
                                                                           ),
                                                    **self.kwargs
                                                    )

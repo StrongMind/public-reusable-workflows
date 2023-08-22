@@ -78,7 +78,7 @@ def describe_an_execution_resource_provider():
     def describe_when_creating():
         @pytest.fixture
         def result(sut: ExecutionResourceProvider, stubbed_ecs_client, inputs):
-            return sut.create(inputs=inputs)
+            return sut.create({**vars(inputs)})
 
         def it_runs_an_ecs_task(result, stubbed_ecs_client, stubber):
             stubber.assert_no_pending_responses()
@@ -99,7 +99,7 @@ def describe_an_execution_resource_provider():
     def describe_when_updating():
         @pytest.fixture
         def result(sut: ExecutionResourceProvider, inputs):
-            return sut.update("id", {}, inputs)
+            return sut.update("id", {}, {**vars(inputs)})
 
         def it_runs_an_ecs_task(result, stubbed_ecs_client, stubber):
             stubber.assert_no_pending_responses()
