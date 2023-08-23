@@ -151,6 +151,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.env_vars.update(additional_env_vars)
         self.kwargs['env_vars'] = self.env_vars
+        self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['container_image'] = container_image
 
         self.kwargs['entry_point'] = ["sh", "-c",
