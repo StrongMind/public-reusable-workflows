@@ -61,6 +61,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
+        self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
 
@@ -257,6 +258,7 @@ class RailsComponent(pulumi.ComponentResource):
                 min_capacity=0.5,
                 max_capacity=16,
             ),
+            snapshot_identifier=self.snapshot_identifier,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,
                                         protect=True),
