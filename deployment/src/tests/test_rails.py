@@ -58,7 +58,7 @@ def describe_a_pulumi_rails_app():
         return ["sh", "-c", "bundle exec sidekiq"]
 
     @pytest.fixture
-    def execution_container_entry_point():
+    def execution_container_cmd():
         return ["sh", "-c",
                 "bundle exec rails db:prepare db:migrate db:seed && "
                 "echo 'Migrations complete'"]
@@ -513,22 +513,22 @@ def describe_a_pulumi_rails_app():
             assert sut.web_container.entry_point == container_entry_point
 
         @pulumi.runtime.test
-        def it_uses_default_entry_point_for_execution(sut, execution_container_entry_point):
-            assert sut.migration_container.entry_point == execution_container_entry_point
+        def it_uses_empty_entry_point_for_execution(sut):
+            assert sut.migration_container.entry_point == []
 
-        def describe_with_custom_execution_entry_point():
+        def describe_with_custom_execution_cmd():
             @pytest.fixture
-            def execution_container_entry_point():
+            def execution_container_cmd():
                 return ["sh", "-c", "bundle exec rails db:migrate"]
 
             @pytest.fixture
-            def component_kwargs(component_kwargs, execution_container_entry_point):
-                component_kwargs['execution_entry_point'] = execution_container_entry_point
+            def component_kwargs(component_kwargs, execution_container_cmd):
+                component_kwargs['execution_cmd'] = execution_container_cmd
                 return component_kwargs
 
             @pulumi.runtime.test
-            def it_uses_custom_entry_point_for_execution(sut, execution_container_entry_point):
-                assert sut.migration_container.entry_point == execution_container_entry_point
+            def it_uses_custom_command_for_execution(sut, execution_container_cmd):
+                assert sut.migration_container.command == execution_container_cmd
 
         def describe_with_need_worker_set():
             @pytest.fixture
