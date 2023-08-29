@@ -40,6 +40,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
+        :key snapshot_identifier: The snapshot identifier to use for the RDS cluster. Defaults to None.
+        :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -62,6 +64,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
+        self.kms_key_id = self.kwargs.get('kms_key_id', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
 
@@ -260,6 +263,8 @@ class RailsComponent(pulumi.ComponentResource):
                 max_capacity=16,
             ),
             snapshot_identifier=self.snapshot_identifier,
+            kms_key_id=self.kms_key_id,
+            storage_encrypted=bool(self.kms_key_id),
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,
                                         protect=True),

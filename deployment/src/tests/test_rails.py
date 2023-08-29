@@ -424,16 +424,41 @@ def describe_a_pulumi_rails_app():
                 return assert_outputs_equal(sut.rds_serverless_cluster.master_password, sut.hashed_password)
 
         def describe_when_given_a_snapshot_to_restore_from():
+
             @pytest.fixture
-            def component_kwargs(component_kwargs, faker):
+            def snapshot_identifier(faker):
+                return f'arn:aws:rds:us-west-2:448312246740:cluster-snapshot:{faker.word()}'
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, snapshot_identifier):
                 component_kwargs['snapshot_identifier'] = \
-                    f'arn:aws:rds:us-west-2:448312246740:cluster-snapshot:{faker.word()}'
+                    snapshot_identifier
                 return component_kwargs
 
             @pulumi.runtime.test
-            def it_restores_the_snapshot(sut):
+            def it_restores_the_snapshot(sut, snapshot_identifier):
                 return assert_output_equals(sut.rds_serverless_cluster.snapshot_identifier,
-                                            sut.snapshot_identifier)
+                                            snapshot_identifier)
+
+    def describe_when_given_a_kms_key_to_restore_from():
+        @pytest.fixture
+        def kms_key(faker):
+            return f'arn:aws:kms:us-west-2:448312246740:key/{faker.word()}'
+        @pytest.fixture
+        def component_kwargs(component_kwargs, kms_key):
+            component_kwargs['kms_key_id'] = \
+                kms_key
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_encrypts(sut, kms_key):
+            return assert_output_equals(sut.rds_serverless_cluster.storage_encrypted,
+                                        True)
+
+        @pulumi.runtime.test
+        def it_encrypts_with_provided_key(sut, kms_key):
+            return assert_output_equals(sut.rds_serverless_cluster.kms_key_id,
+                                        kms_key)
 
     def describe_a_rds_postgres_cluster_instance():
         @pulumi.runtime.test
