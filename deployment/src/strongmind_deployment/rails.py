@@ -274,8 +274,7 @@ class RailsComponent(pulumi.ComponentResource):
             kms_key_id=self.kms_key_id,
             storage_encrypted=bool(self.kms_key_id),
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self,
-                                        protect=True),
+            opts=pulumi.ResourceOptions(parent=self, ignore_changes=[ 'database_name', 'master_username'])
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
