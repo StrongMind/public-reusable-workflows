@@ -29,6 +29,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key env_vars: A dictionary of environment variables to pass to the Rails application.
         :key queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
         :key cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
+        :key execution_cmd: The command for the pre-deployment execution container. Defaults to ["sh", "-c",
+                                      "bundle exec rails db:prepare db:migrate db:seed && echo 'Migrations complete'"].
         :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
         :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
         :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
@@ -158,8 +160,14 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['container_image'] = container_image
 
-        self.kwargs['entry_point'] = ["sh", "-c",
-                                      "bundle exec rails db:migrate && echo 'Migrations complete'"]
+        execution_entry_point = self.kwargs.get("execution_entry_point", [])
+        self.kwargs['entry_point'] = execution_entry_point
+
+        execution_cmd = self.kwargs.get("execution_cmd",
+                                                ["sh", "-c",
+                                                 "bundle exec rails db:prepare db:migrate db:seed && "
+                                                 "echo 'Migrations complete'"])
+        self.kwargs['command'] = execution_cmd
         self.migration_container = ContainerComponent("migration",
                                                       need_load_balancer=False,
                                                       desired_count=0,

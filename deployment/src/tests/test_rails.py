@@ -58,6 +58,12 @@ def describe_a_pulumi_rails_app():
         return ["sh", "-c", "bundle exec sidekiq"]
 
     @pytest.fixture
+    def execution_container_cmd():
+        return ["sh", "-c",
+                "bundle exec rails db:prepare db:migrate db:seed && "
+                "echo 'Migrations complete'"]
+
+    @pytest.fixture
     def cpu(faker):
         return faker.random_int()
 
@@ -344,7 +350,7 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sets_skip_final_snapshot_to_false(sut):
             return assert_output_equals(sut.rds_serverless_cluster.skip_final_snapshot, False)
-        
+
         @pulumi.runtime.test
         def it_sets_the_backup_retention_period_to_14_days(sut):
             return assert_output_equals(sut.rds_serverless_cluster.backup_retention_period, 14)
@@ -530,6 +536,24 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
+
+        @pulumi.runtime.test
+        def it_uses_empty_entry_point_for_execution(sut):
+            assert sut.migration_container.entry_point == []
+
+        def describe_with_custom_execution_cmd():
+            @pytest.fixture
+            def execution_container_cmd():
+                return ["sh", "-c", "bundle exec rails db:migrate"]
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, execution_container_cmd):
+                component_kwargs['execution_cmd'] = execution_container_cmd
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_uses_custom_command_for_execution(sut, execution_container_cmd):
+                assert sut.migration_container.command == execution_container_cmd
 
         def describe_with_need_worker_set():
             @pytest.fixture
