@@ -164,9 +164,9 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = execution_entry_point
 
         execution_cmd = self.kwargs.get("execution_cmd",
-                                                ["sh", "-c",
-                                                 "bundle exec rails db:prepare db:migrate db:seed && "
-                                                 "echo 'Migrations complete'"])
+                                        ["sh", "-c",
+                                         "bundle exec rails db:prepare db:migrate db:seed && "
+                                         "echo 'Migrations complete'"])
         self.kwargs['command'] = execution_cmd
         self.migration_container = ContainerComponent("migration",
                                                       need_load_balancer=False,
@@ -274,7 +274,9 @@ class RailsComponent(pulumi.ComponentResource):
             kms_key_id=self.kms_key_id,
             storage_encrypted=bool(self.kms_key_id),
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self, ignore_changes=[ 'database_name', 'master_username'])
+            opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
+                                        protect=True,
+                                        ignore_changes=['database_name', 'master_username'])
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
