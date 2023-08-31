@@ -15,7 +15,6 @@ def describe_an_execution_resource_provider():
             family="family",
             subnets=["subnets"],
             security_groups=["security_groups"],
-            task_role_arn="task_role_arn",
             ecs_client=stubbed_ecs_client
         )
 
