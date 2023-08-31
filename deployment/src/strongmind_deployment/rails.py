@@ -186,7 +186,6 @@ class RailsComponent(pulumi.ComponentResource):
             family=self.migration_container.project_stack,
             subnets=subnets,
             security_groups=self.container_security_groups,
-            task_role_arn=self.migration_container.execution_role.arn,
         )
         self.execution = ExecutionComponent("execution",
                                             execution_inputs,
