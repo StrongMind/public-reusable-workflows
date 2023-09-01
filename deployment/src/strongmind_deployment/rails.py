@@ -44,6 +44,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         :key snapshot_identifier: The snapshot identifier to use for the RDS cluster. Defaults to None.
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
+        :key db_name: The name of the database. Defaults to app.
+        :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -58,6 +60,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.firewall_rule = None
         self.db_username = None
         self.db_password = None
+        self.db_name = None
         self.hashed_password = None
         self.web_container = None
         self.worker_container = None
@@ -149,8 +152,13 @@ class RailsComponent(pulumi.ComponentResource):
         additional_env_vars = {
             'RAILS_MASTER_KEY': master_key,
             'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
+            'DB_HOST': self.rds_serverless_cluster.endpoint,
             'DB_USERNAME': self.db_username,
+            'DB_USER': self.db_username,
             'DB_PASSWORD': self.db_password.result,
+            'DB_PASS': self.db_password.result,
+            'DB_NAME': self.db_name,
+            'DB_PORT': '5432',
             'DATABASE_URL': self.get_database_url(),
             'RAILS_ENV': 'production'
         }
@@ -243,10 +251,12 @@ class RailsComponent(pulumi.ComponentResource):
         return f'md5{hashed}'
 
     def rds(self, project_stack):
-        self.db_username = project_stack.replace('-', '_')
+        self.db_username = self.kwargs.get("db_username", project_stack.replace('-', '_'))
         self.db_password = random.RandomPassword("password",
                                                  length=30,
                                                  special=False)
+        self.db_name = self.kwargs.get("db_name", "app")
+
         self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)
 
         master_db_password = self.db_password.result
@@ -259,9 +269,10 @@ class RailsComponent(pulumi.ComponentResource):
             engine='aurora-postgresql',
             engine_mode='provisioned',
             engine_version='15.2',
-            database_name="app",
+            database_name=self.db_name,
             master_username=self.db_username,
             master_password=master_db_password,
+            apply_immediately=True,
             deletion_protection=True,
             skip_final_snapshot=False,
             backup_retention_period=14,
@@ -274,8 +285,7 @@ class RailsComponent(pulumi.ComponentResource):
             storage_encrypted=bool(self.kms_key_id),
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
-                                        protect=True,
-                                        ignore_changes=['database_name', 'master_username'])
+                                        protect=True)
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
@@ -284,6 +294,7 @@ class RailsComponent(pulumi.ComponentResource):
             instance_class='db.serverless',
             engine=self.rds_serverless_cluster.engine,
             engine_version=self.rds_serverless_cluster.engine_version,
+            apply_immediately=True,
             publicly_accessible=True,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster],
@@ -299,7 +310,8 @@ class RailsComponent(pulumi.ComponentResource):
                              self.db_password.result,
                              '@',
                              self.rds_serverless_cluster.endpoint,
-                             ':5432/app')
+                             ':5432/',
+                             self.db_name)
 
     def setup_dynamo(self):
         for table_component in self.dynamo_tables:
