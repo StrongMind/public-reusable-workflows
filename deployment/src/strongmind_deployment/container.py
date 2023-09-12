@@ -32,6 +32,7 @@ class ContainerComponent(pulumi.ComponentResource):
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.log_metric_filters = []
         self.target_group = None
         self.load_balancer_listener_redirect_http_to_https = None
         self.load_balancer_listener = None
@@ -59,7 +60,6 @@ class ContainerComponent(pulumi.ComponentResource):
         if name != 'container':
             self.project_stack = f"{self.project_stack}-{name}"
 
-
         self.tags = {
             "product": project,
             "repository": project,
@@ -82,12 +82,26 @@ class ContainerComponent(pulumi.ComponentResource):
         log_name = 'log'
         if name != 'container':
             log_name = f'{name}-log'
-        logs = aws.cloudwatch.LogGroup(
+        self.logs = aws.cloudwatch.LogGroup(
             log_name,
             retention_in_days=14,
             name=f'/aws/ecs/{self.project_stack}',
             tags=self.tags
         )
+        self.log_metric_filter_definitions = kwargs.get('log_metric_filters', [])
+        for log_metric_filter in self.log_metric_filter_definitions:
+            self.log_metric_filters.append(
+                aws.cloudwatch.LogMetricFilter(log_metric_filter["metric_transformation"]["name"],
+                                               log_group_name=self.logs.name,
+                                               pattern=log_metric_filter["pattern"],
+                                               metric_transformation=aws.cloudwatch.LogMetricFilterMetricTransformationArgs(
+                                                   name=log_metric_filter["metric_transformation"]["name"],
+                                                   value=log_metric_filter["metric_transformation"]["value"],
+                                                   namespace=log_metric_filter["metric_transformation"]["namespace"]
+                                               )
+                                               )
+            )
+
         port_mappings = None
         if self.target_group is not None:
             port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
@@ -160,7 +174,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
-                        "awslogs-group": logs.name,
+                        "awslogs-group": self.logs.name,
                         "awslogs-region": "us-west-2",
                         "awslogs-stream-prefix": "container",
                     },
