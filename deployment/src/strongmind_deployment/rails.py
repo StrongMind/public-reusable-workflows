@@ -35,7 +35,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
         :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
         :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
-        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
+        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`. Requires need_worker to be True.
         :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
         :key worker_log_metric_filters: A list of log metric filters to create for the worker container. Defaults to `[]`.
