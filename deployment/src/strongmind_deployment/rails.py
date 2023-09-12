@@ -32,12 +32,13 @@ class RailsComponent(pulumi.ComponentResource):
         :key execution_cmd: The command for the pre-deployment execution container. Defaults to ["sh", "-c",
                                       "bundle exec rails db:prepare db:migrate db:seed && echo 'Migrations complete'"].
         :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
-        :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
-        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
         :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
+        :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
+        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`. Requires need_worker to be True.
         :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
+        :key worker_log_metric_filters: A list of log metric filters to create for the worker container. Defaults to `[]`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
@@ -68,6 +69,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
+        self.worker_log_metric_filters = self.kwargs.get('worker_log_metric_filters', [])
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
         self.kms_key_id = self.kwargs.get('kms_key_id', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
@@ -217,7 +219,7 @@ class RailsComponent(pulumi.ComponentResource):
             self.need_worker = sidekiq_present()
 
         if self.need_worker:
-            self.setup_worker()  # execution)
+            self.setup_worker()
 
         if self.kwargs.get('storage', False):
             self.setup_storage()
@@ -232,12 +234,14 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
         self.kwargs['need_load_balancer'] = False
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
+        self.kwargs['log_metric_filters'] = self.worker_log_metric_filters
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
                                                    **self.kwargs
                                                    )
+        self.kwargs['log_metric_filters'] = []
 
     def secrets(self):
         self.secret = SecretsComponent("secrets",
