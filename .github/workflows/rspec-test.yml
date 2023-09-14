@@ -1,7 +1,7 @@
 name: "rspec test"
 
 on:
-  workflow_dispatch:
+  workflow_call:
 
 jobs:
   run-tests:
