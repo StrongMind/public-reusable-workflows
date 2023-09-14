@@ -2,13 +2,12 @@ name: "rspec test"
 
 on:
   workflow_call:
-
-inputs:
-  ruby-version:
-    description: "Ruby version"
-    required: false
-    default: "3.2.2"
-
+    inputs:
+      ruby-version:
+        description: "Ruby version"
+        required: false
+        default: "3.2.2"
+        
 jobs:
   run-tests:
     runs-on: ubuntu-latest
