@@ -36,12 +36,12 @@ jobs:
           ruby-version: ${{ inputs.ruby-version }}
 
       - run: |
+          bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           bundle install
           bundle exec rails db:prepare db:migrate
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
-          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
