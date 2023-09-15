@@ -52,6 +52,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.secrets = kwargs.get('secrets', [])
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
+        self.autoscaling_target = None
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
@@ -193,7 +194,21 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        if self.kwargs.get('autoscaling'):
+            self.autoscaling()
+
         self.register_outputs({})
+
+    def autoscaling(self):
+
+        self.autoscaling_target = aws.appautoscaling.Target(
+            "autoscaling_target",
+            max_capacity=3,
+            min_capacity=1,
+            resource_id=f"service/{self.project_stack}/{self.project_stack}",
+            scalable_dimension="ecs:service:DesiredCount",
+            service_namespace="ecs",
+        )
 
     def setup_load_balancer(self, kwargs, project, project_stack):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
