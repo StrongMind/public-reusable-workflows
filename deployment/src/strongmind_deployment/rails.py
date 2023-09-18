@@ -210,9 +210,9 @@ class RailsComponent(pulumi.ComponentResource):
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
+                                                autoscaling=True,
                                                 **self.kwargs
                                                 )
-
         self.need_worker = self.kwargs.get('need_worker', None)
         if self.need_worker is None:  # pragma: no cover
             # If we don't know if we need a worker, check for sidekiq in the Gemfile
