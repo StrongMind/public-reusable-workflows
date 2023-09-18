@@ -219,6 +219,10 @@ def describe_a_pulumi_rails_app():
     def it_has_no_dynamo_tables(sut):
         assert sut.dynamo_tables == []
 
+    @pulumi.runtime.test
+    def it_asks_the_web_container_to_automatically_scale(sut):
+        assert sut.web_container.autoscaling
+
     def describe_secretmanager_secret():
         @pulumi.runtime.test
         def it_has_a_secret(sut):

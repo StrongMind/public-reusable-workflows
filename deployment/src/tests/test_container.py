@@ -525,6 +525,43 @@ def describe_a_pulumi_containerized_app():
             resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
             return assert_output_equals(sut.autoscaling_target.resource_id, resource_id)
 
+        def describe_autoscaling_alarm():
+            @pulumi.runtime.test
+            def it_exists(sut):
+                assert sut.autoscaling_alarm
+
+            @pulumi.runtime.test
+            def it_triggers_when_greater_than_or_equal_to_threshold(sut):
+                return assert_output_equals(sut.autoscaling_alarm.comparison_operator, "GreaterThanOrEqualToThreshold")
+
+            @pulumi.runtime.test
+            def it_evaluates_for_one_period(sut):
+                return assert_output_equals(sut.autoscaling_alarm.evaluation_periods, 1)
+
+            @pulumi.runtime.test
+            def it_triggers_based_on_CPU_utilization(sut):
+                return assert_output_equals(sut.autoscaling_alarm.metric_name, "CPUUtilization")
+
+            @pulumi.runtime.test
+            def it_belongs_to_the_ECS_namespace(sut):
+                return assert_output_equals(sut.autoscaling_alarm.namespace, "AWS/ECS")
+
+            @pulumi.runtime.test
+            def it_runs_every_minute(sut):
+                return assert_output_equals(sut.autoscaling_alarm.period, 60)
+
+            @pulumi.runtime.test
+            def it_uses_maximum_statistic(sut):
+                return assert_output_equals(sut.autoscaling_alarm.statistic, "Maximum")
+
+            @pulumi.runtime.test
+            def it_triggers_when_CPU_utilization_is_over_65(sut):
+                return assert_output_equals(sut.autoscaling_alarm.threshold, 65)
+
+            @pulumi.runtime.test
+            def it_triggers_the_autoscaling_policy(sut):
+                return assert_outputs_equal(sut.autoscaling_alarm.alarm_actions, [sut.autoscaling_policy.arn])
+
         def describe_autoscaling_policy():
             @pulumi.runtime.test
             def it_exists(sut):
@@ -573,13 +610,34 @@ def describe_a_pulumi_containerized_app():
                     return sut.autoscaling_policy.step_scaling_policy_configuration.step_adjustments[0]
 
                 @pulumi.runtime.test
-                def it_has_a_default_metric_interval_upper_bound(step):
-                    return assert_output_equals(step.metric_interval_upper_bound, "65")
+                def it_triggers_when_it_exceeds_the_alarm_threshold(step):
+                    return assert_output_equals(step.metric_interval_lower_bound, "0")
+
+                @pulumi.runtime.test
+                def it_triggers_when_it_exceeds_the_alarm_threshold_by_up_to_ten(step):
+                    return assert_output_equals(step.metric_interval_upper_bound, "10")
+
 
                 @pulumi.runtime.test
                 def it_scales_up_by_one_instance(step):
                     return assert_output_equals(step.scaling_adjustment, 1)
 
+            def describe_second_step():
+                @pytest.fixture
+                def step(sut):
+                    return sut.autoscaling_policy.step_scaling_policy_configuration.step_adjustments[1]
+
+                @pulumi.runtime.test
+                def it_triggers_when_it_exceeds_the_alarm_threshold_by_more_than_ten(step):
+                    return assert_output_equals(step.metric_interval_lower_bound, "10")
+
+                @pulumi.runtime.test
+                def it_triggers_at_all_higher_values_than_ten(step):
+                    return assert_output_equals(step.metric_interval_upper_bound, None)
+
+                @pulumi.runtime.test
+                def it_scales_up_by_three_instances(step):
+                    return assert_output_equals(step.scaling_adjustment, 3)
 
     def describe_with_existing_cluster():
         @pytest.fixture

@@ -206,14 +206,13 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
-        self.kwargs['autoscaling'] = True
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
+                                                autoscaling=True,
                                                 **self.kwargs
                                                 )
-        self.kwargs['autoscaling'] = False
         self.need_worker = self.kwargs.get('need_worker', None)
         if self.need_worker is None:  # pragma: no cover
             # If we don't know if we need a worker, check for sidekiq in the Gemfile
