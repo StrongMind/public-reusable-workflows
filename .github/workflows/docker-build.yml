@@ -56,7 +56,13 @@ jobs:
             echo $OUTPUT
             exit 1
           fi
+  rspec-test:
+    name: Rspec test to code coverage
+    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
+    secrets: inherit
+
   build-image:
+    needs: [test-docker, rspec-test]
     name: Build image
     runs-on: ubuntu-latest
     environment: containers
