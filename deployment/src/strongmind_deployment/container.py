@@ -32,6 +32,7 @@ class ContainerComponent(pulumi.ComponentResource):
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.autoscaling_alarm = None
         self.log_metric_filters = []
         self.target_group = None
         self.load_balancer_listener_redirect_http_to_https = None
@@ -236,11 +237,29 @@ class ContainerComponent(pulumi.ComponentResource):
                 adjustment_type="ChangeInCapacity",
                 cooldown=60,
                 metric_aggregation_type="Maximum",
-                step_adjustments=[aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
-                    metric_interval_upper_bound="65",
-                    scaling_adjustment=1,
-                )],
+                step_adjustments=[
+                    aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
+                        metric_interval_upper_bound="10",
+                        metric_interval_lower_bound="0",
+                        scaling_adjustment=1,
+                    ),
+                    aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
+                        metric_interval_lower_bound="10",
+                        scaling_adjustment=3,
+                    )
+                ],
             )
+        )
+        self.autoscaling_alarm = aws.cloudwatch.MetricAlarm(
+            "autoscaling_alarm",
+            comparison_operator="GreaterThanOrEqualToThreshold",
+            evaluation_periods=1,
+            metric_name="CPUUtilization",
+            namespace="AWS/ECS",
+            period=60,
+            statistic="Maximum",
+            threshold=65,
+            alarm_actions=[self.autoscaling_policy.arn]
         )
 
     def setup_load_balancer(self, kwargs, project, project_stack):
