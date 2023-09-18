@@ -229,6 +229,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.autoscaling_policy = aws.appautoscaling.Policy(
             "autoscaling_policy",
+            name=f"{self.project_stack} Autoscaling Policy",
             policy_type="StepScaling",
             resource_id=self.autoscaling_target.resource_id,
             scalable_dimension=self.autoscaling_target.scalable_dimension,
@@ -252,9 +253,15 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.autoscaling_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_alarm",
+            name=f"{self.project_stack} Auto Scaling Alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
             evaluation_periods=1,
             metric_name="CPUUtilization",
+            unit="Percent",
+            dimensions={
+                "ClusterName": self.project_stack,
+                "ServiceName": self.project_stack
+            },
             namespace="AWS/ECS",
             period=60,
             statistic="Maximum",
