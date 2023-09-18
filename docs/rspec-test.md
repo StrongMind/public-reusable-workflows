@@ -1,23 +1,5 @@
 # Rspec testing your rails application
 
-## Create workflow pointing to reusable
-
-1. Open your rails app.
-2. Create the following file as `.github/workflows/rspec-test.yml`:
-```yaml
-name: "rspec test"
-
-on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-
-jobs:
-  respect-test:
-    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
-    secrets: inherit
-```
 ## Setting your test environment
 
 ### Update test in database.yml
