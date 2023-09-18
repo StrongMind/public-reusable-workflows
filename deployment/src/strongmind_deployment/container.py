@@ -53,13 +53,13 @@ class ContainerComponent(pulumi.ComponentResource):
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
+        self.autoscaling_policy = None
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
         self.project_stack = f"{project}-{stack}"
         if name != 'container':
             self.project_stack = f"{self.project_stack}-{name}"
-
 
         self.tags = {
             "product": project,
@@ -208,6 +208,22 @@ class ContainerComponent(pulumi.ComponentResource):
             resource_id=f"service/{self.project_stack}/{self.project_stack}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
+        )
+        self.autoscaling_policy = aws.appautoscaling.Policy(
+            "autoscaling_policy",
+            policy_type="StepScaling",
+            resource_id=self.autoscaling_target.resource_id,
+            scalable_dimension=self.autoscaling_target.scalable_dimension,
+            service_namespace=self.autoscaling_target.service_namespace,
+            step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
+                adjustment_type="ChangeInCapacity",
+                cooldown=60,
+                metric_aggregation_type="Maximum",
+                step_adjustments=[aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
+                    metric_interval_upper_bound="65",
+                    scaling_adjustment=1,
+                )],
+            )
         )
 
     def setup_load_balancer(self, kwargs, project, project_stack):

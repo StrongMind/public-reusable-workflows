@@ -499,6 +499,7 @@ def describe_a_pulumi_containerized_app():
         def component_kwargs(component_kwargs):
             component_kwargs["autoscaling"] = True
             return component_kwargs
+
         @pulumi.runtime.test
         def it_has_an_autoscaling_target(sut):
             assert sut.autoscaling_target
@@ -523,6 +524,62 @@ def describe_a_pulumi_containerized_app():
         def it_uses_the_clusters_resource_id(sut):
             resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
             return assert_output_equals(sut.autoscaling_target.resource_id, resource_id)
+
+        def describe_autoscaling_policy():
+            @pulumi.runtime.test
+            def it_exists(sut):
+                assert sut.autoscaling_policy
+
+            @pulumi.runtime.test
+            def it_has_a_step_scaling_policy_type(sut):
+                return assert_output_equals(sut.autoscaling_policy.policy_type, "StepScaling")
+
+            @pulumi.runtime.test
+            def it_uses_the_clusters_resource_id(sut):
+                resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
+                return assert_output_equals(sut.autoscaling_policy.resource_id, resource_id)
+
+            @pulumi.runtime.test
+            def it_has_a_default_scalable_dimension_of_desired_count(sut):
+                return assert_output_equals(sut.autoscaling_policy.scalable_dimension, "ecs:service:DesiredCount")
+
+            @pulumi.runtime.test
+            def it_has_a_default_service_namespace(sut):
+                return assert_output_equals(sut.autoscaling_policy.service_namespace, "ecs")
+
+            @pulumi.runtime.test
+            def it_has_a_step_scaling_policy_configuration(sut):
+                assert sut.autoscaling_policy.step_scaling_policy_configuration
+
+            @pulumi.runtime.test
+            def it_has_a_default_cooldown(sut):
+                return assert_output_equals(sut.autoscaling_policy.step_scaling_policy_configuration.cooldown, 60)
+
+            @pulumi.runtime.test
+            def it_changes_capacity(sut):
+                return assert_output_equals(sut.autoscaling_policy.step_scaling_policy_configuration.adjustment_type, "ChangeInCapacity")
+
+            @pulumi.runtime.test
+            def it_has_a_default_maximum_metric_aggregation_type(sut):
+                return assert_output_equals(sut.autoscaling_policy.step_scaling_policy_configuration.metric_aggregation_type, "Maximum")
+
+            @pulumi.runtime.test
+            def it_has_steps(sut):
+                assert sut.autoscaling_policy.step_scaling_policy_configuration.step_adjustments
+
+            def describe_first_step():
+                @pytest.fixture
+                def step(sut):
+                    return sut.autoscaling_policy.step_scaling_policy_configuration.step_adjustments[0]
+
+                @pulumi.runtime.test
+                def it_has_a_default_metric_interval_upper_bound(step):
+                    return assert_output_equals(step.metric_interval_upper_bound, "65")
+
+                @pulumi.runtime.test
+                def it_scales_up_by_one_instance(step):
+                    return assert_output_equals(step.scaling_adjustment, 1)
+
 
     def describe_with_existing_cluster():
         @pytest.fixture
