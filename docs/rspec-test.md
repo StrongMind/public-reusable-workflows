@@ -18,6 +18,26 @@ jobs:
     uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
     secrets: inherit
 ```
+## Setting your test environment
+
+### Update test in database.yml
+```yaml
+test:
+  <<: *default
+  username: postgres
+  password: postgres
+  database: app
+  host: localhost
+```
+
+### Add required env's to test.rb
+If your rails application requires that certain env's exist in order to start then you will need to place then in the test.rb under "Rails.application.configure do", for example:
+```
+  ENV["REDIS_URL"] = "redis://localhost:6379/1"
+  ENV["SENTRY_DSN"] = "test"
+  ENV["IDENTITY_CLIENT_ID"] = "test"
+  ENV["IDENTITY_CLIENT_SECRET"] = "test"
+```
 
 ## Add required secrets to repository
 

@@ -32,18 +32,21 @@ class RailsComponent(pulumi.ComponentResource):
         :key execution_cmd: The command for the pre-deployment execution container. Defaults to ["sh", "-c",
                                       "bundle exec rails db:prepare db:migrate db:seed && echo 'Migrations complete'"].
         :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
-        :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
-        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
         :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
+        :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
+        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`. Requires need_worker to be True.
         :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
+        :key worker_log_metric_filters: A list of log metric filters to create for the worker container. Defaults to `[]`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         :key snapshot_identifier: The snapshot identifier to use for the RDS cluster. Defaults to None.
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
+        :key db_name: The name of the database. Defaults to app.
+        :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -58,6 +61,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.firewall_rule = None
         self.db_username = None
         self.db_password = None
+        self.db_name = None
         self.hashed_password = None
         self.web_container = None
         self.worker_container = None
@@ -65,6 +69,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_serverless_cluster_instance = None
         self.rds_serverless_cluster = None
         self.kwargs = kwargs
+        self.worker_log_metric_filters = self.kwargs.get('worker_log_metric_filters', [])
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
         self.kms_key_id = self.kwargs.get('kms_key_id', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
@@ -149,8 +154,13 @@ class RailsComponent(pulumi.ComponentResource):
         additional_env_vars = {
             'RAILS_MASTER_KEY': master_key,
             'DATABASE_HOST': self.rds_serverless_cluster.endpoint,
+            'DB_HOST': self.rds_serverless_cluster.endpoint,
             'DB_USERNAME': self.db_username,
+            'DB_USER': self.db_username,
             'DB_PASSWORD': self.db_password.result,
+            'DB_PASS': self.db_password.result,
+            'DB_NAME': self.db_name,
+            'DB_PORT': '5432',
             'DATABASE_URL': self.get_database_url(),
             'RAILS_ENV': 'production'
         }
@@ -209,7 +219,7 @@ class RailsComponent(pulumi.ComponentResource):
             self.need_worker = sidekiq_present()
 
         if self.need_worker:
-            self.setup_worker()  # execution)
+            self.setup_worker()
 
         if self.kwargs.get('storage', False):
             self.setup_storage()
@@ -224,12 +234,14 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
         self.kwargs['need_load_balancer'] = False
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
+        self.kwargs['log_metric_filters'] = self.worker_log_metric_filters
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
                                                    **self.kwargs
                                                    )
+        self.kwargs['log_metric_filters'] = []
 
     def secrets(self):
         self.secret = SecretsComponent("secrets",
@@ -243,10 +255,12 @@ class RailsComponent(pulumi.ComponentResource):
         return f'md5{hashed}'
 
     def rds(self, project_stack):
-        self.db_username = project_stack.replace('-', '_')
+        self.db_username = self.kwargs.get("db_username", project_stack.replace('-', '_'))
         self.db_password = random.RandomPassword("password",
                                                  length=30,
                                                  special=False)
+        self.db_name = self.kwargs.get("db_name", "app")
+
         self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)
 
         master_db_password = self.db_password.result
@@ -259,9 +273,10 @@ class RailsComponent(pulumi.ComponentResource):
             engine='aurora-postgresql',
             engine_mode='provisioned',
             engine_version='15.2',
-            database_name="app",
+            database_name=self.db_name,
             master_username=self.db_username,
             master_password=master_db_password,
+            apply_immediately=True,
             deletion_protection=True,
             skip_final_snapshot=False,
             backup_retention_period=14,
@@ -274,8 +289,7 @@ class RailsComponent(pulumi.ComponentResource):
             storage_encrypted=bool(self.kms_key_id),
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
-                                        protect=True,
-                                        ignore_changes=['database_name', 'master_username'])
+                                        protect=True)
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
@@ -284,6 +298,7 @@ class RailsComponent(pulumi.ComponentResource):
             instance_class='db.serverless',
             engine=self.rds_serverless_cluster.engine,
             engine_version=self.rds_serverless_cluster.engine_version,
+            apply_immediately=True,
             publicly_accessible=True,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster],
@@ -299,7 +314,8 @@ class RailsComponent(pulumi.ComponentResource):
                              self.db_password.result,
                              '@',
                              self.rds_serverless_cluster.endpoint,
-                             ':5432/app')
+                             ':5432/',
+                             self.db_name)
 
     def setup_dynamo(self):
         for table_component in self.dynamo_tables:

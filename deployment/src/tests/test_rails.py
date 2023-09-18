@@ -340,6 +340,10 @@ def describe_a_pulumi_rails_app():
                                         f'{app_name}-{stack}'.replace('-', '_'))
 
         @pulumi.runtime.test
+        def it_sets_apply_immediately(sut):
+            return assert_output_equals(sut.rds_serverless_cluster.apply_immediately, True)
+
+        @pulumi.runtime.test
         def it_sets_the_master_password(sut):
             return assert_outputs_equal(sut.rds_serverless_cluster.master_password, sut.db_password.result)
 
@@ -370,8 +374,8 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_cluster_url_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                postgres_url, endpoint, master_username, master_password = args
-                expected_postgres_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/app'
+                postgres_url, endpoint, master_username, master_password, db_name = args
+                expected_postgres_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/{db_name}'
 
                 assert postgres_url == expected_postgres_url
 
@@ -379,7 +383,8 @@ def describe_a_pulumi_rails_app():
                 sut.web_container.env_vars["DATABASE_URL"],
                 sut.rds_serverless_cluster.endpoint,
                 sut.rds_serverless_cluster.master_username,
-                sut.db_password.result
+                sut.db_password.result,
+                sut.rds_serverless_cluster.database_name
             ).apply(check_ecs_environment)
 
         @pulumi.runtime.test
@@ -389,35 +394,46 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_cluster_endpoint_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                actual_host, expected_endpoint = args
-                assert actual_host == expected_endpoint
+                actual_host, actual_db_host, expected_endpoint = args
+                assert actual_host == actual_db_host == expected_endpoint
 
             return pulumi.Output.all(
                 sut.web_container.env_vars["DATABASE_HOST"],
+                sut.web_container.env_vars["DB_HOST"],
                 sut.rds_serverless_cluster.endpoint
             ).apply(check_ecs_environment)
 
         @pulumi.runtime.test
+        def it_sends_the_db_port_to_the_ecs_environment(sut):
+            assert sut.web_container.env_vars["DB_PORT"] == "5432"
+
+        @pulumi.runtime.test
         def it_sends_the_cluster_username_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                actual_username, expected_username = args
-                assert actual_username == expected_username
+                actual_username, actual_user, expected_username = args
+                assert actual_username == actual_user == expected_username
 
             return pulumi.Output.all(
                 sut.web_container.env_vars["DB_USERNAME"],
+                sut.web_container.env_vars["DB_USER"],
                 sut.rds_serverless_cluster.master_username
             ).apply(check_ecs_environment)
 
         @pulumi.runtime.test
         def it_sends_the_cluster_password_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
-                actual_password, expected_password = args
-                assert actual_password == expected_password
+                actual_password, actual_pass, expected_password = args
+                assert actual_password == actual_pass == expected_password
 
             return pulumi.Output.all(
                 sut.web_container.env_vars["DB_PASSWORD"],
+                sut.web_container.env_vars["DB_PASS"],
                 sut.db_password.result
             ).apply(check_ecs_environment)
+
+        @pulumi.runtime.test
+        def it_has_a_default_db_name(sut):
+            return sut.db_name == "app"
 
         def describe_with_md5_passwords_on():
             @pytest.fixture
@@ -445,6 +461,38 @@ def describe_a_pulumi_rails_app():
             def it_restores_the_snapshot(sut, snapshot_identifier):
                 return assert_output_equals(sut.rds_serverless_cluster.snapshot_identifier,
                                             snapshot_identifier)
+
+            def describe_with_optional_database_options():
+                @pytest.fixture
+                def db_name(faker):
+                    return faker.word()
+
+                @pytest.fixture
+                def db_username(faker):
+                    return faker.word()
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, db_name, db_username):
+                    component_kwargs['db_name'] = db_name
+                    component_kwargs['db_username'] = db_username
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_should_set_the_db_name(sut, db_name):
+                    return assert_output_equals(sut.rds_serverless_cluster.database_name, db_name)
+
+                @pulumi.runtime.test
+                def it_should_put_the_db_name_in_the_url(sut, db_name):
+                    def check_the_db_url(db_url):
+                        assert db_url.split('/')[-1] == db_name
+
+                    return sut.get_database_url().apply(check_the_db_url)
+
+                @pulumi.runtime.test
+                def it_should_set_the_db_username(sut, db_username):
+                    return assert_output_equals(sut.rds_serverless_cluster.master_username, db_username)
+
+
 
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
@@ -478,6 +526,10 @@ def describe_a_pulumi_rails_app():
                 sut.rds_serverless_cluster_instance.cluster_identifier,
                 sut.rds_serverless_cluster_instance.instance_class
             ).apply(check_rds_cluster_instance_engine)
+
+        @pulumi.runtime.test
+        def it_sets_apply_immediately(sut):
+            return assert_output_equals(sut.rds_serverless_cluster_instance.apply_immediately, True)
 
         @pulumi.runtime.test
         def it_has_the_same_engine_as_the_cluster(sut):
@@ -586,6 +638,35 @@ def describe_a_pulumi_rails_app():
             @pulumi.runtime.test
             def it_uses_cluster_from_web_container(sut):
                 assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster_arn
+
+            def describe_worker_log_metric_filters():
+                @pytest.fixture
+                def worker_log_metric_filters(faker):
+                    return [
+                    {
+                        "pattern": "BLAH DAH",
+                        "metric_transformation": {
+                            "name": "waiting_workers",
+                            "namespace": "Jobs",
+                            "value": "$BLAH",
+                        }
+                    }
+                ]
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, worker_log_metric_filters):
+                    component_kwargs['worker_log_metric_filters'] = worker_log_metric_filters
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_passes_worker_log_metric_filter_pattern_to_worker_container(sut, worker_log_metric_filters):
+                    return assert_output_equals(sut.worker_container.log_metric_filters[0].pattern,
+                                                "BLAH DAH")
+
+                @pulumi.runtime.test
+                def it_passes_worker_log_metric_filter_value_to_worker_container(sut, worker_log_metric_filters):
+                    return assert_output_equals(sut.worker_container.log_metric_filters[0].metric_transformation.value,
+                                                "$BLAH")
 
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
@@ -764,3 +845,4 @@ def describe_a_pulumi_rails_app():
         @pulumi.runtime.test
         def it_sends_the_bucket_name_to_the_ecs_environment(sut):
             return assert_outputs_equal(sut.env_vars["S3_BUCKET_NAME"], sut.storage.bucket.bucket)
+

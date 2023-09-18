@@ -596,3 +596,104 @@ def describe_a_pulumi_containerized_app():
         @pulumi.runtime.test
         def it_uses_existing_cluster(sut, existing_cluster_arn):
             return assert_output_equals(sut.fargate_service.cluster, existing_cluster_arn)
+
+    def describe_logs():
+        @pulumi.runtime.test
+        def it_creates_a_log_group(sut, stack, app_name):
+            return assert_output_equals(sut.logs.name, f"/aws/ecs/{app_name}-{stack}")
+
+        @pulumi.runtime.test
+        def it_sets_retention(sut):
+            return assert_output_equals(sut.logs.retention_in_days, 14)
+
+        @pulumi.runtime.test
+        def it_has_no_filters(sut):
+            return sut.log_metric_filters == []
+
+        def describe_with_job_filters():
+
+            @pytest.fixture
+            def waiting_workers_pattern():
+                return "[LETTER, DATE, LEVEL, SEP, N, I, HAVE, WAITING_JOBS, JOBS, FOR, WAITING_WORKERS, " \
+                       "WAITING=waiting, WORKERS=workers]"
+
+            @pytest.fixture
+            def waiting_jobs_pattern():
+                return "[LETTER, DATE, LEVEL, SEP, N, I, HAVE, WAITING_JOBS, JOBS, FOR, WAITING_WORKERS, " \
+                       "WAITING=waiting, WORKERS=workers]"
+
+            @pytest.fixture
+            def waiting_workers_metric_value():
+                return "$WAITING_WORKERS"
+
+            @pytest.fixture
+            def waiting_jobs_metric_value():
+                return "$WAITING_JOBS"
+
+            @pytest.fixture
+            def log_metric_filters(waiting_workers_pattern, waiting_jobs_pattern,
+                                   waiting_workers_metric_value, waiting_jobs_metric_value):
+                return [
+                    {
+                        "pattern": waiting_workers_pattern,
+                        "metric_transformation": {
+                            "name": "waiting_workers",
+                            "namespace": "Jobs",
+                            "value": waiting_workers_metric_value,
+                        }
+                    },
+                    {
+                        "pattern": waiting_jobs_pattern,
+                        "metric_transformation": {
+                            "name": "waiting_jobs",
+                            "namespace": "Jobs",
+                            "value": waiting_jobs_metric_value,
+                        }
+                    }
+                ]
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, log_metric_filters):
+                component_kwargs["log_metric_filters"] = log_metric_filters
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_metric_filters(sut):
+                assert sut.log_metric_filters
+
+            @pulumi.runtime.test
+            def it_sets_the_workers_pattern(sut, waiting_workers_pattern):
+                return assert_output_equals(sut.log_metric_filters[0].pattern, waiting_workers_pattern)
+
+            @pulumi.runtime.test
+            def it_sets_the_workers_metric_name(sut):
+                return assert_output_equals(sut.log_metric_filters[0].metric_transformation.name,
+                                            "waiting_workers")
+
+            @pulumi.runtime.test
+            def it_sets_the_workers_values(sut, waiting_workers_metric_value):
+                return assert_output_equals(sut.log_metric_filters[0].metric_transformation.value,
+                                            waiting_workers_metric_value)
+
+            @pulumi.runtime.test
+            def it_sets_the_workers_namespace(sut):
+                return assert_output_equals(sut.log_metric_filters[0].metric_transformation.namespace,
+                                            "Jobs")
+            @pulumi.runtime.test
+            def it_sets_the_jobs_pattern(sut, waiting_jobs_pattern):
+                return assert_output_equals(sut.log_metric_filters[1].pattern, waiting_jobs_pattern)
+
+            @pulumi.runtime.test
+            def it_sets_the_jobs_metric_name(sut):
+                return assert_output_equals(sut.log_metric_filters[1].metric_transformation.name,
+                                            "waiting_jobs")
+
+            @pulumi.runtime.test
+            def it_sets_the_jobs_values(sut, waiting_jobs_metric_value):
+                return assert_output_equals(sut.log_metric_filters[1].metric_transformation.value,
+                                            waiting_jobs_metric_value)
+
+            @pulumi.runtime.test
+            def it_sets_the_jobs_namespace(sut):
+                return assert_output_equals(sut.log_metric_filters[1].metric_transformation.namespace,
+                                            "Jobs")
