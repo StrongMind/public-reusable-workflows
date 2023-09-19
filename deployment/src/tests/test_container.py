@@ -543,6 +543,18 @@ def describe_a_pulumi_containerized_app():
                 return assert_output_equals(sut.autoscaling_alarm.metric_name, "CPUUtilization")
 
             @pulumi.runtime.test
+            def it_checks_the_unit_as_a_percentage(sut):
+                return assert_output_equals(sut.autoscaling_alarm.unit, "Percent")
+
+            @pulumi.runtime.test
+            def it_pulls_the_metric_data_from_the_cluster(sut):
+                return assert_output_equals(sut.autoscaling_alarm.dimensions["ClusterName"], sut.project_stack)
+
+            @pulumi.runtime.test
+            def it_pulls_the_metric_data_from_the_service(sut):
+                return assert_output_equals(sut.autoscaling_alarm.dimensions["ServiceName"], sut.project_stack)
+
+            @pulumi.runtime.test
             def it_belongs_to_the_ECS_namespace(sut):
                 return assert_output_equals(sut.autoscaling_alarm.namespace, "AWS/ECS")
 
