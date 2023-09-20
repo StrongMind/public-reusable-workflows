@@ -267,7 +267,7 @@ class ContainerComponent(pulumi.ComponentResource):
             },
             namespace="AWS/ECS",
             period=60,
-            statistic="Maximum",
+            statistic="Average",
             threshold=65,
             alarm_actions=[self.autoscaling_policy.arn]
         )

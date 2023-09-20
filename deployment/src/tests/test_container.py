@@ -573,8 +573,8 @@ def describe_a_pulumi_containerized_app():
                 return assert_output_equals(sut.autoscaling_alarm.period, 60)
 
             @pulumi.runtime.test
-            def it_uses_maximum_statistic(sut):
-                return assert_output_equals(sut.autoscaling_alarm.statistic, "Maximum")
+            def it_uses_average_statistic_by_default(sut):
+                return assert_output_equals(sut.autoscaling_alarm.statistic, "Average")
 
             @pulumi.runtime.test
             def it_triggers_when_CPU_utilization_is_over_65(sut):
