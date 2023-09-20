@@ -506,7 +506,7 @@ def describe_a_pulumi_containerized_app():
 
         @pulumi.runtime.test
         def it_has_a_default_max_capacity(sut):
-            return assert_output_equals(sut.autoscaling_target.max_capacity, 3)
+            return assert_output_equals(sut.autoscaling_target.max_capacity, 1)
 
         def describe_autoscaling_overrides():
             @pytest.fixture

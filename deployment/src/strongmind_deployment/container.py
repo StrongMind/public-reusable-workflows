@@ -58,7 +58,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_policy = None
-        self.max_capacity = kwargs.get('max_number_of_instances', 3)
+        self.max_capacity = kwargs.get('max_number_of_instances', 1)
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
