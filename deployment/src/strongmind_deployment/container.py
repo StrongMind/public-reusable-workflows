@@ -231,8 +231,8 @@ class ContainerComponent(pulumi.ComponentResource):
             service_namespace="ecs",
         )
         self.autoscaling_out_policy = aws.appautoscaling.Policy(
-            "autoscaling_policy",
-            name=f"{self.project_stack} Autoscaling Policy",
+            "autoscaling_out_policy",
+            name=f"{self.project_stack}-autoscaling-out-policy",
             policy_type="StepScaling",
             resource_id=self.autoscaling_target.resource_id,
             scalable_dimension=self.autoscaling_target.scalable_dimension,
@@ -256,7 +256,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_alarm",
-            name=f"{self.project_stack} Auto Scaling Alarm",
+            name=f"{self.project_stack}-auto-scaling-out-alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
             evaluation_periods=1,
             metric_name="CPUUtilization",
@@ -269,6 +269,43 @@ class ContainerComponent(pulumi.ComponentResource):
             period=60,
             statistic="Average",
             threshold=65,
+            alarm_actions=[self.autoscaling_out_policy.arn]
+        )
+        self.autoscaling_in_policy = aws.appautoscaling.Policy(
+            "autoscaling_in_policy",
+            name=f"{self.project_stack}-autoscaling-in-policy",
+            policy_type="StepScaling",
+            resource_id=self.autoscaling_target.resource_id,
+            scalable_dimension=self.autoscaling_target.scalable_dimension,
+            service_namespace=self.autoscaling_target.service_namespace,
+            step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
+                adjustment_type="ChangeInCapacity",
+                cooldown=60,
+                metric_aggregation_type="Maximum",
+                step_adjustments=[
+                    aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
+                        metric_interval_upper_bound="10",
+                        metric_interval_lower_bound="0",
+                        scaling_adjustment=1,
+                    )
+                ],
+            )
+        )
+        self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
+            "autoscaling_in_alarm",
+            name=f"{self.project_stack}-auto-scaling-in-alarm",
+            comparison_operator="LessThanOrEqualToThreshold",
+            evaluation_periods=5,
+            metric_name="CPUUtilization",
+            unit="Percent",
+            dimensions={
+                "ClusterName": self.project_stack,
+                "ServiceName": self.project_stack
+            },
+            namespace="AWS/ECS",
+            period=60,
+            statistic="Average",
+            threshold=50,
             alarm_actions=[self.autoscaling_out_policy.arn]
         )
 
