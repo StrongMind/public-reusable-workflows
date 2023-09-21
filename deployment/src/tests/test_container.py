@@ -506,7 +506,17 @@ def describe_a_pulumi_containerized_app():
 
         @pulumi.runtime.test
         def it_has_a_default_max_capacity(sut):
-            return assert_output_equals(sut.autoscaling_target.max_capacity, 3)
+            return assert_output_equals(sut.autoscaling_target.max_capacity, 1)
+
+        def describe_autoscaling_overrides():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs["max_number_of_instances"] = 10
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_has_a_configurable_max_capacity(sut):
+                return assert_output_equals(sut.autoscaling_target.max_capacity, 10)
 
         @pulumi.runtime.test
         def it_has_a_default_min_capacity(sut):
@@ -563,8 +573,8 @@ def describe_a_pulumi_containerized_app():
                 return assert_output_equals(sut.autoscaling_alarm.period, 60)
 
             @pulumi.runtime.test
-            def it_uses_maximum_statistic(sut):
-                return assert_output_equals(sut.autoscaling_alarm.statistic, "Maximum")
+            def it_uses_average_statistic_by_default(sut):
+                return assert_output_equals(sut.autoscaling_alarm.statistic, "Average")
 
             @pulumi.runtime.test
             def it_triggers_when_CPU_utilization_is_over_65(sut):
