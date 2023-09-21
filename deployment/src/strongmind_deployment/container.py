@@ -34,7 +34,7 @@ class ContainerComponent(pulumi.ComponentResource):
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
-        self.autoscaling_alarm = None
+        self.autoscaling_out_alarm = None
         self.log_metric_filters = []
         self.target_group = None
         self.load_balancer_listener_redirect_http_to_https = None
@@ -57,7 +57,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
-        self.autoscaling_policy = None
+        self.autoscaling_out_policy = None
         self.max_capacity = kwargs.get('max_number_of_instances', 1)
 
         stack = pulumi.get_stack()
@@ -230,7 +230,7 @@ class ContainerComponent(pulumi.ComponentResource):
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
         )
-        self.autoscaling_policy = aws.appautoscaling.Policy(
+        self.autoscaling_out_policy = aws.appautoscaling.Policy(
             "autoscaling_policy",
             name=f"{self.project_stack} Autoscaling Policy",
             policy_type="StepScaling",
@@ -254,7 +254,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 ],
             )
         )
-        self.autoscaling_alarm = aws.cloudwatch.MetricAlarm(
+        self.autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_alarm",
             name=f"{self.project_stack} Auto Scaling Alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
@@ -269,7 +269,7 @@ class ContainerComponent(pulumi.ComponentResource):
             period=60,
             statistic="Average",
             threshold=65,
-            alarm_actions=[self.autoscaling_policy.arn]
+            alarm_actions=[self.autoscaling_out_policy.arn]
         )
 
     def setup_load_balancer(self, kwargs, project, project_stack):
