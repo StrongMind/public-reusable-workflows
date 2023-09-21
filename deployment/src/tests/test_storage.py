@@ -87,8 +87,19 @@ def describe_a_pulumi_storage_component():
             return assert_outputs_equal(sut.bucket_public_access_block.bucket, sut.bucket.id)
 
         @pulumi.runtime.test
-        def it_allows_public_acls(sut):
-            return assert_output_equals(sut.bucket_public_access_block.block_public_acls, False)
+        def it_blocks_public_acls(sut):
+            return assert_output_equals(sut.bucket_public_access_block.block_public_acls, True)
+        
+        def describe_when_storage_is_set_to_public():
+            @pytest.fixture
+            def component_arguments():
+                return {
+                    "storage_private": False
+                }
+
+            @pulumi.runtime.test
+            def it_blocks_public_access(sut):
+                return assert_output_equals(sut.bucket_public_access_block.block_public_acls, False)
 
     def describe_acls():
         def it_has_acls(sut):
