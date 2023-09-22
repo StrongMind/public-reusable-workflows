@@ -196,7 +196,23 @@ def describe_autoscaling():
             @pulumi.runtime.test
             def it_has_steps(sut):
                 assert sut.autoscaling_in_policy.step_scaling_policy_configuration.step_adjustments
-                
+
+            def describe_step():
+                @pytest.fixture
+                def step(sut):
+                    return sut.autoscaling_in_policy.step_scaling_policy_configuration.step_adjustments[0]
+
+                @pulumi.runtime.test
+                def it_has_no_lower_bound(step):
+                    return assert_output_equals(step.metric_interval_lower_bound, None)
+
+                @pulumi.runtime.test
+                def it_triggers_when_it_is_below_the_alarm_threshold(step):
+                    return assert_output_equals(step.metric_interval_upper_bound, "0")
+
+                @pulumi.runtime.test
+                def it_scales_up_by_one_instance(step):
+                    return assert_output_equals(step.scaling_adjustment, 1)
 
         def describe_autoscaling_out_policy():
             @pulumi.runtime.test
