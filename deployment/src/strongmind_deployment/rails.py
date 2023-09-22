@@ -42,6 +42,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key storage: Whether to create an S3 bucket for the Rails application. Defaults to False.
+        :key storage_private: Sets the bucket to public when false. Defaults to True.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         :key snapshot_identifier: The snapshot identifier to use for the RDS cluster. Defaults to None.
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
@@ -56,6 +57,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.queue_redis = None
         self.cache_redis = None
         self.storage = None
+        self.storage_private = None
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
