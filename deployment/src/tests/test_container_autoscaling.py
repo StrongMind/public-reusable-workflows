@@ -150,6 +150,10 @@ def describe_autoscaling():
             def it_triggers_when_CPU_utilization_is_under_50(sut):
                 return assert_output_equals(sut.autoscaling_in_alarm.threshold, 50)
 
+            @pulumi.runtime.test
+            def it_triggers_the_autoscaling_policy(sut):
+                return assert_outputs_equal(sut.autoscaling_in_alarm.alarm_actions, [sut.autoscaling_in_policy.arn])
+
         def describe_autoscaling_in_policy():
             def it_exists(sut):
                 assert sut.autoscaling_in_policy

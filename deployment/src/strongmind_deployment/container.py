@@ -305,7 +305,7 @@ class ContainerComponent(pulumi.ComponentResource):
             period=60,
             statistic="Average",
             threshold=50,
-            alarm_actions=[self.autoscaling_out_policy.arn]
+            alarm_actions=[self.autoscaling_in_policy.arn]
         )
 
     def setup_load_balancer(self, kwargs, project, project_stack):

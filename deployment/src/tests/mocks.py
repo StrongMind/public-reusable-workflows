@@ -89,6 +89,11 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     **args.inputs,
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789012:secret/{faker.word()}",
                 }
+            if args.typ == "aws:appautoscaling/policy:Policy":
+                outputs = {
+                    **args.inputs,
+                    "arn": f"arn:aws:appautoscaling:us-west-2:123456789012:policy/{faker.word()}",
+                }
             if args.typ == "aws:secretsmanager/secretVersion:SecretVersion":
                 outputs = {
                     **args.inputs,
