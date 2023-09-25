@@ -215,8 +215,8 @@ def describe_autoscaling():
                     return assert_output_equals(step.metric_interval_upper_bound, "0")
 
                 @pulumi.runtime.test
-                def it_scales_up_by_one_instance(step):
-                    return assert_output_equals(step.scaling_adjustment, 1)
+                def it_scales_down_by_one_instance(step):
+                    return assert_output_equals(step.scaling_adjustment, -1)
 
         def describe_autoscaling_out_policy():
             @pulumi.runtime.test

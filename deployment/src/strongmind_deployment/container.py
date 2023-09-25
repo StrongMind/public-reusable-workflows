@@ -285,7 +285,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
                         metric_interval_upper_bound="0",
-                        scaling_adjustment=1,
+                        scaling_adjustment=-1,
                     )
                 ],
             )
