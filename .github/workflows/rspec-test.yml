@@ -13,6 +13,9 @@ jobs:
   run-tests:
     runs-on: ubuntu-latest
     services:
+      selenium:
+        image: selenium/standalone-chrome:latest
+        options: --shm-size="2g"
       postgres:
         image: postgres:latest
         env:
@@ -26,10 +29,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
-      
+
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@latest
+
       - name: Start Postgres
         run: sudo systemctl start postgresql.service
-      
+
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
