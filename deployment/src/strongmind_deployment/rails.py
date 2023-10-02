@@ -180,6 +180,8 @@ class RailsComponent(pulumi.ComponentResource):
                                          "bundle exec rails db:prepare db:migrate db:seed && "
                                          "echo 'Migrations complete'"])
         self.kwargs['command'] = execution_cmd
+
+
         self.migration_container = ContainerComponent("migration",
                                                       need_load_balancer=False,
                                                       desired_count=0,
@@ -227,10 +229,12 @@ class RailsComponent(pulumi.ComponentResource):
             self.setup_storage()
 
     def setup_worker(self):  # , execution):
-        worker_entry_point = self.kwargs.get('worker_entry_point', ["sh", "-c", "bundle exec sidekiq"])
+        worker_cmd = self.kwargs.get('worker_cmd', ["sh", "-c", "bundle exec sidekiq"])
+        worker_entry_point = self.kwargs.get('worker_entry_point')
         if "WORKER_CONTAINER_IMAGE" in os.environ:
             self.kwargs['container_image'] = os.environ["WORKER_CONTAINER_IMAGE"]
         self.kwargs['entry_point'] = worker_entry_point
+        self.kwargs['command'] = worker_cmd
         self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
         self.kwargs['memory'] = self.kwargs.get('worker_memory')
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
