@@ -6,6 +6,7 @@ import boto3
 import pulumi.runtime
 import pytest
 from botocore.stub import Stubber
+from pytest_describe import behaves_like
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.dynamo import DynamoComponent
@@ -14,8 +15,7 @@ from strongmind_deployment.storage import StorageComponent
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
 
-
-def describe_a_pulumi_rails_app():
+def a_pulumi_rails_app():
     @pytest.fixture
     def app_name(faker):
         return faker.word()
@@ -223,6 +223,8 @@ def describe_a_pulumi_rails_app():
     def it_asks_the_web_container_to_automatically_scale(sut):
         assert sut.web_container.autoscaling
 
+@behaves_like(a_pulumi_rails_app)
+def describe_a_pulumi_rails_component():
     def describe_secretmanager_secret():
         @pulumi.runtime.test
         def it_has_a_secret(sut):
