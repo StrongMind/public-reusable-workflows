@@ -281,6 +281,7 @@ class RailsComponent(pulumi.ComponentResource):
             apply_immediately=True,
             deletion_protection=True,
             skip_final_snapshot=False,
+            final_snapshot_identifier=f'{project_stack}-final-snapshot',
             backup_retention_period=14,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=0.5,
