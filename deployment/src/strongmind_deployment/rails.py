@@ -32,10 +32,12 @@ class RailsComponent(pulumi.ComponentResource):
         :key execution_cmd: The command for the pre-deployment execution container. Defaults to ["sh", "-c",
                                       "bundle exec rails db:prepare db:migrate db:seed && echo 'Migrations complete'"].
         :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
+        :key web_cmd: The command for the web container. Defaults to the CMD in the Dockerfile.
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
         :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
         :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
-        :key worker_entry_point: The entry point for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`. Requires need_worker to be True.
+        :key worker_entry_point: The entry point for the worker container. Defaults to the ENTRYPOINT in the Dockerfile. Requires need_worker to be True.
+        :key worker_cmd: The command for the worker container. Defaults `["sh", "-c", "bundle exec sidekiq"]`. Requires need_worker to be True.
         :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
         :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
         :key worker_log_metric_filters: A list of log metric filters to create for the worker container. Defaults to `[]`.
@@ -207,9 +209,11 @@ class RailsComponent(pulumi.ComponentResource):
                                                                         depends_on=[self.migration_container]))
 
         web_entry_point = self.kwargs.get('web_entry_point')
+        web_command = self.kwargs.get('web_cmd')
 
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
+        self.kwargs['command'] = web_command
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]

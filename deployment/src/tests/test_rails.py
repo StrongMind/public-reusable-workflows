@@ -46,6 +46,11 @@ def a_pulumi_rails_app():
         return None
 
     @pytest.fixture
+    def container_cmd():
+        # We will use the command from Dockerfile by default
+        return None
+
+    @pytest.fixture
     def worker_container_memory(faker):
         return faker.random_int()
 
@@ -598,6 +603,10 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
+
+        @pulumi.runtime.test
+        def it_uses_rails_command(sut, container_cmd):
+            assert sut.web_container.command == container_cmd
 
         @pulumi.runtime.test
         def it_uses_empty_entry_point_for_execution(sut):
