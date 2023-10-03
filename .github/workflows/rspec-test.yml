@@ -43,8 +43,25 @@ jobs:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
 
+      - name: Check for Secret availability
+        id: secret-check
+        # perform secret check & put boolean result as an output
+        shell: bash
+        run: |
+          if [ "${{ secrets.CC_TEST_REPORTER_ID }}" != '' ]; then
+            echo "available=true" >> $GITHUB_OUTPUT;
+          else
+            echo "available=false" >> $GITHUB_OUTPUT;
+          fi
+          
+      - name: Test
+        if: ${{ steps.secret-check.outputs.available != 'true' }}
+        run: |
+          bundle exec rspec
+
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
+        if: ${{ steps.secret-check.outputs.available == 'true' }}
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
