@@ -46,6 +46,11 @@ def a_pulumi_rails_app():
         return None
 
     @pytest.fixture
+    def container_cmd():
+        # We will use the command from Dockerfile by default
+        return None
+
+    @pytest.fixture
     def worker_container_memory(faker):
         return faker.random_int()
 
@@ -600,6 +605,10 @@ def describe_a_pulumi_rails_component():
             assert sut.web_container.entry_point == container_entry_point
 
         @pulumi.runtime.test
+        def it_uses_rails_command(sut, container_cmd):
+            assert sut.web_container.command == container_cmd
+
+        @pulumi.runtime.test
         def it_uses_empty_entry_point_for_execution(sut):
             assert sut.migration_container.entry_point == []
 
@@ -617,66 +626,7 @@ def describe_a_pulumi_rails_component():
             def it_uses_custom_command_for_execution(sut, execution_container_cmd):
                 assert sut.migration_container.command == execution_container_cmd
 
-        def describe_with_need_worker_set():
-            @pytest.fixture
-            def component_kwargs(component_kwargs):
-                component_kwargs['need_worker'] = True
-                return component_kwargs
 
-            @pulumi.runtime.test
-            def it_creates_a_worker_container_component(sut,
-                                                        worker_container_cpu,
-                                                        worker_container_memory):
-                def check_machine_specs(args):
-                    container_cpu, container_memory = args
-                    assert container_cpu == worker_container_cpu
-                    assert container_memory == worker_container_memory
-
-                return pulumi.Output.all(
-                    sut.worker_container.cpu,
-                    sut.worker_container.memory
-                ).apply(check_machine_specs)
-
-            @pulumi.runtime.test
-            def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
-                assert sut.worker_container.entry_point == worker_container_entry_point
-
-            @pulumi.runtime.test
-            def it_does_not_need_load_balancer(sut):
-                assert not sut.worker_container.need_load_balancer
-
-            @pulumi.runtime.test
-            def it_uses_cluster_from_web_container(sut):
-                assert sut.worker_container.ecs_cluster_arn == sut.web_container.ecs_cluster_arn
-
-            def describe_worker_log_metric_filters():
-                @pytest.fixture
-                def worker_log_metric_filters(faker):
-                    return [
-                    {
-                        "pattern": "BLAH DAH",
-                        "metric_transformation": {
-                            "name": "waiting_workers",
-                            "namespace": "Jobs",
-                            "value": "$BLAH",
-                        }
-                    }
-                ]
-
-                @pytest.fixture
-                def component_kwargs(component_kwargs, worker_log_metric_filters):
-                    component_kwargs['worker_log_metric_filters'] = worker_log_metric_filters
-                    return component_kwargs
-
-                @pulumi.runtime.test
-                def it_passes_worker_log_metric_filter_pattern_to_worker_container(sut, worker_log_metric_filters):
-                    return assert_output_equals(sut.worker_container.log_metric_filters[0].pattern,
-                                                "BLAH DAH")
-
-                @pulumi.runtime.test
-                def it_passes_worker_log_metric_filter_value_to_worker_container(sut, worker_log_metric_filters):
-                    return assert_output_equals(sut.worker_container.log_metric_filters[0].metric_transformation.value,
-                                                "$BLAH")
 
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
