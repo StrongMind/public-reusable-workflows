@@ -48,6 +48,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
+        :key autoscale: Whether to autoscale the web container. Defaults to True.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -76,6 +77,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kms_key_id = self.kwargs.get('kms_key_id', None)
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
+        self.autoscale = self.kwargs.get('autoscale', True)
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -212,7 +214,7 @@ class RailsComponent(pulumi.ComponentResource):
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
-                                                autoscaling=True,
+                                                autoscaling=self.autoscale,
                                                 **self.kwargs
                                                 )
         self.need_worker = self.kwargs.get('need_worker', None)
