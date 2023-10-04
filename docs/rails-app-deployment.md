@@ -113,6 +113,9 @@ from strongmind_deployment.rails import RailsComponent
 component = RailsComponent("rails")
 ```
 
+## Adding secrets
+
+
 ## Check Deployment
 1. Push or merge your changes to the main branch.
 2. Go to the `Actions` tab in the GitHub repo.
