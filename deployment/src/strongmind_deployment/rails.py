@@ -288,6 +288,7 @@ class RailsComponent(pulumi.ComponentResource):
             database_name=self.db_name,
             master_username=self.db_username,
             master_password=master_db_password,
+            enable_http_endpoint=True,
             apply_immediately=True,
             deletion_protection=True,
             skip_final_snapshot=False,
