@@ -15,6 +15,7 @@ from strongmind_deployment.storage import StorageComponent
 from tests.shared import assert_outputs_equal, assert_output_equals
 from tests.mocks import get_pulumi_mocks
 
+
 def a_pulumi_rails_app():
     @pytest.fixture
     def app_name(faker):
@@ -228,6 +229,7 @@ def a_pulumi_rails_app():
     def it_asks_the_web_container_to_automatically_scale(sut):
         assert sut.web_container.autoscaling
 
+
 @behaves_like(a_pulumi_rails_app)
 def describe_a_pulumi_rails_component():
     def describe_secretmanager_secret():
@@ -351,6 +353,10 @@ def describe_a_pulumi_rails_component():
                                         f'{app_name}-{stack}'.replace('-', '_'))
 
         @pulumi.runtime.test
+        def it_turns_on_the_data_api(sut):
+            return assert_output_equals(sut.rds_serverless_cluster.enable_http_endpoint, True)
+
+        @pulumi.runtime.test
         def it_sets_apply_immediately(sut):
             return assert_output_equals(sut.rds_serverless_cluster.apply_immediately, True)
 
@@ -368,7 +374,8 @@ def describe_a_pulumi_rails_component():
 
         @pulumi.runtime.test
         def it_sets_final_snapshot_identifier(sut, app_name, stack):
-            return assert_output_equals(sut.rds_serverless_cluster.final_snapshot_identifier, f"{app_name}-{stack}-final-snapshot")
+            return assert_output_equals(sut.rds_serverless_cluster.final_snapshot_identifier,
+                                        f"{app_name}-{stack}-final-snapshot")
 
         @pulumi.runtime.test
         def it_sets_the_backup_retention_period_to_14_days(sut):
@@ -461,7 +468,6 @@ def describe_a_pulumi_rails_component():
                 return assert_outputs_equal(sut.rds_serverless_cluster.master_password, sut.hashed_password)
 
         def describe_when_given_a_snapshot_to_restore_from():
-
             @pytest.fixture
             def snapshot_identifier(faker):
                 return f'arn:aws:rds:us-west-2:448312246740:cluster-snapshot:{faker.word()}'
@@ -507,12 +513,11 @@ def describe_a_pulumi_rails_component():
                 def it_should_set_the_db_username(sut, db_username):
                     return assert_output_equals(sut.rds_serverless_cluster.master_username, db_username)
 
-
-
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
         def kms_key(faker):
             return f'arn:aws:kms:us-west-2:448312246740:key/{faker.word()}'
+
         @pytest.fixture
         def component_kwargs(component_kwargs, kms_key):
             component_kwargs['kms_key_id'] = \
@@ -625,8 +630,6 @@ def describe_a_pulumi_rails_component():
             @pulumi.runtime.test
             def it_uses_custom_command_for_execution(sut, execution_container_cmd):
                 assert sut.migration_container.command == execution_container_cmd
-
-
 
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
@@ -805,4 +808,3 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_sends_the_bucket_name_to_the_ecs_environment(sut):
             return assert_outputs_equal(sut.env_vars["S3_BUCKET_NAME"], sut.storage.bucket.bucket)
-
