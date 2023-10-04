@@ -184,6 +184,10 @@ def describe_container():
             assert sut.execution_role
 
         @pulumi.runtime.test
+        def it_enables_enable_execute_command(sut):
+            return assert_output_equals(sut.fargate_service.enable_execute_command, True)
+
+        @pulumi.runtime.test
         def its_execution_role_has_an_arn(sut):
             return assert_output_equals(sut.execution_role.arn,
                                         "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy")

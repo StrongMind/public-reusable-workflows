@@ -31,6 +31,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "task_definition_args": args.inputs["taskDefinitionArgs"],
                     "task_definition": TaskDefinitionMock(),
                     "propagate_tags": args.inputs.get("propagateTags"),
+                    "enable_execute_command": args.inputs.get("enableExecuteCommand"),
                     "health_check_grace_period_seconds": args.inputs.get("healthCheckGracePeriodSeconds"),
                 }
             if args.typ == "aws:rds/cluster:Cluster":
