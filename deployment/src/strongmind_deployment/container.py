@@ -210,6 +210,7 @@ class ContainerComponent(pulumi.ComponentResource):
             assign_public_ip=True,
             health_check_grace_period_seconds=600 if self.need_load_balancer else None,
             propagate_tags="SERVICE",
+            enable_execute_command=True,
             task_definition_args=self.task_definition_args,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
