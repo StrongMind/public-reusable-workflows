@@ -119,8 +119,8 @@ class ContainerComponent(pulumi.ComponentResource):
             )]
 
         self.execution_role = aws.iam.Role(
-            f"{self.project_stack}-exec-role",
-            name=f"{self.project_stack}-exec-role",
+            f"{self.project_stack}-execution-role",
+            name=f"{self.project_stack}-execution-role",
             assume_role_policy=json.dumps(
                 {
                     "Version": "2008-10-17",
@@ -137,9 +137,9 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        aws.iam.RolePolicy(
-            f"{self.project_stack}-policy",
-            name=f"{self.project_stack}-policy",
+        self.execution_policy = aws.iam.RolePolicy(
+            f"{self.project_stack}-execution-policy",
+            name=f"{self.project_stack}-execution-policy",
             role=self.execution_role.id,
             policy=json.dumps(
                 {
@@ -172,9 +172,54 @@ class ContainerComponent(pulumi.ComponentResource):
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
+        self.task_role = aws.iam.Role(
+            f"{self.project_stack}-task-role",
+            name=f"{self.project_stack}-task-role",
+            assume_role_policy=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": "ecs-tasks.amazonaws.com"
+                            },
+                            "Action": "sts:AssumeRole"
+                        }
+                    ]
+                }
+            ),
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        self.task_policy = aws.iam.RolePolicy(
+            f"{self.project_stack}-task-policy",
+            name=f"{self.project_stack}-task-policy",
+            role=self.task_role.id,
+            policy=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "ssmmessages:CreateControlChannel",
+                                "ssmmessages:CreateDataChannel",
+                                "ssmmessages:OpenControlChannel",
+                                "ssmmessages:OpenDataChannel"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*",
+                        }
+                    ],
+                }
+            ),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
+            task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
             skip_destroy=True,
             family=self.project_stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(

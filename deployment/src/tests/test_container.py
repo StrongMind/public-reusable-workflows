@@ -1,3 +1,4 @@
+import json
 import os
 
 import pulumi.runtime
@@ -182,6 +183,64 @@ def describe_container():
         @pulumi.runtime.test
         def it_has_an_execution_role(sut):
             assert sut.execution_role
+
+        @pulumi.runtime.test
+        def it_has_a_task_role_named(sut, stack, app_name):
+            return assert_output_equals(sut.task_role.name, f"{app_name}-{stack}-task-role")
+
+        @pulumi.runtime.test
+        def it_has_an_execution_role_named(sut, stack, app_name):
+            return assert_output_equals(sut.execution_role.name, f"{app_name}-{stack}-execution-role")
+
+        @pulumi.runtime.test
+        def it_has_a_task_role_with_access_to_ecs(sut):
+            return assert_output_equals(sut.task_role.assume_role_policy, json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Sid": "",
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": "ecs-tasks.amazonaws.com"
+                        },
+                        "Action": "sts:AssumeRole"
+                    }
+                ]
+            }))
+
+        @pulumi.runtime.test
+        def it_has_a_task_policy_named(sut, stack, app_name):
+            return assert_output_equals(sut.task_policy.name, f"{app_name}-{stack}-task-policy")
+
+        @pulumi.runtime.test
+        def it_has_task_policy_attached_to_task_role(sut):
+            return assert_outputs_equal(sut.task_policy.role, sut.task_role.id)
+
+        @pulumi.runtime.test
+        def it_has_execution_policy_attached_to_execution_role(sut):
+            return assert_outputs_equal(sut.execution_policy.role, sut.execution_role.id)
+
+        @pulumi.runtime.test
+        def it_has_an_execution_policy_named(sut, stack, app_name):
+            return assert_output_equals(sut.execution_policy.name, f"{app_name}-{stack}-execution-policy")
+
+        @pulumi.runtime.test
+        def it_has_a_task_policy_with_ssmmessages_access(sut):
+            return assert_output_equals(sut.task_policy.policy, json.dumps({
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "ssmmessages:CreateControlChannel",
+                                "ssmmessages:CreateDataChannel",
+                                "ssmmessages:OpenControlChannel",
+                                "ssmmessages:OpenDataChannel"
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*",
+                        }
+                    ],
+                }))
 
         @pulumi.runtime.test
         def it_enables_enable_execute_command(sut):
@@ -406,6 +465,14 @@ def describe_container():
 
                 return pulumi.Output.all(sut.fargate_service.task_definition_args["container"]["image"]).apply(
                     check_image_tag)
+
+            @pulumi.runtime.test
+            def it_sets_the_execution_role(sut):
+                return assert_outputs_equal(sut.fargate_service.task_definition_args["executionRole"]["roleArn"], sut.execution_role.arn)
+
+            @pulumi.runtime.test
+            def it_sets_the_task_role(sut):
+                return assert_outputs_equal(sut.fargate_service.task_definition_args["taskRole"]["roleArn"], sut.task_role.arn)
 
         def describe_with_custom_health_check_path():
             @pytest.fixture
