@@ -98,14 +98,15 @@ class ContainerComponent(pulumi.ComponentResource):
         for log_metric_filter in self.log_metric_filter_definitions:
             self.log_metric_filters.append(
                 aws.cloudwatch.LogMetricFilter(
-                    log_metric_filter["metric_transformation"]["name"],
-                    name=log_metric_filter["metric_transformation"]["name"],
+                    self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
+                    name=self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
                     log_group_name=self.logs.name,
                     pattern=log_metric_filter["pattern"],
                     metric_transformation=aws.cloudwatch.LogMetricFilterMetricTransformationArgs(
-                        name=log_metric_filter["metric_transformation"]["name"],
+                        name=self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
                         value=log_metric_filter["metric_transformation"]["value"],
-                        namespace=log_metric_filter["metric_transformation"]["namespace"]
+                        namespace=log_metric_filter["metric_transformation"]["namespace"],
+                        unit="Count"
                     )
                 )
             )
