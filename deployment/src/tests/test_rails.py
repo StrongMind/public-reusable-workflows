@@ -48,7 +48,6 @@ def a_pulumi_rails_app():
 
     @pytest.fixture
     def container_cmd():
-        # We will use the command from Dockerfile by default
         return ["sh", "-c", "rails assets:precompile && rails server -b 0.0.0.0"]
 
     @pytest.fixture
