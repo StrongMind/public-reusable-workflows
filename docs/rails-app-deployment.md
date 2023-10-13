@@ -1,99 +1,28 @@
 # Deploying a Rails App
 
 
-## Setup GitHub Actions
-1. Open your rails app.
-1. Create the following file as `.github/workflows/build.yml`:
-```yaml
-name: Build
-
-on:
-  workflow_dispatch:
-
-  push:
-    branches: main
-  
-  pull_request:
-    branches: main
-
-jobs:
-  build:
-    name: Build Docker image
-    uses: strongmind/public-reusable-workflows/.github/workflows/docker-build.yml@main
-    secrets: inherit
-```
-
-3. Create the following file as `.github/workflows/deploy-stage.yml`:
-```yaml
-name: Deploy to stage
-
-on:
-  workflow_run:
-    workflows: [Build]
-    branches: [main]
-    types: [completed]
-
-jobs:
-  deploy:
-    name: Deploy Rails to ECS
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
-    with:
-      environment-name: stage
-    secrets: inherit
-```
-
-4. Create the following file as `.github/workflows/deploy-prod.yml`:
-```yaml
-name: Deploy to production
-
-on: 
-  workflow_dispatch:
-    inputs:
-      jira-ticket:
-        type: string
-
-jobs:
-  deploy:
-    name: Deploy Rails to ECS
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
-    with:
-      environment-name: prod
-    secrets: inherit
-
-  notify:
-    name: Notify Slack
-    needs: deploy
-    uses: strongmind/public-reusable-workflows/.github/workflows/notify-slack.yml@main
-    secrets: inherit
-    with:
-      jira-ticket: ${{ github.event.inputs.jira-ticket }}
-```
-
 ## Setup Pulumi
-Note: Belding plans to automate these steps soon.
-1. Create the following file as `infrastructure/requirements.txt`:
-```txt
-pulumi>=3.0.0,<4.0.0
-pulumi-aws>=5.10.0,<6.0.0
-pulumi-awsx>=1.0.0,<2.0.0
-pulumi-cloudflare
-strongmind-deployment
-```
-2. Create the following file as `infrastructure/Pulumi.yaml`:
-```yaml
-name: YOUR-APP-NAME-HERE
-runtime:
-  name: python
-  options:
-    virtualenv: venv
-description: A Python program to deploy a containerized service on AWS
-```
-3. Create the following file as `infrastructure/__main__.py`:
-```python
-from strongmind_deployment.rails import RailsComponent
-component = RailsComponent("rails")
-```
+
+Update the `infrastructure/Pulumi.yaml` file:
+Replace `YOUR-APP-NAME-HERE` with the name of your app.
+
+## Setup GitHub Secrets
+### Rails Master Key
+1. Generate your master key.
+[![asciicast](https://asciinema.org/a/oo8D2bVtX1UicMS94Qh2hrYei.svg)](https://asciinema.org/a/oo8D2bVtX1UicMS94Qh2hrYei)
+1. Copy the contents of the `config/master.key` file.
+1. Go to the GitHub repo.
+1. Click on `Settings`.
+1. Click on `Secrets and variables`.
+1. Click on `Actions`.
+1. Click on `New repository secret`.
+1. For the name enter `RAILS_MASTER_KEY`.
+1. Paste the contents of the `config/master.key` file into the value field.
+1. Click on `Add secret`.
+
+
+## Setup AWS Secrets
+* Sentry
 
 ## Check Deployment
 1. Push or merge your changes to the main branch.
