@@ -655,7 +655,7 @@ def describe_container():
             @pulumi.runtime.test
             def it_sets_the_workers_metric_name(sut):
                 return assert_output_equals(sut.log_metric_filters[0].metric_transformation.name,
-                                            "waiting_workers")
+                                            sut.project_stack + "-waiting_workers")
 
             @pulumi.runtime.test
             def it_sets_the_workers_values(sut, waiting_workers_metric_value):
@@ -674,7 +674,7 @@ def describe_container():
             @pulumi.runtime.test
             def it_sets_the_jobs_metric_name(sut):
                 return assert_output_equals(sut.log_metric_filters[1].metric_transformation.name,
-                                            "waiting_jobs")
+                                            sut.project_stack + "-waiting_jobs")
 
             @pulumi.runtime.test
             def it_sets_the_jobs_values(sut, waiting_jobs_metric_value):

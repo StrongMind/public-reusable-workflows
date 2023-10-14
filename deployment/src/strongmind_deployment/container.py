@@ -99,13 +99,14 @@ class ContainerComponent(pulumi.ComponentResource):
             self.log_metric_filters.append(
                 aws.cloudwatch.LogMetricFilter(
                     log_metric_filter["metric_transformation"]["name"],
-                    name=log_metric_filter["metric_transformation"]["name"],
+                    name=self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
                     log_group_name=self.logs.name,
                     pattern=log_metric_filter["pattern"],
                     metric_transformation=aws.cloudwatch.LogMetricFilterMetricTransformationArgs(
-                        name=log_metric_filter["metric_transformation"]["name"],
+                        name=self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
                         value=log_metric_filter["metric_transformation"]["value"],
-                        namespace=log_metric_filter["metric_transformation"]["namespace"]
+                        namespace=log_metric_filter["metric_transformation"]["namespace"],
+                        unit="Count"
                     )
                 )
             )
@@ -432,15 +433,16 @@ class ContainerComponent(pulumi.ComponentResource):
         zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
         lb_dns_name = self.kwargs.get('load_balancer_dns_name',
                                       self.load_balancer.load_balancer.dns_name)  # pragma: no cover
-        self.cname_record = Record(
-            'cname_record',
-            name=name,
-            type='CNAME',
-            zone_id=zone_id,
-            value=lb_dns_name,
-            ttl=1,
-            opts=pulumi.ResourceOptions(parent=self),
-        )
+        if self.kwargs.get('cname', True):
+            self.cname_record = Record(
+                'cname_record',
+                name=name,
+                type='CNAME',
+                zone_id=zone_id,
+                value=lb_dns_name,
+                ttl=1,
+                opts=pulumi.ResourceOptions(parent=self),
+            )
         pulumi.export("url", Output.concat("https://", full_name))
 
         self.cert = aws.acm.Certificate(
@@ -468,8 +470,7 @@ class ContainerComponent(pulumi.ComponentResource):
             zone_id=zone_id,
             value=resource_record_value,
             ttl=1,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert,
-                                                                 self.cname_record]),
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
         )
 
         self.cert_validation_cert = aws.acm.CertificateValidation(
