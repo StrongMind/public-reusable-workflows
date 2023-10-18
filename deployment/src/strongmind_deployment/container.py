@@ -83,7 +83,7 @@ class ContainerComponent(pulumi.ComponentResource):
             self.ecs_cluster_arn = self.ecs_cluster.arn
 
         if self.need_load_balancer:
-            self.setup_load_balancer(kwargs, project, self.project_stack)
+            self.setup_load_balancer(kwargs, project, self.project_stack, stack)
 
         log_name = 'log'
         if name != 'container':
