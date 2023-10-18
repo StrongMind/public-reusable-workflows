@@ -355,7 +355,7 @@ class ContainerComponent(pulumi.ComponentResource):
             alarm_actions=[self.autoscaling_in_policy.arn]
         )
 
-    def setup_load_balancer(self, kwargs, project, project_stack):
+    def setup_load_balancer(self, kwargs, project, project_stack, stack):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
         health_check_path = kwargs.get('custom_health_check_path', '/up')
 
@@ -386,7 +386,7 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        self.dns(project)
+        self.dns(project, stack)
         load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
         target_group_arn = kwargs.get('target_group_arn', self.target_group.arn)
         self.load_balancer_listener = aws.lb.Listener(
@@ -425,9 +425,9 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-    def dns(self, name):
-        if self.env_name != "prod":
-            name = f"{self.env_name}-{name}"
+    def dns(self, name, stack):
+        if stack != "prod":
+            name = f"{stack}-{name}"
         domain = 'strongmind.com'
         full_name = f"{name}.{domain}"
         zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
