@@ -187,13 +187,14 @@ class RailsComponent(pulumi.ComponentResource):
                                          "echo 'Migrations complete'"])
         self.kwargs['command'] = execution_cmd
 
-
-        self.migration_container = ContainerComponent("migration",
-                                                      need_load_balancer=False,
-                                                      desired_count=0,
-                                                      opts=pulumi.ResourceOptions(parent=self),
-                                                      **self.kwargs
-                                                      )
+        self.migration_container = ContainerComponent(
+            "migration",
+            need_load_balancer=False,
+            desired_count=0,
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[self.rds_serverless_cluster_instance]),
+            **self.kwargs
+        )
 
         subnets = self.kwargs.get(
             'container_subnets',
