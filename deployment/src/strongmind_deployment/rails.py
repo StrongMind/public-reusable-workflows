@@ -51,6 +51,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         :key autoscale: Whether to autoscale the web container. Defaults to True.
+        :key db_engine_version: The version of the database engine. Defaults to 15.2.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -80,6 +81,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
         self.autoscale = self.kwargs.get('autoscale', True)
+        self.engine_version = self.kwargs.get('db_engine_version', '15.2')
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -284,7 +286,7 @@ class RailsComponent(pulumi.ComponentResource):
             cluster_identifier=project_stack,
             engine='aurora-postgresql',
             engine_mode='provisioned',
-            engine_version='15.2',
+            engine_version=self.engine_version,
             database_name=self.db_name,
             master_username=self.db_username,
             master_password=master_db_password,

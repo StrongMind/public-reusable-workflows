@@ -466,6 +466,22 @@ def describe_a_pulumi_rails_component():
             def it_sets_the_master_password(sut):
                 return assert_outputs_equal(sut.rds_serverless_cluster.master_password, sut.hashed_password)
 
+        def describe_when_given_engine_version():
+            @pytest.fixture
+            def engine_version(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, engine_version):
+                component_kwargs['db_engine_version'] = \
+                    engine_version
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_sets_the_engine_version(sut, engine_version):
+                return assert_output_equals(sut.rds_serverless_cluster.engine_version,
+                                            engine_version)
+
         def describe_when_given_a_snapshot_to_restore_from():
             @pytest.fixture
             def snapshot_identifier(faker):
