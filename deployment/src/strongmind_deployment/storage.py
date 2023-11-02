@@ -37,10 +37,10 @@ class StorageComponent(pulumi.ComponentResource):
 
         acl_opts = pulumi.ResourceOptions(
             depends_on=[self.bucket_ownership_controls, self.bucket_public_access_block])  # pragma: no cover
-        if kwargs.get('storage_private', True):
-            acl="private"
-        else:
+        if kwargs.get('storage_private') = False:
             acl="public-read"
+        else:
+            acl="private"
         self.bucket_acl = aws.s3.BucketAclV2("bucket_acl",
                                              bucket=self.bucket.id,
                                              acl=acl,
