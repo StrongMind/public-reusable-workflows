@@ -110,5 +110,5 @@ def describe_a_pulumi_storage_component():
             return assert_outputs_equal(sut.bucket_acl.bucket, sut.bucket.id)
 
         @pulumi.runtime.test
-        def it_has_public_read(sut):
-            return assert_output_equals(sut.bucket_acl.acl, "public-read")
+        def it_has_private_access(sut):
+            return assert_output_equals(sut.bucket_acl.acl, "private")
