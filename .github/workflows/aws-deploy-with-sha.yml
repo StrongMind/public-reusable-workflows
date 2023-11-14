@@ -1,0 +1,40 @@
+name: Deploy to AWS
+
+on:
+  workflow_call:
+    inputs:
+      environment-name:
+        required: true
+        type: string
+      commit-sha:
+        required: false
+        default: ${{ github.sha }}
+      web-repository-name:
+        required: false
+        type: string
+        default: ${{ github.event.repository.name }}
+      worker-repository-name:
+        required: false
+        type: string
+        default: ${{ github.event.repository.name }}
+
+jobs:
+  deploy-auto:
+    name: Autodeploy to ECS
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    with:
+      environment-name: ${{ inputs.environment-name }}
+      web-container-image: ${{ inputs.web-repository-name }}:${{ github.event.workflow_run.head_sha }}
+      worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.event.workflow_run.head_sha }}
+    secrets: inherit
+
+  deploy-manual:
+    name: Manually deploy to ECS
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    with:
+      environment-name: ${{ inputs.environment-name }}
+      web-container-image: ${{ inputs.web-repository-name }}:${{ inputs.commit-sha }}
+      worker-container-image: ${{ inputs.worker-repository-name }}:${{ inputs.commit-sha }}
+    secrets: inherit
