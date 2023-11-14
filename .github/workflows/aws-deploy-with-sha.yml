@@ -8,6 +8,7 @@ on:
         type: string
       commit-sha:
         required: false
+        type: string
         default: ${{ github.sha }}
       web-repository-name:
         required: false
