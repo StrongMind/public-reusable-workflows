@@ -6,53 +6,36 @@ on:
       environment-name:
         required: true
         type: string
-      container-image:
+      commit-sha:
         required: false
         type: string
-        default: ${{ github.event.repository.name }}:${{ github.sha }}
-      worker-container-image:
+        default: ${{ github.sha }}
+      web-repository-name:
         required: false
         type: string
-        default: ${{ github.event.repository.name }}:${{ github.sha }}
-
-env:
-  AWS_REGION: us-west-2
-
-permissions:
-  contents: read
+        default: ${{ github.event.repository.name }}
+      worker-repository-name:
+        required: false
+        type: string
+        default: ${{ github.event.repository.name }}
 
 jobs:
-  deploy:
-    name: Deploy
-    runs-on: ubuntu-latest
-    environment: ${{ inputs.environment-name }}
+  deploy-auto:
+    name: Autodeploy to ECS
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    with:
+      environment-name: ${{ inputs.environment-name }}
+      web-container-image: ${{ inputs.web-repository-name }}:${{ github.event.workflow_run.head_sha }}
+      worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.event.workflow_run.head_sha }}
+    secrets: inherit
 
-    steps:
-    - name: Checkout
-      uses: actions/checkout@v3
-
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
-
-    - name: Login to Amazon ECR
-      id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
-
-    - name: Deploy with Pulumi
-      env:
-        PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-        CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.container-image }}
-        WORKER_CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.worker-container-image }}
-        RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
-        ENVIRONMENT_NAME: ${{ inputs.environment-name }}
-      run: |
-        cd ./infrastructure/
-        pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
-        pulumi stack init ${{ inputs.environment-name }} --non-interactive || true
-        pulumi stack select ${{ inputs.environment-name }}
-        pulumi up --yes -v=3
+  deploy-manual:
+    name: Manually deploy to ECS
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    with:
+      environment-name: ${{ inputs.environment-name }}
+      web-container-image: ${{ inputs.web-repository-name }}:${{ inputs.commit-sha }}
+      worker-container-image: ${{ inputs.worker-repository-name }}:${{ inputs.commit-sha }}
+    secrets: inherit
