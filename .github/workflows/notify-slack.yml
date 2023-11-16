@@ -29,6 +29,7 @@ jobs:
         MSG=$(git log --format=%B -n 1 ${{ github.sha }})
         AUTHOR_NAME=$(git log --format=%an -n 1 ${{ github.sha }})
         MSG="${MSG//$'\n'/\\n}"
+        MSG="${MSG//\"/\\\"}"
         echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
         echo "${MSG}" >> "$GITHUB_OUTPUT"
         echo "${delimiter}" >> "${GITHUB_OUTPUT}"
