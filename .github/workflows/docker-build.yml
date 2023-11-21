@@ -71,6 +71,7 @@ jobs:
     uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
     with:
       bundle-no-assets: ${{ inputs.bundle-no-assets }}
+      ruby-version: ${{ inputs.ruby-version }}
     secrets: inherit
 
   build-image:
