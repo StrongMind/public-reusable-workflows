@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: bundle exec rails db:prepare db:migrate assets:precompile
+      ruby-version:
+        description: Rails environment to run the tests in
+        required: false
+        type: string
+        default: "3.2.2"
 
 env:
   AWS_REGION: us-west-2
