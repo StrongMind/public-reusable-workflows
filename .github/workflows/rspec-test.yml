@@ -8,6 +8,11 @@ on:
         required: false
         default: "3.2.2"
         type: string
+      bundle-no-assets:
+        description: "Bundle assets"
+        required: false
+        default: bundle exec rails db:prepare db:migrate assets:precompile
+        type: string
 
 jobs:
   run-tests:
@@ -38,7 +43,7 @@ jobs:
       - run: |
           bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           bundle install
-          bundle exec rails db:prepare db:migrate assets:precompile
+          ${{ inputs.bundle-no-assets }}
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test

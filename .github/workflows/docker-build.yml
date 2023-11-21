@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: ""
+      bundle-no-assets:
+        description: Whether to skip assets precompilation
+        required: false
+        type: string
+        default: bundle exec rails db:prepare db:migrate assets:precompile
 
 env:
   AWS_REGION: us-west-2
@@ -59,6 +64,8 @@ jobs:
   rspec-test:
     name: Rspec test to code coverage
     uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
+    with:
+      bundle-no-assets: ${{ inputs.bundle-no-assets }}
     secrets: inherit
 
   build-image:
