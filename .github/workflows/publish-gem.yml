@@ -11,7 +11,7 @@ jobs:
   bundle-and-test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3    
+      - uses: actions/checkout@v4
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
@@ -23,7 +23,7 @@ jobs:
     needs: bundle-and-test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       #- name: Publish gem
       #  uses: cadwallion/publish-rubygems-action@master
       #  env:
