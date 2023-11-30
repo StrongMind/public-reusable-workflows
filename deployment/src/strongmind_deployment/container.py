@@ -31,6 +31,8 @@ class ContainerComponent(pulumi.ComponentResource):
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
         :max_number_of_instances: The maximum number of instances available in the scaling policy. This should be as low
         as possible and only used when the defaults are no longer providing sufficent scaling.
+        :min_number_of_instances: The minimum number of instances available in the scaling policy. This should be as low
+        as possible and only used when the defaults are no longer providing sufficent scaling.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
@@ -59,6 +61,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
         self.max_capacity = kwargs.get('max_number_of_instances', 1)
+        self.min_capacity = kwargs.get('min_number_of_instances', 1)
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
@@ -272,7 +275,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_target = aws.appautoscaling.Target(
             "autoscaling_target",
             max_capacity=self.max_capacity,
-            min_capacity=1,
+            min_capacity=self.min_capacity,
             resource_id=f"service/{self.project_stack}/{self.project_stack}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",

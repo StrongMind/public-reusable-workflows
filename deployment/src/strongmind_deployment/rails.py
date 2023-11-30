@@ -52,6 +52,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         :key autoscale: Whether to autoscale the web container. Defaults to True.
         :key db_engine_version: The version of the database engine. Defaults to 15.2.
+        :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
+        :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -82,6 +84,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.env_vars = self.kwargs.get('env_vars', {})
         self.autoscale = self.kwargs.get('autoscale', True)
         self.engine_version = self.kwargs.get('db_engine_version', '15.2')
+        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
+        self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -219,6 +223,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
+        self.kwargs['desired_count'] = self.desired_web_count
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
@@ -250,6 +255,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['need_load_balancer'] = False
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['log_metric_filters'] = self.worker_log_metric_filters
+        self.kwargs['desired_count'] = self.desired_worker_count
+            
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
