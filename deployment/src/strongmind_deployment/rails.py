@@ -324,6 +324,7 @@ class RailsComponent(pulumi.ComponentResource):
             engine_version=self.rds_serverless_cluster.engine_version,
             apply_immediately=True,
             publicly_accessible=True,
+            tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster],
                                         protect=True),
