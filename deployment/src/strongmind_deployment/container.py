@@ -385,6 +385,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(
             "loadbalancer",
             name=project_stack,
+            default_target_group_port=self.container_port,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
