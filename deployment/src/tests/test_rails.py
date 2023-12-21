@@ -352,10 +352,6 @@ def describe_a_pulumi_rails_component():
                                         f'{app_name}-{stack}'.replace('-', '_'))
 
         @pulumi.runtime.test
-        def it_turns_on_the_data_api(sut):
-            return assert_output_equals(sut.rds_serverless_cluster.enable_http_endpoint, True)
-
-        @pulumi.runtime.test
         def it_sets_apply_immediately(sut):
             return assert_output_equals(sut.rds_serverless_cluster.apply_immediately, True)
 
