@@ -224,6 +224,9 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
         self.kwargs['desired_count'] = self.desired_web_count
+        if self.kwargs.get('storage', False):
+            self.setup_storage()
+            self.kwargs['env_vars'].update(self.storage.s3_env_vars)
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
@@ -239,8 +242,6 @@ class RailsComponent(pulumi.ComponentResource):
         if self.need_worker:
             self.setup_worker()
 
-        if self.kwargs.get('storage', False):
-            self.setup_storage()
 
     def setup_worker(self):  # , execution):
         worker_cmd = self.kwargs.get('worker_cmd', ["sh", "-c", "bundle exec sidekiq"])
@@ -351,4 +352,4 @@ class RailsComponent(pulumi.ComponentResource):
                                         pulumi.ResourceOptions(parent=self),
                                         **self.kwargs
                                         )
-        self.env_vars['S3_BUCKET_NAME'] = self.storage.bucket.bucket
+        self.env_vars.update(self.storage.s3_env_vars)

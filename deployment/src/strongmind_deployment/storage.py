@@ -2,7 +2,7 @@ import os
 
 import pulumi
 import pulumi_aws as aws
-
+import json
 
 class StorageComponent(pulumi.ComponentResource):
     def __init__(self, name, *args, **kwargs):
@@ -46,3 +46,27 @@ class StorageComponent(pulumi.ComponentResource):
                                              acl=acl,
                                              opts=acl_opts
                                              )
+        self.s3_user = aws.iam.User("s3User")
+        self.s3_policy = aws.iam.Policy("s3Policy",
+            policy=json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:DeleteObject"
+                    ],
+                    "Resource": [f"arn:aws:s3:::{self.bucket.bucket}/*"]
+                }]
+            }))
+        aws.iam.UserPolicyAttachment("railsAppUserPolicyAttachment",
+            user=self.s3_user.name,
+            policy_arn=self.s3_policy.arn)
+        self.s3_user_secret_access_key = aws.iam.AccessKey("railsAppUserAccessKey", user=self.s3_user.name)
+        self.s3_user_access_key_id = self.s3_user_secret_access_key.id
+        self.s3_env_vars = {
+            "S3_BUCKET_NAME": self.bucket.bucket,
+            "AWS_ACCESS_KEY_ID": self.s3_user_access_key_id,
+            "AWS_SECRET_ACCESS_KEY": self.s3_user_secret_access_key.secret
+        }
