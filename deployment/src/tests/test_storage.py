@@ -121,6 +121,19 @@ def describe_a_pulumi_storage_component():
         @pulumi.runtime.test
         def it_is_an_aws_iam_user(sut):
             assert isinstance(sut.s3_user, pulumi_aws.iam.User)
+
+        @pulumi.runtime.test
+        def it_has_a_name(sut, app_name, stack):
+            return assert_output_equals(sut.s3_user.name, f"{app_name}-{stack}-s3User-")
+        
+        @pulumi.runtime.test
+        def it_has_tags(sut, app_name):
+            return assert_output_equals(sut.s3_user.tags, {
+                "product": app_name,
+                "repository": app_name,
+                "service": app_name,
+                "environment": sut.env_name,
+            })
         
     def describe_s3_policy():
         def it_has_a_policy(sut):
@@ -140,6 +153,19 @@ def describe_a_pulumi_storage_component():
                     "Resource": [f"arn:aws:s3:::{sut.bucket.bucket}/*"]
                 }]
             }))
+        
+        @pulumi.runtime.test
+        def it_has_a_name(sut, app_name, stack):
+            return assert_output_equals(sut.s3_policy.name, f"{app_name}-{stack}-s3Policy")
+        
+        @pulumi.runtime.test
+        def it_has_tags(sut, app_name):
+            return assert_output_equals(sut.s3_policy.tags, {
+                "product": app_name,
+                "repository": app_name,
+                "service": app_name,
+                "environment": sut.env_name,
+            })
 
 
     def describe_s3_access_key():
