@@ -11,15 +11,15 @@ class StorageComponent(pulumi.ComponentResource):
         project = pulumi.get_project()
         stack = pulumi.get_stack()
         bucket_name = f"strongmind-{project}-{stack}"
-
+        tags = {
+            "product": project,
+            "repository": project,
+            "service": project,
+            "environment": self.env_name
+        }
         self.bucket = aws.s3.BucketV2("bucket",
                                       bucket=bucket_name,
-                                      tags={
-                                          "product": project,
-                                          "repository": project,
-                                          "service": project,
-                                          "environment": self.env_name,
-                                      }
+                                      tags=tags
                                       )
 
         self.bucket_ownership_controls = aws.s3.BucketOwnershipControls("bucket_ownership_controls",
@@ -46,8 +46,9 @@ class StorageComponent(pulumi.ComponentResource):
                                              acl=acl,
                                              opts=acl_opts
                                              )
-        self.s3_user = aws.iam.User("s3User")
+        self.s3_user = aws.iam.User("s3User", name=f"{project}-{stack}-s3User-", tags=tags)
         self.s3_policy = aws.iam.Policy("s3Policy",
+            name=f"{project}-{stack}-s3Policy",
             policy=json.dumps({
                 "Version": "2012-10-17",
                 "Statement": [{
@@ -59,7 +60,9 @@ class StorageComponent(pulumi.ComponentResource):
                     ],
                     "Resource": [f"arn:aws:s3:::{self.bucket.bucket}/*"]
                 }]
-            }))
+            }),
+            tags=tags
+            )
         aws.iam.UserPolicyAttachment("railsAppUserPolicyAttachment",
             user=self.s3_user.name,
             policy_arn=self.s3_policy.arn)
