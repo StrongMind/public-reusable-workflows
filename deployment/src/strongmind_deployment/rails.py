@@ -191,6 +191,10 @@ class RailsComponent(pulumi.ComponentResource):
                                          "echo 'Migrations complete'"])
         self.kwargs['command'] = execution_cmd
 
+        if self.kwargs.get('storage', False):
+            self.setup_storage()
+            self.kwargs['env_vars'].update(self.storage.s3_env_vars)
+
         self.migration_container = ContainerComponent(
             "migration",
             need_load_balancer=False,
@@ -224,9 +228,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
         self.kwargs['desired_count'] = self.desired_web_count
-        if self.kwargs.get('storage', False):
-            self.setup_storage()
-            self.kwargs['env_vars'].update(self.storage.s3_env_vars)
+        
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]

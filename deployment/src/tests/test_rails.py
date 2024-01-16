@@ -821,10 +821,5 @@ def describe_a_pulumi_rails_component():
             return assert_outputs_equal(sut.env_vars["S3_BUCKET_NAME"], sut.storage.bucket.bucket)
         
         @pulumi.runtime.test
-        def it_sends_the_access_key_id_to_the_ecs_environment(sut):
-            return assert_outputs_equal(sut.env_vars["AWS_ACCESS_KEY_ID"], sut.storage.s3_user_access_key_id)    
-        
-        @pulumi.runtime.test
-        def it_sends_the_secret_access_key_to_the_ecs_environment(sut):
-            return assert_outputs_equal(sut.env_vars["AWS_SECRET_ACCESS_KEY"], sut.storage.s3_user_secret_access_key.secret)
-        
+        def it_sends_the_bucket_policy_arn_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["s3_policy_arn"], sut.storage.s3_policy.arn)

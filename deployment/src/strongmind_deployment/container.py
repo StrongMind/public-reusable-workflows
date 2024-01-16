@@ -75,7 +75,7 @@ class ContainerComponent(pulumi.ComponentResource):
             "service": project,
             "environment": self.env_name,
         }
-
+        self.s3_policy_arn = self.env_vars.get('s3_policy_arn').apply(lambda arn: arn)
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:
             self.ecs_cluster = aws.ecs.Cluster("cluster",
@@ -221,6 +221,12 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
+            f"{self.project_stack}-s3PolicyAttachment",
+            role=self.task_role.id,
+            policy_arn=self.s3_policy_arn.apply(lambda arn: arn)
+        )
+        
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
             task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
