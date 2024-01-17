@@ -58,7 +58,7 @@ class StorageComponent(pulumi.ComponentResource):
                         "s3:PutObject",
                         "s3:DeleteObject"
                     ],
-                    "Resource": [f"arn:aws:s3:::{self.bucket.bucket}/*"]
+                    "Resource": "*"
                 }]
             }),
             tags=tags
