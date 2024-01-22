@@ -113,43 +113,13 @@ def describe_a_pulumi_storage_component():
         @pulumi.runtime.test
         def it_has_private_access(sut):
             return assert_output_equals(sut.bucket_acl.acl, "private")
-        
-    def describe_s3_policy():
-        def it_has_a_policy(sut):
-            assert isinstance(sut.s3_policy, pulumi_aws.iam.RolePolicy)
-        
-        @pulumi.runtime.test
-        def it_has_a_policy_document(sut):
-            return assert_output_equals(sut.s3_policy.policy, json.dumps({
-                "Version": "2012-10-17",
-                "Statement": [{
-                    "Effect": "Allow",
-                    "Action": [
-                        "s3:GetObject",
-                        "s3:PutObject",
-                        "s3:DeleteObject"
-                    ],
-                    "Resource": [f"arn:aws:s3:::{sut.bucket.bucket}/*"]
-                }]
-            }))
-        
-        @pulumi.runtime.test
-        def it_has_a_name(sut, app_name, stack):
-            return assert_output_equals(sut.s3_policy.name, f"{app_name}-{stack}-s3Policy")
-        
-        @pulumi.runtime.test
-        def it_has_a_role(sut):
-            return assert_output_equals(sut.s3_policy.role, sut.task_role.id)
-
+    
     def describe_s3_env_vars():
         def it_has_env_vars(sut):
             assert sut.s3_env_vars
 
         @pulumi.runtime.test
-        def it_has_a_bucket_name(sut):
-            return assert_output_equals(sut.s3_env_vars["S3_BUCKET_NAME"], sut.bucket.bucket)
+        def it_sends_the_bucket_name_to_the_ecs_environment(sut):
+            return sut.bucket.bucket.apply(lambda bucket: assert_outputs_equal(sut.s3_env_vars["S3_BUCKET_NAME"], bucket))
 
-        @pulumi.runtime.test
-        def it_has_a_policy_arn(sut):
-            return assert_output_equals(sut.s3_env_vars["s3_policy_arn"], sut.s3_policy.arn.apply(lambda arn: arn))
         

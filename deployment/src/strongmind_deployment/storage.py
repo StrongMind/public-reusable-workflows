@@ -47,24 +47,6 @@ class StorageComponent(pulumi.ComponentResource):
                                              opts=acl_opts
                                              )
 
-        self.s3_policy = aws.iam.Policy("s3Policy",
-            name=f"{project}-{stack}-s3Policy",
-            policy=json.dumps({
-                "Version": "2012-10-17",
-                "Statement": [{
-                    "Effect": "Allow",
-                    "Action": [
-                        "s3:GetObject",
-                        "s3:PutObject",
-                        "s3:DeleteObject"
-                    ],
-                    "Resource": "*"
-                }]
-            }),
-            tags=tags
-            )
-
         self.s3_env_vars = {
             "S3_BUCKET_NAME": self.bucket.bucket,
-            "s3_policy_arn": self.s3_policy.arn.apply(lambda arn: arn),
         }

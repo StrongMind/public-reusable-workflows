@@ -243,6 +243,44 @@ def describe_container():
                 }))
 
         @pulumi.runtime.test
+        def it_creates_an_s3_policy_with_storage_enabled(sut):
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['storage'] = True
+
+                return component_kwargs
+            
+            @pulumi.runtime.test
+            def it_has_an_s3_policy_named(sut, stack, app_name):
+                return assert_output_equals(sut.s3_policy.name, f"{app_name}-{stack}-s3-policy")
+                     
+            @pulumi.runtime.test
+            def it_has_an_s3_policy_with_storage_access(sut):
+                return assert_output_equals(sut.s3_policy.policy, json.dumps({
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:GetObject",
+                            "s3:PutObject",
+                            "s3:DeleteObject"
+                        ],
+                        "Resource": "*"
+                    }]
+                }),
+                tags=tags
+                )
+            
+            @pulumi.runtime.test
+            def test_s3_policy_attachment():
+                def check_s3_policy_attachment(args):
+                    sut, expected_role, expected_policy_arn = args
+                    assert_output_equals(sut.s3_policy_attachment.role, expected_role)
+                    assert_output_equals(sut.s3_policy_attachment.policy_arn, expected_policy_arn)
+
+                return pulumi.Output.all(sut, sut.task_role.id, sut.s3_policy.arn).apply(check_s3_policy_attachment)
+            
+        @pulumi.runtime.test
         def it_enables_enable_execute_command(sut):
             return assert_output_equals(sut.fargate_service.enable_execute_command, True)
 
