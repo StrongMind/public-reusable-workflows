@@ -2,7 +2,7 @@ import os
 
 import pulumi
 import pulumi_aws as aws
-
+import json
 
 class StorageComponent(pulumi.ComponentResource):
     def __init__(self, name, *args, **kwargs):
@@ -11,15 +11,15 @@ class StorageComponent(pulumi.ComponentResource):
         project = pulumi.get_project()
         stack = pulumi.get_stack()
         bucket_name = f"strongmind-{project}-{stack}"
-
+        tags = {
+            "product": project,
+            "repository": project,
+            "service": project,
+            "environment": self.env_name
+        }
         self.bucket = aws.s3.BucketV2("bucket",
                                       bucket=bucket_name,
-                                      tags={
-                                          "product": project,
-                                          "repository": project,
-                                          "service": project,
-                                          "environment": self.env_name,
-                                      }
+                                      tags=tags
                                       )
 
         self.bucket_ownership_controls = aws.s3.BucketOwnershipControls("bucket_ownership_controls",
@@ -46,3 +46,7 @@ class StorageComponent(pulumi.ComponentResource):
                                              acl=acl,
                                              opts=acl_opts
                                              )
+
+        self.s3_env_vars = {
+            "S3_BUCKET_NAME": self.bucket.bucket,
+        }

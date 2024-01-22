@@ -1,6 +1,7 @@
 import pulumi.runtime
 import pulumi_aws.s3
 import pytest
+import json
 
 from tests.mocks import get_pulumi_mocks
 from tests.shared import assert_output_equals, assert_outputs_equal
@@ -112,3 +113,13 @@ def describe_a_pulumi_storage_component():
         @pulumi.runtime.test
         def it_has_private_access(sut):
             return assert_output_equals(sut.bucket_acl.acl, "private")
+    
+    def describe_s3_env_vars():
+        def it_has_env_vars(sut):
+            assert sut.s3_env_vars
+
+        @pulumi.runtime.test
+        def it_sends_the_bucket_name_to_the_ecs_environment(sut):
+            return sut.bucket.bucket.apply(lambda bucket: assert_outputs_equal(sut.s3_env_vars["S3_BUCKET_NAME"], bucket))
+
+        
