@@ -313,7 +313,7 @@ class ContainerComponent(pulumi.ComponentResource):
             service_namespace=self.autoscaling_target.service_namespace,
             step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
                 adjustment_type="ChangeInCapacity",
-                cooldown=60,
+                cooldown=15,
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
@@ -354,7 +354,7 @@ class ContainerComponent(pulumi.ComponentResource):
             service_namespace=self.autoscaling_target.service_namespace,
             step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
                 adjustment_type="ChangeInCapacity",
-                cooldown=60,
+                cooldown=900,
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
