@@ -185,7 +185,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_has_a_default_cooldown(sut):
-                return assert_output_equals(sut.autoscaling_in_policy.step_scaling_policy_configuration.cooldown, 60)
+                return assert_output_equals(sut.autoscaling_in_policy.step_scaling_policy_configuration.cooldown, 900)
 
             @pulumi.runtime.test
             def it_changes_capacity(sut):
@@ -251,7 +251,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_has_a_default_cooldown(sut):
-                return assert_output_equals(sut.autoscaling_out_policy.step_scaling_policy_configuration.cooldown, 60)
+                return assert_output_equals(sut.autoscaling_out_policy.step_scaling_policy_configuration.cooldown, 15)
 
             @pulumi.runtime.test
             def it_changes_capacity(sut):
