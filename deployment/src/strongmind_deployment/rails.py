@@ -54,6 +54,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key db_engine_version: The version of the database engine. Defaults to 15.2.
         :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
+        :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
+        :key rds_maximum_capacity: The maximum capacity of the RDS cluster. Defaults to 16.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -86,6 +88,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.engine_version = self.kwargs.get('db_engine_version', '15.2')
         self.desired_web_count = self.kwargs.get('desired_web_count', 1)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
+        self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
+        self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 16)
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -307,8 +311,8 @@ class RailsComponent(pulumi.ComponentResource):
             final_snapshot_identifier=f'{project_stack}-final-snapshot',
             backup_retention_period=14,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
-                min_capacity=0.5,
-                max_capacity=16,
+                min_capacity=self.rds_minimum_capacity,
+                max_capacity=self.rds_maximum_capacity,
             ),
             snapshot_identifier=self.snapshot_identifier,
             kms_key_id=self.kms_key_id,
