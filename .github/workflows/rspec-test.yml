@@ -59,6 +59,14 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT;
           fi
           
+      - name: Test with Jest
+        shell: bash
+        run: |
+          if test -f "jest.config.js"; then
+              npm i
+              npm run test
+          fi
+
       - name: Test
         if: ${{ steps.secret-check.outputs.available != 'true' }}
         run: |
