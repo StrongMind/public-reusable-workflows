@@ -71,9 +71,7 @@ jobs:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         with:
-          coverageCommand: |
-            'bundle exec rspec' 
-            'tee rspec_output.txt'
+          coverageCommand: 'bundle exec rspec'
           debug: true
 
       - name: Archive coverage report
