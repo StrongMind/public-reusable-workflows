@@ -80,6 +80,7 @@ jobs:
       - name: Capture output from codeclimate-action
         if: ${{ steps.secret-check.outputs.available == 'true' }}
         run: |
+          mkdir -p ${{ github.workspace }}/rspec-output
           bundle exec rspec 2>&1 | tee ${{ github.workspace }}/rspec-output/rspec_output.txt
           
 
