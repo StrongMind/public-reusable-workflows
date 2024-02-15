@@ -71,11 +71,11 @@ jobs:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         with:
-          coverageCommand: 'bundle exec rspec'
+          coverageCommand: 'bundle exec rspec | tee rspec_output.txt'
           debug: true
 
       - name: Archive coverage report
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report-${{ github.sha }}
-          path: ${{ github.workspace }}/coverage
+          path: ${{ github.workspace }}/*
