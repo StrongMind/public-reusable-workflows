@@ -82,9 +82,9 @@ jobs:
         run: |
           bundle exec rspec
           echo "==========================+++++++++++++++++++++++++++++=========================="
-          echo "Code Climate Action output: ${{ steps.codeclimate.outputs.output }}" >> rspec-output/rspec_output.txt
+          echo "Code Climate Action output: ${{ steps.codeclimate.outputs.output }}" > rspec-output/rspec_output.txt
           echo "==========================+++++++++++++++++++++++++++++=========================="
-          echo "Code Climate Action output: ${{ steps.codeclimate.outputs.output }}" >> rspec-output/rspec_output.json
+          echo "Code Climate Action output: ${{ steps.codeclimate.outputs.output }}" > rspec-output/rspec_output.json
           
 
       - name: Archive coverage report
