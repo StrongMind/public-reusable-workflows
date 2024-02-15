@@ -66,6 +66,7 @@ jobs:
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
+        id: codeclimate
         if: ${{ steps.secret-check.outputs.available == 'true' }}
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
@@ -79,3 +80,11 @@ jobs:
         with:
           name: coverage-report-${{ github.sha }}
           path: ${{ github.workspace }}/*
+
+      - name: Capture output from codeclimate-action
+        if: ${{ steps.secret-check.outputs.available == 'true' }}
+        run: |
+          bundle exec rspec
+          echo "==========================+++++++++++++++++++++++++++++=========================="
+          echo "Code Climate Action output: ${{ steps.codeclimate.outputs.output }}"
+          
