@@ -92,4 +92,4 @@ jobs:
 
       - name: Check for skipped tests
         run: ruby parse_rspec_output.rb
-        working-directory: ${{ github.workspace }}/rspec_output.txt
+        working-directory: ${{ github.workspace }}
