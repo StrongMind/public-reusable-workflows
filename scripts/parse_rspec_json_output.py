@@ -18,12 +18,12 @@ def main(rspec_output_file):
     ]
 
     if skipped_tests:
-        print("Skipped tests found with specific pending messages:")
+        print("Build failed because the following tests were skipped for no good reason:")
         for test in skipped_tests:
-            print(f"{test['full_description']} - Pending Reason: {test['pending_message']}")
+            print(f"{test['full_description']} - Reason: {test['pending_message']}")
         sys.exit(1) 
     else:
-        print("No skipped tests found with specific pending messages.")
+        print("No skipped tests found without a good reason.")
         sys.exit(0) 
 
 if __name__ == "__main__":
