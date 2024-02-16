@@ -1,8 +1,8 @@
 import json
 import sys
 
-def main():
-    with open('rspec-output.json', 'r') as file:
+def main(rspec_output_file):
+    with open(rspec_output_file, 'r') as file:
         data = json.load(file)
 
     specific_pending_messages = [
