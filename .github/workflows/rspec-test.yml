@@ -68,8 +68,8 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: coverage-report-${{ github.sha }}
-          path: ${{ github.workspace }}/rspec-output
-          
+          path: ${{ github.workspace }}/rspec-output.json
+
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
         if: ${{ steps.secret-check.outputs.available == 'true' }}
