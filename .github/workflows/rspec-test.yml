@@ -69,8 +69,8 @@ jobs:
         with:
           repository: 'Strongmind/public-reusable-workflows'
           path: 'public-reusable-workflows'
-          ref: 'devops-13059'
-
+          ref: 'main'
+          
       - name: Check for skipped tests
         run: python public-reusable-workflows/scripts/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
 
