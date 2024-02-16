@@ -59,11 +59,19 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT;
           fi
           
+      - name: Test with Jest
+        shell: bash
+        run: |
+          if test -f "jest.config.js"; then
+              npm i
+              npm run test
+          fi
+
       - name: Run RSpec to Output File
         id: rspec_test
         run: |
           bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
-
+          
       - name: Checkout public-reusable
         uses: actions/checkout@v4
         with:
