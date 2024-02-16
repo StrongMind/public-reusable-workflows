@@ -67,20 +67,18 @@ jobs:
               npm run test
           fi
 
-      - name: Run RSpec to Output File
-        id: rspec_test
-        run: |
-          bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
+      # - name: Run RSpec to Output File
+      #   id: rspec_test
+      #   run: |
+      #     bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
           
-      - name: Checkout public-reusable
-        uses: actions/checkout@v4
-        with:
-          repository: 'Strongmind/public-reusable-workflows'
-          path: 'public-reusable-workflows'
-          ref: 'main'
-          
-      - name: Check for skipped tests
-        run: python public-reusable-workflows/scripts/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
+      # - name: Checkout public-reusable
+      #   uses: actions/checkout@v4
+      #   with:
+      #     repository: 'Strongmind/public-reusable-workflows'
+      #     path: 'public-reusable-workflows'
+      #     ref: 'main'
+
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
@@ -89,5 +87,12 @@ jobs:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         with:
-          coverageCommand: 'bundle exec rspec'
+          coverageCommand: 'bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json'
           debug: true
+
+      - name: Download the parsesing script
+        run: |
+          curl -o ${{ github.workspace }}/parse_rspec_json_output.py 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/devops-13059/.github/scripts/parse_rspec_json_output.py'
+        
+      - name: Check for skipped tests
+        run: python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
