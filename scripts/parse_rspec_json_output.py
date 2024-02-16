@@ -27,4 +27,4 @@ def main(rspec_output_file):
         sys.exit(0) 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1])
