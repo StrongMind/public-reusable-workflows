@@ -62,13 +62,17 @@ jobs:
       - name: Run RSpec to Output File
         id: rspec_test
         run: |
-          mkdir -p ${{ github.workspace }}/rspec-output
-          bundle exec rspec --format json --out ${{ github.workspace }}/rspec-output.json
-      - name: Archive coverage report
-        uses: actions/upload-artifact@v3
+          bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
+
+      - name: Checkout public-reusable
+        uses: actions/checkout@v4
         with:
-          name: coverage-report-${{ github.sha }}
-          path: ${{ github.workspace }}/rspec-output.json
+          repository: 'Strongmind/public-reusable-workflows'
+          path: 'public-reusable-workflows/scripts'
+          ref: 'devops-13059'
+
+      - name: Check for skipped tests
+        run: python public-reusable-workflows/scripts/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
@@ -79,7 +83,3 @@ jobs:
         with:
           coverageCommand: 'bundle exec rspec'
           debug: true
-
-
-
-
