@@ -68,7 +68,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: 'Strongmind/public-reusable-workflows'
-          path: 'public-reusable-workflows/scripts'
+          path: 'public-reusable-workflows'
           ref: 'devops-13059'
 
       - name: Check for skipped tests
