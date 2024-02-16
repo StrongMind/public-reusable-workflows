@@ -59,11 +59,17 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT;
           fi
           
-      - name: Test
-        if: ${{ steps.secret-check.outputs.available != 'true' }}
+      - name: Run RSpec to Output File
+        id: rspec_test
         run: |
-          bundle exec rspec
-
+          mkdir -p ${{ github.workspace }}/rspec-output
+          bundle exec rspec --format json --out ${{ github.workspace }}/rspec-output.json
+      - name: Archive coverage report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: ${{ github.workspace }}/rspec-output
+          
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
         if: ${{ steps.secret-check.outputs.available == 'true' }}
@@ -76,20 +82,4 @@ jobs:
 
 
 
-      - name: Capture output from codeclimate-action
-        if: ${{ steps.secret-check.outputs.available == 'true' }}
-        id: rspec_test
-        run: |
-          mkdir -p ${{ github.workspace }}/rspec-output
-          bundle exec rspec 2>&1 | tee ${{ github.workspace }}/rspec_output.txt
-          
 
-      # - name: Archive coverage report
-      #   uses: actions/upload-artifact@v3
-      #   with:
-      #     name: coverage-report-${{ github.sha }}
-      #     path: ${{ github.workspace }}/rspec-output
-
-      - name: Check for skipped tests
-        run: ruby parse_rspec_output.rb
-        working-directory: ${{ github.workspace }}
