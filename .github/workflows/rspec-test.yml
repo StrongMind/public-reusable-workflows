@@ -80,6 +80,8 @@ jobs:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         with:
           coverageCommand: 'bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json'
+          coverageLocations: |
+            ${{github.workspace}}/coverage/coverage.json:simplecov
           debug: true
 
       - name: Download the parsing script
