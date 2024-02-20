@@ -90,7 +90,7 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
   rspec-test:
     name: Rspec test to code coverage
-    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@devops-13059
+    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
     with:
       bundle-no-assets: ${{ inputs.bundle-no-assets }}
       ruby-version: ${{ inputs.ruby-version }}
