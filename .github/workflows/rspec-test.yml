@@ -93,6 +93,15 @@ jobs:
       - name: Download the parsesing script
         run: |
           curl -o ${{ github.workspace }}/parse_rspec_json_output.py 'https://github.com/StrongMind/public-reusable-workflows/blob/devops-13059/scripts/parse_rspec_json_output.py'
-        
+      - name: Upload artifact
+        uses: actions/upload-artifact@v2
+        with:
+          name: rspec_output
+          path: ${{ github.workspace }}/rspec_output.json  
+      - name: upload script
+        uses: actions/upload-artifact@v2
+        with:
+          name: parse_rspec_json_output
+          path: ${{ github.workspace }}/parse_rspec_json_output.py    
       - name: Check for skipped tests
         run: python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
