@@ -67,6 +67,11 @@ jobs:
               npm run test
           fi
 
+      - name: Test
+        if: ${{ steps.secret-check.outputs.available != 'true' }}
+        run: |
+          bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
+
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
         if: ${{ steps.secret-check.outputs.available == 'true' }}
