@@ -70,7 +70,7 @@ jobs:
       - name: Test
         if: ${{ steps.secret-check.outputs.available != 'true' }}
         run: |
-          bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
+          bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
@@ -79,12 +79,12 @@ jobs:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         with:
-          coverageCommand: 'bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json'
+          coverageCommand: 'bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json'
           debug: true
 
       - name: Download the parsing script
         run: |
-          wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/scripts/parse_rspec_json_output.py'
+          wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/devops-13059/scripts/parse_rspec_json_output.py'
   
       - name: Check for skipped tests
         run: python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
