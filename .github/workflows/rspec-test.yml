@@ -92,7 +92,7 @@ jobs:
 
       - name: Download the parsesing script
         run: |
-          curl -o ${{ github.workspace }}/parse_rspec_json_output.py 'https://github.com/StrongMind/public-reusable-workflows/blob/devops-13059/scripts/parse_rspec_json_output.py'
+          wget -o ${{ github.workspace }}/parse_rspec_json_output.py 'https://github.com/StrongMind/public-reusable-workflows/blob/devops-13059/scripts/parse_rspec_json_output.py'
       - name: Upload artifact
         uses: actions/upload-artifact@v2
         with:
