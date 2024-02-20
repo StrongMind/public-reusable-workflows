@@ -67,19 +67,6 @@ jobs:
               npm run test
           fi
 
-      # - name: Run RSpec to Output File
-      #   id: rspec_test
-      #   run: |
-      #     bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json
-          
-      # - name: Checkout public-reusable
-      #   uses: actions/checkout@v4
-      #   with:
-      #     repository: 'Strongmind/public-reusable-workflows'
-      #     path: 'public-reusable-workflows'
-      #     ref: 'main'
-
-
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
         if: ${{ steps.secret-check.outputs.available == 'true' }}
@@ -90,18 +77,9 @@ jobs:
           coverageCommand: 'bundle exec rspec --format json --out ${{ github.workspace }}/rspec_output.json'
           debug: true
 
-      - name: Download the parsesing script
+      - name: Download the parsing script
         run: |
           wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/devops-13059/scripts/parse_rspec_json_output.py'
-      - name: Upload artifact
-        uses: actions/upload-artifact@v2
-        with:
-          name: rspec_output
-          path: ${{ github.workspace }}/rspec_output.json  
-      - name: upload script
-        uses: actions/upload-artifact@v2
-        with:
-          name: parse_rspec_json_output
-          path: ${{ github.workspace }}/parse_rspec_json_output.py    
+  
       - name: Check for skipped tests
         run: python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
