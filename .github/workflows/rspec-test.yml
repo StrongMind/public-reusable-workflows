@@ -59,10 +59,18 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT;
           fi
           
+      - name: Test with Jest
+        shell: bash
+        run: |
+          if test -f "jest.config.js"; then
+              npm i
+              npm run test
+          fi
+
       - name: Test
         if: ${{ steps.secret-check.outputs.available != 'true' }}
         run: |
-          bundle exec rspec
+          bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
@@ -71,5 +79,14 @@ jobs:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         with:
-          coverageCommand: 'bundle exec rspec'
+          coverageCommand: 'bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json'
+          coverageLocations: |
+            ${{github.workspace}}/coverage/coverage.json:simplecov
           debug: true
+
+      - name: Download the parsing script
+        run: |
+          wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/main/scripts/parse_rspec_json_output.py'
+  
+      - name: Check for skipped tests
+        run: python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
