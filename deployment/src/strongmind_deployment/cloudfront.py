@@ -1,5 +1,8 @@
 import pulumi
 import pulumi_aws as aws
+from pulumi_cloudflare import get_zone, Record
+from pulumi import Output
+import re
 
 """
 This file contains the CloudFront component from Pulumi. This component is meant to be called by other projects to deploy a 
@@ -35,14 +38,17 @@ def Distribution(resource_name: str,
 """
 
 class DistributionComponent(pulumi.ComponentResource):
-    def __init__(self,name, *args, **kwargs):
+    def __init__(self,name, **kwargs):
 
         super().__init__("custom:module:DistributionComponent", name, {})
+        self.kwargs = kwargs
         self._transformations = []
+        self.fqdn = kwargs.get('fqdn', None)
         #self.__dict__.update(kwargs)
         #opts: Optional[pulumi.ResourceOptions] = None):
-        print(f"args passed to DistributionComponent: {args} and kwargs passed to DistributionComponent: {kwargs}\n")
+        #print(f"args passed to DistributionComponent: {args} and kwargs passed to DistributionComponent: {kwargs}\n")
 
+        stack = kwargs.get('stack')
         origin_domain = kwargs.get('origin_domain')
         origin_id = f"{name}-origin"
         aws_cloudfront_origin_access_identity = {
@@ -52,7 +58,12 @@ class DistributionComponent(pulumi.ComponentResource):
     }
         aws_cloudfront_origin_access_identity = aws.cloudfront.OriginAccessIdentity(f"{origin_id}-myOriginAccessIdentity",
         comment="")
+        self.tags = {
+            "name": name,
+            "stack": stack
+        }
 
+        self.dns(stack)
         self.distribution = aws.cloudfront.Distribution(f"{name}-distribution",
                                                    opts=pulumi.ResourceOptions(parent=self),
                                                    enabled=True,
@@ -107,4 +118,62 @@ class DistributionComponent(pulumi.ComponentResource):
         else:
             self.origin_access_identity = None
         return self.origin_access_identity
+
+    def dns(self, stack):
+        #print(f"args passed to dns: {self} | {name} | {stack} | {kwargs} \n")
+        #print("=======================================================\n")
+        #for attr in dir(self):
+            #print(f"attr: {attr}\n")
+        full_name = self.kwargs.get('fqdn')
+        zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
+        #lb_dns_name = self.kwargs.get('load_balancer_dns_name',
+                                      #self.load_balancer.load_balancer.dns_name)  # pragma: no cover
+        #cloudfront_domain_name = kwargs.get('cloudfront_domain_name',
+                                                #self.distribution.domain_name)
+        pulumi.export("url", Output.concat("https://", full_name))
+
+        self.cert = aws.acm.Certificate(
+            "cert",
+            domain_name=full_name,
+            validation_method="DNS",
+            #tags=self.tags,
+            tags=self.kwargs.get('tags'),
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+        domain_validation_options = self.kwargs.get('domain_validation_options',
+                                                    self.cert.domain_validation_options)  # pragma: no cover
+
+        resource_record_value = domain_validation_options[0].resource_record_value
+
+        def remove_trailing_period(value):
+            return re.sub("\\.$", "", value)
+
+        if type(resource_record_value) != str:
+            resource_record_value = resource_record_value.apply(remove_trailing_period)
+
+        self.cert_validation_record = Record(
+            'cert_validation_record',
+            name=domain_validation_options[0].resource_record_name,
+            type=domain_validation_options[0].resource_record_type,
+            zone_id=zone_id,
+            value=resource_record_value,
+            ttl=1,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
+        )
+
+        self.cert_validation_cert = aws.acm.CertificateValidation(
+            "cert_validation",
+            certificate_arn=self.cert.arn,
+            validation_record_fqdns=[self.cert_validation_record.hostname],
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
+        )
+
+
+
+
+
+
+
+
+
 
