@@ -37,14 +37,10 @@ def Distribution(resource_name: str,
 class DistributionComponent(pulumi.ComponentResource):
     def __init__(self,name, *args, **kwargs):
 
-        # I have no clue what these four lines are doing...... 
+        super().__init__("custom:module:DistributionComponent", name, {})
         self._transformations = []
-        self._childResources = set() 
-        self._protect = False
-        self._providers = {}
         #self.__dict__.update(kwargs)
-#opts: Optional[pulumi.ResourceOptions] = None):
-        # Create the CloudFront distribution
+        #opts: Optional[pulumi.ResourceOptions] = None):
         print(f"args passed to DistributionComponent: {args} and kwargs passed to DistributionComponent: {kwargs}\n")
 
         origin_domain = kwargs.get('origin_domain')
@@ -54,6 +50,8 @@ class DistributionComponent(pulumi.ComponentResource):
         "cloudfront_access_identity_path": f"{origin_id}-origin-access-identity"
         }
     }
+        aws_cloudfront_origin_access_identity = aws.cloudfront.OriginAccessIdentity(f"{origin_id}-myOriginAccessIdentity",
+        comment="")
 
         self.distribution = aws.cloudfront.Distribution(f"{name}-distribution",
                                                    opts=pulumi.ResourceOptions(parent=self),
@@ -62,10 +60,9 @@ class DistributionComponent(pulumi.ComponentResource):
                                                    domain_name=origin_domain,
                                                    origin_id=origin_id,
                                                    s3_origin_config=aws.cloudfront.DistributionOriginS3OriginConfigArgs(
-                                                       #origin_access_identity=self.origin_access_identity(origin_domain)
-                                                       origin_access_identity=aws_cloudfront_origin_access_identity["identity"]["cloudfront_access_identity_path"],
+                                                       origin_access_identity=aws_cloudfront_origin_access_identity.cloudfront_access_identity_path
                                                     ) 
-                                                )],
+                                                   )],
                                                    default_root_object=kwargs.get('default_root_object'),
                                                    #logging_config=aws.cloudfront.DistributionLoggingConfigArgs(
                                                    #    bucket=bucket.bucket_regional_domain_name,
@@ -74,7 +71,7 @@ class DistributionComponent(pulumi.ComponentResource):
                                                    #),
                                                    aliases=None,
                                                    comment="",
-                                                   price_class="PriceClass",
+                                                   price_class="PriceClass_All",
                                                    default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
                                                          allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
                                                          cached_methods=["GET", "HEAD"],
@@ -84,6 +81,11 @@ class DistributionComponent(pulumi.ComponentResource):
                                                          default_ttl=0,
                                                          max_ttl=0,
                                                          min_ttl=0,
+                                                         forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
+                                                            query_string=False,
+                                                            cookies=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs(
+                                                            forward="none",
+                                                            )),
                                                     ),
                                                     restrictions=aws.cloudfront.DistributionRestrictionsArgs(
                                                         geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
@@ -92,7 +94,7 @@ class DistributionComponent(pulumi.ComponentResource):
                                                     ),
                                                     viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
                                                         cloudfront_default_certificate=True
-                                                    )
+                                                    ),
 )
     # s3_origin_access_identity func is meant to check if the origin_domain contains s3. 
     # If it does, we will create an origin_access_identity resource for the distribution.
@@ -105,17 +107,4 @@ class DistributionComponent(pulumi.ComponentResource):
         else:
             self.origin_access_identity = None
         return self.origin_access_identity
-
-
-
-
-
-
-
-
-
-
-
-
-
 
