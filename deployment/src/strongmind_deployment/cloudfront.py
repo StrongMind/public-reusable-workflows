@@ -2,7 +2,9 @@ import pulumi
 import pulumi_aws as aws
 from pulumi_cloudflare import get_zone, Record
 from pulumi import Output
+from storage import StorageComponent
 import re
+import os
 
 """
 This file contains the CloudFront component from Pulumi. This component is meant to be called by other projects to deploy a 
@@ -45,23 +47,54 @@ class DistributionComponent(pulumi.ComponentResource):
         self._transformations = []
         self.fqdn = kwargs.get('fqdn', None)
 
+        fqdn_prefix = self.fqdn.split('.')[:2]
+        fqdn_prefix = '.'.join(fqdn_prefix)
+        fqdn_prefix = fqdn_prefix.replace('.', '-')
+        print(f"s3 bucket name: {fqdn_prefix}\n")
+        bucket = StorageComponent(fqdn_prefix, storage_private=False)
+        public_bucket_policy_document = aws.iam.get_policy_document_output(statements=[
+          aws.iam.GetPolicyDocumentStatementArgs(
+            principals=[aws.iam.GetPolicyDocumentStatementPrincipalArgs(
+              type="AWS",
+              identifiers=["*"],
+            )],
+          actions=[
+            "s3:GetObject",
+            "s3:ListBucket",
+          ],
+          resources=[
+            bucket.bucket.arn,
+            bucket.bucket.arn.apply(lambda arn: f"{arn}/*"),
+          ],
+         ),
+        ])
+        public_bucket_policy = aws.s3.BucketPolicy("public_bucket_policy",
+        bucket=bucket.bucket.id,
+        policy=public_bucket_policy_document.json)        
+
         stack = kwargs.get('stack')
-        origin_domain = kwargs.get('origin_domain')
-        origin_id = f"{name}-origin"
+        origin_domain = bucket.bucket.bucket_regional_domain_name
+        origin_id = f"{fqdn_prefix}-origin"
+
+        self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
+        project = pulumi.get_project()
+        stack = pulumi.get_stack()
         self.tags = {
-            "name": name,
-            "stack": stack
+          "product": project,
+          "repository": project,
+          "service": project,
+          "environment": self.env_name,
         }
 
         self.dns(stack)
-        self.distribution = aws.cloudfront.Distribution(f"{name}-distribution",
+        self.distribution = aws.cloudfront.Distribution(f"{fqdn_prefix}-distribution",
           opts=pulumi.ResourceOptions(parent=self),
           enabled=True,
           origins=[aws.cloudfront.DistributionOriginArgs(
             domain_name=origin_domain,
             origin_id=origin_id,
           )],
-          default_root_object=kwargs.get('default_root_object'),
+          default_root_object="index.html",
           aliases=[kwargs.get('fqdn', None)],
           viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
             acm_certificate_arn=self.cert_validation_cert.certificate_arn,
