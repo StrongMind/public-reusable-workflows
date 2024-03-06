@@ -50,7 +50,6 @@ class DistributionComponent(pulumi.ComponentResource):
         fqdn_prefix = self.fqdn.split('.')[:2]
         fqdn_prefix = '.'.join(fqdn_prefix)
         fqdn_prefix = fqdn_prefix.replace('.', '-')
-        print(f"s3 bucket name: {fqdn_prefix}\n")
         bucket = StorageComponent(fqdn_prefix, storage_private=False)
         public_bucket_policy_document = aws.iam.get_policy_document_output(statements=[
           aws.iam.GetPolicyDocumentStatementArgs(
