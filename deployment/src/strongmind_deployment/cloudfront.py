@@ -123,6 +123,7 @@ class DistributionComponent(pulumi.ComponentResource):
               restriction_type="none"
               )
           ),
+          tags=self.tags,
 )
         self.cname(distribution_domain_name=self.distribution.domain_name)
 
