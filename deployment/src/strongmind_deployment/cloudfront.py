@@ -2,7 +2,7 @@ import pulumi
 import pulumi_aws as aws
 from pulumi_cloudflare import get_zone, Record
 from pulumi import Output
-from storage import StorageComponent
+from strongmind_deployment.storage import StorageComponent
 import re
 import os
 
@@ -87,53 +87,52 @@ class DistributionComponent(pulumi.ComponentResource):
           "environment": self.env_name,
         }
 
-        self.dns(stack)
-        self.distribution = aws.cloudfront.Distribution(f"{fqdn_prefix}-distribution",
-          opts=pulumi.ResourceOptions(parent=self),
-          enabled=True,
-          origins=[aws.cloudfront.DistributionOriginArgs(
-            domain_name=origin_domain,
-            origin_id=origin_id,
-          )],
-          default_root_object="index.html",
-          aliases=[kwargs.get('fqdn', None)],
-          viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
-            acm_certificate_arn=self.cert_validation_cert.certificate_arn,
-            ssl_support_method="sni-only",
-            minimum_protocol_version="TLSv1.2_2021",
-            cloudfront_default_certificate=True),
-          comment="",
-          price_class="PriceClass_All",
-          default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
-            allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
-            cached_methods=["GET", "HEAD"],
-            target_origin_id=origin_id,
-            viewer_protocol_policy="redirect-to-https",
-            compress=True,
-            default_ttl=0,
-            max_ttl=0,
-            min_ttl=0,
-            forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
-              query_string=False,
-            cookies=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs(
-              forward="none",
-            )),
-          ),
-          restrictions=aws.cloudfront.DistributionRestrictionsArgs(
-            geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
-              restriction_type="none"
-              )
-          ),
-          tags=self.tags,
-)
-        self.cname(distribution_domain_name=self.distribution.domain_name)
+        self.dns()
+        #self.distribution = aws.cloudfront.Distribution(f"{fqdn_prefix}-distribution",
+        #  opts=pulumi.ResourceOptions(parent=self),
+        #  enabled=True,
+        #  origins=[aws.cloudfront.DistributionOriginArgs(
+        #    domain_name=origin_domain,
+        #    origin_id=origin_id,
+        #  )],
+        #  default_root_object="index.html",
+        #  aliases=[kwargs.get('fqdn', None)],
+        #  viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
+        #    acm_certificate_arn=self.cert_validation_cert.certificate_arn,
+        #    ssl_support_method="sni-only",
+        #    minimum_protocol_version="TLSv1.2_2021",
+        #    cloudfront_default_certificate=True),
+        #  comment="",
+        #  price_class="PriceClass_All",
+        #  default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
+        #    allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+        #    cached_methods=["GET", "HEAD"],
+        #    target_origin_id=origin_id,
+        #    viewer_protocol_policy="redirect-to-https",
+        #    compress=True,
+        #    default_ttl=0,
+        #    max_ttl=0,
+        #    min_ttl=0,
+        #    forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
+        #      query_string=False,
+        #    cookies=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs(
+        #      forward="none",
+        #    )),
+        #  ),
+        #  restrictions=aws.cloudfront.DistributionRestrictionsArgs(
+        #    geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
+        #      restriction_type="none"
+        #      )
+        #  ),
+        #  tags=self.tags,
+#)
+#        self.cname(distribution_domain_name=self.distribution.domain_name)
 
-    def dns(self, stack):
+    def dns(self):
      
         aws_east_1 = aws.Provider("aws-east-1", region="us-east-1")
         full_name = self.kwargs.get('fqdn')
         zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
-        pulumi.export("url", Output.concat("https://", full_name))
 
         self.cert = aws.acm.Certificate(
           "cert",
