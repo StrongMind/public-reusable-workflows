@@ -8,7 +8,9 @@ import os
 
 """
 This file contains the CloudFront component from Pulumi. This component is meant to be called by other projects to deploy a 
-Cloudfront distribution. The required parameters are the resource_name, origin_domain, and the default_root_object.
+Cloudfront distribution. 
+The required parameters for the project name and fqdn. DistributionComponent(name="my-cdn-project", fqdn="my-cdn.example.com")
+
 @overload
 def Distribution(resource_name: str,
                  opts: Optional[ResourceOptions] = None,
