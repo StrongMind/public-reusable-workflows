@@ -11,34 +11,6 @@ This file contains the CloudFront component from Pulumi. This component is meant
 Cloudfront distribution. 
 The required parameters for the project name and fqdn. DistributionComponent(name="my-cdn-project", fqdn="my-cdn.example.com")
 
-@overload
-def Distribution(resource_name: str,
-                 opts: Optional[ResourceOptions] = None,
-                 aliases: Optional[Sequence[str]] = None,
-                 comment: Optional[str] = None,
-                 continuous_deployment_policy_id: Optional[str] = None,
-                 custom_error_responses: Optional[Sequence[DistributionCustomErrorResponseArgs]] = None,
-                 default_cache_behavior: Optional[DistributionDefaultCacheBehaviorArgs] = None,
-                 default_root_object: Optional[str] = None,
-                 enabled: Optional[bool] = None,
-                 http_version: Optional[str] = None,
-                 is_ipv6_enabled: Optional[bool] = None,
-                 logging_config: Optional[DistributionLoggingConfigArgs] = None,
-                 ordered_cache_behaviors: Optional[Sequence[DistributionOrderedCacheBehaviorArgs]] = None,
-                 origin_groups: Optional[Sequence[DistributionOriginGroupArgs]] = None,
-                 origins: Optional[Sequence[DistributionOriginArgs]] = None,
-                 price_class: Optional[str] = None,
-                 restrictions: Optional[DistributionRestrictionsArgs] = None,
-                 retain_on_delete: Optional[bool] = None,
-                 staging: Optional[bool] = None,
-                 tags: Optional[Mapping[str, str]] = None,
-                 viewer_certificate: Optional[DistributionViewerCertificateArgs] = None,
-                 wait_for_deployment: Optional[bool] = None,
-                 web_acl_id: Optional[str] = None)
-@overload
-def Distribution(resource_name: str,
-                 args: DistributionArgs,
-                 opts: Optional[ResourceOptions] = None)
 """
 
 class DistributionComponent(pulumi.ComponentResource):
@@ -88,45 +60,45 @@ class DistributionComponent(pulumi.ComponentResource):
         }
 
         self.dns()
-        #self.distribution = aws.cloudfront.Distribution(f"{fqdn_prefix}-distribution",
-        #  opts=pulumi.ResourceOptions(parent=self),
-        #  enabled=True,
-        #  origins=[aws.cloudfront.DistributionOriginArgs(
-        #    domain_name=origin_domain,
-        #    origin_id=origin_id,
-        #  )],
-        #  default_root_object="index.html",
-        #  aliases=[kwargs.get('fqdn', None)],
-        #  viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
-        #    acm_certificate_arn=self.cert_validation_cert.certificate_arn,
-        #    ssl_support_method="sni-only",
-        #    minimum_protocol_version="TLSv1.2_2021",
-        #    cloudfront_default_certificate=True),
-        #  comment="",
-        #  price_class="PriceClass_All",
-        #  default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
-        #    allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
-        #    cached_methods=["GET", "HEAD"],
-        #    target_origin_id=origin_id,
-        #    viewer_protocol_policy="redirect-to-https",
-        #    compress=True,
-        #    default_ttl=0,
-        #    max_ttl=0,
-        #    min_ttl=0,
-        #    forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
-        #      query_string=False,
-        #    cookies=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs(
-        #      forward="none",
-        #    )),
-        #  ),
-        #  restrictions=aws.cloudfront.DistributionRestrictionsArgs(
-        #    geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
-        #      restriction_type="none"
-        #      )
-        #  ),
-        #  tags=self.tags,
-#)
-#        self.cname(distribution_domain_name=self.distribution.domain_name)
+        self.distribution = aws.cloudfront.Distribution(f"{fqdn_prefix}-distribution",
+          opts=pulumi.ResourceOptions(parent=self),
+          enabled=True,
+          origins=[aws.cloudfront.DistributionOriginArgs(
+            domain_name=origin_domain,
+            origin_id=origin_id,
+          )],
+          default_root_object="index.html",
+          aliases=[kwargs.get('fqdn', None)],
+          viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
+            acm_certificate_arn=self.cert_validation_cert.certificate_arn,
+            ssl_support_method="sni-only",
+            minimum_protocol_version="TLSv1.2_2021",
+            cloudfront_default_certificate=True),
+          comment="",
+          price_class="PriceClass_All",
+          default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
+            allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+            cached_methods=["GET", "HEAD"],
+            target_origin_id=origin_id,
+            viewer_protocol_policy="redirect-to-https",
+            compress=True,
+            default_ttl=0,
+            max_ttl=0,
+            min_ttl=0,
+            forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
+              query_string=False,
+            cookies=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs(
+              forward="none",
+            )),
+          ),
+          restrictions=aws.cloudfront.DistributionRestrictionsArgs(
+            geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
+              restriction_type="none"
+              )
+          ),
+          tags=self.tags,
+)
+        self.cname(distribution_domain_name=self.distribution.domain_name)
 
     def dns(self):
      
