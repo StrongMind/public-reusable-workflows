@@ -1,6 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock
-import json
 import pulumi
 import pulumi_aws as aws
 import pulumi_aws.ecs
@@ -108,8 +107,6 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
                 }
 
-
-
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
@@ -118,28 +115,6 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
                     "secretString": secret_string
                 }
-            
-            if args.token == "aws:iam/getPolicyDocument:getPolicyDocument":
-                # Return a mock policy document result
-                return {
-                    "id": "mock-policy-document-id",
-                    "json": json.dumps({
-                        "Version": "2012-10-17",
-                        "Statement": [
-                            # Add your mocked statements here
-                        ],
-                    }),
-                    "override_json": None,
-                    "override_policy_documents": [],
-                    "policy_id": "mock-policy-id",
-                    "source_json": None,
-                    "source_policy_documents": [],
-                    "statements": [
-                        # Add your mocked statements here, if necessary
-                    ],
-                    "version": "2012-10-17",
-                }
-            return {}
 
     return PulumiMocks()
 
