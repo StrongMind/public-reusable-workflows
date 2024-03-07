@@ -1,6 +1,5 @@
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import Mock
-
 import pulumi
 import pulumi_aws as aws
 import pulumi_aws.ecs
@@ -116,7 +115,6 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
                     "secretString": secret_string
                 }
-            return {}
 
     return PulumiMocks()
 
