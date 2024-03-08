@@ -65,7 +65,7 @@ def a_pulumi_rails_app():
     @pytest.fixture
     def execution_container_cmd():
         return ["sh", "-c",
-                "bundle exec rails db:prepare db:migrate db:seed && "
+                "bundle exec rails db:prepare db:migrate db:seed assets:precompile && "
                 "echo 'Migrations complete'"]
 
     @pytest.fixture
@@ -627,6 +627,10 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_uses_empty_entry_point_for_execution(sut):
             assert sut.migration_container.entry_point == []
+
+        @pulumi.runtime.test
+        def it_uses_standard_migration_command_for_execution(sut, execution_container_cmd):
+            assert sut.migration_container.command == execution_container_cmd
 
         def describe_with_custom_execution_cmd():
             @pytest.fixture

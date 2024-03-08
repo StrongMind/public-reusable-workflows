@@ -191,7 +191,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         execution_cmd = self.kwargs.get("execution_cmd",
                                         ["sh", "-c",
-                                         "bundle exec rails db:prepare db:migrate db:seed && "
+                                         "bundle exec rails db:prepare db:migrate db:seed assets:precompile && "
                                          "echo 'Migrations complete'"])
         self.kwargs['command'] = execution_cmd
 
