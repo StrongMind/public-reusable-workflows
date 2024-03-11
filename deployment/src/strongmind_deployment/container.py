@@ -1,3 +1,4 @@
+from cgitb import strong
 import json
 import os
 import re
@@ -8,6 +9,8 @@ import pulumi_awsx as awsx
 from pulumi import Config, export, Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
+
+from deployment.src import strongmind_deployment
 
 
 class ContainerComponent(pulumi.ComponentResource):
@@ -220,6 +223,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        # not represented in the signature above, however some rails.py consumers use this.
+        # TODO: enable more granular access and adopt this in ecs.py:execution_role()
         if self.kwargs.get('storage', False):
             self.s3_policy = aws.iam.Policy(
                 f"{self.project_stack}-s3-policy",
@@ -506,3 +511,4 @@ class ContainerComponent(pulumi.ComponentResource):
             validation_record_fqdns=[self.cert_validation_record.hostname],
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
         )
+

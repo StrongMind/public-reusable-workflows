@@ -199,7 +199,7 @@ def describe_container():
                 "Statement": [
                     {
                         "Sid": "",
-                        "Effect": "Allow",
+                        "Effect": "asdf",
                         "Principal": {
                             "Service": "ecs-tasks.amazonaws.com"
                         },
