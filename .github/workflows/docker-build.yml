@@ -22,7 +22,7 @@ on:
         description: Whether to skip assets precompilation
         required: false
         type: string
-        default: bundle exec rails db:prepare db:migrate assets:precompile
+        default: bundle exec rails db:prepare db:migrate
       ruby-version:
         description: Rails environment to run the tests in
         required: false
