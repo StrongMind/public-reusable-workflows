@@ -11,3 +11,5 @@ mockito
 pytest-mockito
 
 wheel
+
+pydantic==2.6.3
