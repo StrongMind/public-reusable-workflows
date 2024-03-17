@@ -1,0 +1,46 @@
+name: Manual Deploy or Preview Azure to AWS
+run-name: Pulumi ${{ github.event.inputs.pulumi_action }}  ${{ github.event.inputs.workdir }} to ${{ github.event.inputs.stack }} by @${{ github.actor }}
+
+on:
+  repository_dispatch:
+    types: [manual_deploy]
+  workflow_dispatch:
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      role_to_assume: ${{ steps.set-vars.outputs.role_to_assume }}
+      state_bucket: ${{ steps.set-vars.outputs.state_bucket }}
+      pulumi_config_passphrase: ${{ steps.set-vars.outputs.pulumi_config_passphrase }}
+    steps:
+      - id: set-vars
+        run: |
+          if [[ "${{ github.event.inputs.stack }}" == "strongmind_prod" ]]; then
+            echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}" >> $GITHUB_ENV
+            echo "STATE_BUCKET=${{ vars.STATE_BUCKET_PROD }}" >> $GITHUB_ENV
+            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD }}" >> $GITHUB_ENV
+          else
+            echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}" >> $GITHUB_ENV
+            echo "STATE_BUCKET=${{ vars.STATE_BUCKET_STAGE }}" >> $GITHUB_ENV
+            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}" >> $GITHUB_ENV
+          fi
+
+  update:
+    needs: setup
+    name: manual_deploy
+    if: github.ref == format('refs/heads/{0}', github.event.inputs.branch)
+    uses: ./.github/workflows/pulumi.yml
+    with:
+      pulumi_command: ${{ github.event.inputs.pulumi_action }}
+      pulumi_stack: ${{ github.event.inputs.stack }}
+      aws_region: us-west-2
+      working_directory: ${{ github.event.inputs.workdir }}
+      role_to_assume: ${{ needs.setup.outputs.role_to_assume }}
+      state_bucket: ${{ needs.setup.outputs.state_bucket }}
+    secrets: 
+      pulumi_config_passphrase: ${{ needs.setup.outputs.pulumi_config_passphrase }}
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
