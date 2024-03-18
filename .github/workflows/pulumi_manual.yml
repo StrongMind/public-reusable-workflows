@@ -1,10 +1,20 @@
 name: Manual Deploy or Preview Azure to AWS
-run-name: Pulumi ${{ github.event.inputs.pulumi_action }}  ${{ github.event.inputs.workdir }} to ${{ github.event.inputs.stack }} by @${{ github.actor }}
 
 on:
-  repository_dispatch:
-    types: [manual_deploy]
-  workflow_dispatch:
+  workflow_call:
+    inputs:
+      pulumi_action:
+        description: 'Pulumi action to perform'
+        required: true
+        type: string
+      workdir:
+        description: 'Working directory'
+        required: true
+        type: string
+      stack:
+        description: 'Stack to use'
+        required: true
+        type: string
 
 jobs:
   setup:
@@ -16,26 +26,25 @@ jobs:
     steps:
       - id: set-vars
         run: |
-          if [[ "${{ github.event.inputs.stack }}" == "strongmind_prod" ]]; then
+          if [[ "${{ inputs.stack }}" == "strongmind_prod" ]]; then
             echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}" >> $GITHUB_ENV
             echo "STATE_BUCKET=${{ vars.STATE_BUCKET_PROD }}" >> $GITHUB_ENV
-            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD }}" >> $GITHUB_ENV
+            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.pulumi_config_passphrase_prod }}" >> $GITHUB_ENV
           else
             echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}" >> $GITHUB_ENV
             echo "STATE_BUCKET=${{ vars.STATE_BUCKET_STAGE }}" >> $GITHUB_ENV
-            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}" >> $GITHUB_ENV
+            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.pulumi_config_passphrase_stage }}" >> $GITHUB_ENV
           fi
 
   update:
     needs: setup
     name: manual_deploy
-    if: github.ref == format('refs/heads/{0}', github.event.inputs.branch)
     uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
     with:
-      pulumi_command: ${{ github.event.inputs.pulumi_action }}
-      pulumi_stack: ${{ github.event.inputs.stack }}
+      pulumi_command: ${{ inputs.pulumi_action }}
+      pulumi_stack: ${{ inputs.stack }}
       aws_region: us-west-2
-      working_directory: ${{ github.event.inputs.workdir }}
+      working_directory: ${{ inputs.workdir }}
       role_to_assume: ${{ needs.setup.outputs.role_to_assume }}
       state_bucket: ${{ needs.setup.outputs.state_bucket }}
     secrets: 
