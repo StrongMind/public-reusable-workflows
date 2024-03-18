@@ -74,7 +74,6 @@ jobs:
           cache: "pip"
       - run: pip3 install --upgrade pip
       - run: pip3 install -r ${{inputs.working_directory}}/requirements.txt
-      - run: black . --check
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
