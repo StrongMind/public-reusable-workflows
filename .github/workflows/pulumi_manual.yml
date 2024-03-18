@@ -30,7 +30,7 @@ jobs:
     needs: setup
     name: manual_deploy
     if: github.ref == format('refs/heads/{0}', github.event.inputs.branch)
-    uses: ./.github/workflows/pulumi.yml
+    uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
     with:
       pulumi_command: ${{ github.event.inputs.pulumi_action }}
       pulumi_stack: ${{ github.event.inputs.stack }}
