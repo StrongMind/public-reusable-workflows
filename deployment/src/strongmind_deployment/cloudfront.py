@@ -45,6 +45,21 @@ class DistributionComponent(pulumi.ComponentResource):
         bucket=bucket.bucket.id,
         policy=public_bucket_policy_document.json)        
 
+        bucket_cors_configuration_v2 = aws.s3.BucketCorsConfigurationV2("s3_cors",
+          bucket=bucket.bucket.id,
+          cors_rules=[
+          aws.s3.BucketCorsConfigurationV2CorsRuleArgs(
+            allowed_headers=["*"],
+            allowed_methods=[
+                "HEAD",
+                "GET",
+            ],
+            allowed_origins=["*"],
+            expose_headers=["ETag"],
+            max_age_seconds=3000,
+          ),
+        ])
+
         stack = kwargs.get('stack')
         origin_domain = bucket.bucket.bucket_regional_domain_name
         origin_id = f"{fqdn_prefix}-origin"
@@ -60,6 +75,7 @@ class DistributionComponent(pulumi.ComponentResource):
         }
 
         self.dns()
+        cache_policy = aws.cloudfront.get_cache_policy(name="Managed-CachingOptimized")
         self.distribution = aws.cloudfront.Distribution(f"{fqdn_prefix}-distribution",
           opts=pulumi.ResourceOptions(parent=self),
           enabled=True,
@@ -77,6 +93,7 @@ class DistributionComponent(pulumi.ComponentResource):
           comment="",
           price_class="PriceClass_All",
           default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
+            cache_policy_id=cache_policy.id,
             allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
             cached_methods=["GET", "HEAD"],
             target_origin_id=origin_id,
@@ -85,11 +102,6 @@ class DistributionComponent(pulumi.ComponentResource):
             default_ttl=0,
             max_ttl=0,
             min_ttl=0,
-            forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
-              query_string=False,
-            cookies=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesCookiesArgs(
-              forward="none",
-            )),
           ),
           restrictions=aws.cloudfront.DistributionRestrictionsArgs(
             geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
