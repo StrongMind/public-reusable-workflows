@@ -27,3 +27,7 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/strongmind/public-reusable-workflows/tree/main/deployment"
+
+# optional: only required for beta release.
+[tool.hatch.build.targets.wheel]
+packages = ["deployment/strongmind_deployment"]
