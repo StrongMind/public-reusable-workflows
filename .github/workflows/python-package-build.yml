@@ -28,8 +28,9 @@ jobs:
         make test
 
     - name: package files
+    # major version changed during the Azure migration engagement with Caylent.
       run: |
-        make build -e VERSION=1.1.${{ github.run_number }}
+        make build -e VERSION=2.0.${{ github.run_number }}
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3
