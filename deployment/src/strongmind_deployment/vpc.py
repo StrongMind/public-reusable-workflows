@@ -1,17 +1,7 @@
-from dataclasses import dataclass
 from typing import Optional
-import typing
 import pulumi
 import pulumi_awsx as awsx
 from pulumi_awsx.ec2 import SubnetSpecArgs
-
-
-# @dataclass
-# class VpcComponentArgs:
-#     vpc_name: str
-#     cidr_block: str
-#     tags: Optional[dict] = None
-#     enable_nat_gateway: bool = False
 
 class VpcComponentArgs:
     def __init__(
@@ -107,12 +97,6 @@ class VpcComponent(pulumi.ComponentResource):
             subnet_strategy=awsx.ec2.SubnetAllocationStrategy.AUTO,
             tags=self.args.tags,
         )
-
-        # TODO: wip - create a class property for each subnet and AZ so they can be referenced specifically.
-        # can probably use the pulumi filters for this.
-        # subnet: aws.ec2.Subnet
-        # for subnet in enumerate(vpc.subnets):
-        #     setattr(self, f"public_subnet_{subnet.availability_zone}", subnet)
 
         return vpc
 
