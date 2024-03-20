@@ -106,6 +106,18 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     **args.inputs,
                     "arn": f"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
                 }
+            if args.typ == "awsx:ec2:Vpc":
+                outputs = {
+                    **args.inputs,
+                    "vpc_id": f"vpc-{faker.word()}",
+                }
+            if args.typ == "aws:ec2/natGateway:NatGateway":
+                outputs = {
+                    **args.inputs,
+                    "nat_gateways": { "asdf": "asdf"}
+                }
+            
+            print(args.typ)
 
             return [args.name + '_id', outputs]
 
