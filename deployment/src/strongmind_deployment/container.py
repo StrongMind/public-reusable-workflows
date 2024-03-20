@@ -413,6 +413,26 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
+        sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
+        self.healthy_host_metric_alarm = aws.cloudwatch.MetricAlarm(
+            "healthy_host_metric_alarm",
+            name=f"{project_stack}-healthy-host-metric-alarm",
+            comparison_operator="LessThanThreshold",
+            datapoints_to_alarm=1,
+            dimensions={
+                "LoadBalancer": self.load_balancer.load_balancer.name,
+                "TargetGroup": self.target_group.name,
+            },
+            evaluation_periods=1,
+            metric_name="HealthyHostCount",
+            namespace="AWS/ApplicationELB",
+            ok_actions=[sns_topic_arn],
+            period=60,
+            statistic="Maximum",
+            threshold="1",
+            treat_missing_data="notBreaching",
+        )
+
         self.dns(project, stack)
         load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
         target_group_arn = kwargs.get('target_group_arn', self.target_group.arn)
