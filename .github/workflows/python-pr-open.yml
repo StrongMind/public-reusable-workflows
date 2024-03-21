@@ -1,11 +1,11 @@
-name: Build Python Package
+name: Test Strongmind Deployment Package
 
 on:
   pull_request:
     branches:
       - main
       - caylent_main
-    types: 
+    types:
       - opened
       - edited
       - reopened
@@ -18,9 +18,8 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-      
     - name: Setup Python
-      uses: actions/setup-python@v4 
+      uses: actions/setup-python@v4
       with:
         python-version: "3.10"
 
