@@ -62,6 +62,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_out_policy = None
         self.max_capacity = kwargs.get('max_number_of_instances', 1)
         self.min_capacity = kwargs.get('min_number_of_instances', 1)
+        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
+        self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
+
 
         stack = pulumi.get_stack()
         project = pulumi.get_project()
@@ -413,7 +416,6 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
         self.healthy_host_metric_alarm = aws.cloudwatch.MetricAlarm(
             "healthy_host_metric_alarm",
             name=f"{project_stack}-healthy-host-metric-alarm",
@@ -426,11 +428,13 @@ class ContainerComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             metric_name="HealthyHostCount",
             namespace="AWS/ApplicationELB",
-            ok_actions=[sns_topic_arn],
+            alarm_actions=[self.sns_topic_arn],
+            ok_actions=[self.sns_topic_arn],
             period=60,
             statistic="Maximum",
-            threshold="1",
+            threshold=self.desired_web_count,
             treat_missing_data="notBreaching",
+            tags=self.tags,
         )
 
         self.dns(project, stack)
