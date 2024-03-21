@@ -21,6 +21,10 @@ class R53ZoneOutputs(str, Enum):
     ROUTE53_ZONE_ARN = "zone_arn"
     ROUTE53_ZONE_DNS_SERVERS = "dns_servers"
 
+    def __str__(self):
+        return self.value
+
+
 class Route53Zone(pulumi.ComponentResource):
     zone: aws.route53.Zone
     domain_name: str
@@ -35,15 +39,6 @@ class Route53Zone(pulumi.ComponentResource):
             self.zone = self.create_public_zone(args, child_opts)
 
         self.domain_name = args.domain_name
-
-        self.register_outputs(
-            {
-                R53ZoneOutputs.ROUTE53_ZONE_ID.value: self.zone.zone_id,
-                R53ZoneOutputs.ROUTE53_ZONE_ARN.value: self.zone.arn,
-                R53ZoneOutputs.ROUTE53_ZONE_NAME.value: self.zone.name,
-                R53ZoneOutputs.ROUTE53_ZONE_DNS_SERVERS.value: self.zone.name_servers,
-            }
-        )
 
     def create_public_zone(
         self: pulumi.ComponentResource,
