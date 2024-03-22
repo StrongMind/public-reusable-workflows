@@ -30,7 +30,10 @@ jobs:
     - name: package files
     # major version changed during the Azure migration engagement with Caylent.
       run: |
-        make build -e VERSION=2.0.${{ github.run_number }}
+        cd deployment
+        pip install hatch
+        hatch version 1.1.${{ github.run_number }}
+        make build 
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v3

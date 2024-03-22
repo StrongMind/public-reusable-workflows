@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strongmind_deployment_beta"
-version = "{PACKAGE_VERSION}"
+dynamic = ["version"]
 
 authors = [
   { name="Belding", email="teambelding@strongmind.com" },
@@ -28,6 +28,6 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/strongmind/public-reusable-workflows/tree/main/deployment"
 
-# optional: only required for beta release.
-[tool.hatch.build.targets.wheel]
-packages = ["deployment/strongmind_deployment"]
+[tool.hatch.version]
+path = "__version__.py"
+
