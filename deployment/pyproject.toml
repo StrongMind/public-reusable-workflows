@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "strongmind_deployment_beta"
+name = "strongmind_deployment"
 dynamic = ["version"]
 
 authors = [
