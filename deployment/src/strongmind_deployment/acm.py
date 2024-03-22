@@ -10,7 +10,7 @@ class AcmCertificateArgs:
     stack: str
     zone_id: str
     tags: dict = None
-    domain: str = "azws.com"
+    domain: str = "prod.aws2.strongmind.com"
 
 
 class AcmCertificate(pulumi.ComponentResource):
