@@ -24,10 +24,7 @@ class AcmCertificate(pulumi.ComponentResource):
 
         name = self.get_name(args.stack, name)
 
-        if args.cert_fqdn:
-            full_name = args.cert_fqdn
-        else:
-            full_name = f"{name}.{args.domain}"
+        full_name = args.cert_fqdn if args.cert_fqdn else f"{name}.{args.domain}"
 
         self.cert = self.create_certificate(full_name, args.tags, child_opts)
         domain_validation_options = self.cert.domain_validation_options

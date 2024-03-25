@@ -30,7 +30,7 @@ class Route53Zone(pulumi.ComponentResource):
     domain_name: str
 
     def __init__(self, name, args: Route53ZoneArgs, opts=None):
-        super().__init__("custom:Route53:Zone", name, {}, opts)
+        super().__init__("strongmind:global_build:commons:route53zone", name, {}, opts)
         child_opts = pulumi.ResourceOptions(parent=self)
 
         if args.vpc_id is not None:
