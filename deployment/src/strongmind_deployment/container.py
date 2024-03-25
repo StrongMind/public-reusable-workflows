@@ -416,25 +416,33 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        self.healthy_host_metric_alarm = aws.cloudwatch.MetricAlarm(
-            "healthy_host_metric_alarm",
-            name=f"{project_stack}-healthy-host-metric-alarm",
-            comparison_operator="LessThanThreshold",
-            datapoints_to_alarm=1,
-            dimensions={
-                "LoadBalancer": self.load_balancer.load_balancer.name,
-                "TargetGroup": self.target_group.name,
-            },
-            evaluation_periods=1,
-            metric_name="HealthyHostCount",
-            namespace="AWS/ApplicationELB",
-            alarm_actions=[self.sns_topic_arn],
-            ok_actions=[self.sns_topic_arn],
-            period=60,
-            statistic="Maximum",
-            threshold=self.desired_web_count,
-            treat_missing_data="notBreaching",
-            tags=self.tags,
+        load_balancer_dimension = self.load_balancer.load_balancer.arn.apply(
+            lambda arn: arn.split("/")[-1]
+        )
+        target_group_dimension = self.target_group.arn.apply(
+            lambda arn: arn.split("/")[-1]
+        )
+        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension).apply(lambda args: 
+            aws.cloudwatch.MetricAlarm(
+                "healthy_host_metric_alarm",
+                name=f"{project_stack}-healthy-host-metric-alarm",
+                comparison_operator="LessThanThreshold",
+                datapoints_to_alarm=1,
+                dimensions={
+                    "LoadBalancer":f"app/{project_stack}/{load_balancer_dimension}",
+                    "TargetGroup":f"targetgroup/{project_stack}/{target_group_dimension}",
+                },
+                evaluation_periods=1,
+                metric_name="HealthyHostCount",
+                namespace="AWS/ApplicationELB",
+                alarm_actions=[self.sns_topic_arn],
+                ok_actions=[self.sns_topic_arn],
+                period=60,
+                statistic="Maximum",
+                threshold=self.desired_web_count,
+                treat_missing_data="notBreaching",
+                tags=self.tags,
+            )
         )
 
         self.dns(project, stack)
