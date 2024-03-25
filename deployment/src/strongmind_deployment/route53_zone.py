@@ -2,17 +2,26 @@ from enum import Enum
 from typing import Optional, Dict
 import pulumi
 import pulumi_aws as aws
-from pydantic import BaseModel
 
 
-class Route53ZoneArgs(BaseModel):
-    domain_name: str
-    vpc_id: Optional[str] = None
-    vpc_region: Optional[str] = None
-    comment: Optional[str] = "Managed by Pulumi"
-    force_destroy: Optional[bool] = False
-    delegation_set_id: Optional[str] = None
-    tags: Optional[Dict[str, str]] = None
+class Route53ZoneArgs:
+    def __init__(
+        self,
+        domain_name: str,
+        vpc_id: Optional[str] = None,
+        vpc_region: Optional[str] = None,
+        comment: Optional[str] = "Managed by Pulumi",
+        force_destroy: Optional[bool] = False,
+        delegation_set_id: Optional[str] = None,
+        tags: Optional[Dict[str, str]] = None,
+    ):
+        self.domain_name = domain_name
+        self.vpc_id = vpc_id
+        self.vpc_region = vpc_region
+        self.comment = comment
+        self.force_destroy = force_destroy
+        self.delegation_set_id = delegation_set_id
+        self.tags = tags
 
 
 class R53ZoneOutputs(str, Enum):

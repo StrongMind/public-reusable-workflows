@@ -1,16 +1,24 @@
 import re
-from pydantic import BaseModel
+
 from pulumi import Output, ResourceOptions
 from pulumi_aws import acm, route53
 import pulumi
 
 
-class AcmCertificateArgs(BaseModel):
-    stack: str
-    zone_id: str
-    cert_fqdn: str = None
-    tags: dict = None
-    domain: str = "aws2.strongmind.com"
+class AcmCertificateArgs:
+    def __init__(
+        self,
+        stack: str,
+        zone_id: str,
+        cert_fqdn: str = None,
+        tags: dict = None,
+        domain: str = "aws2.strongmind.com",
+    ):
+        self.stack = stack
+        self.zone_id = zone_id
+        self.cert_fqdn = cert_fqdn
+        self.tags = tags
+        self.domain = domain
 
 
 class AcmCertificate(pulumi.ComponentResource):
