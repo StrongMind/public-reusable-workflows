@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strongmind_deployment_beta"
-version = "10.0.0"
+version = "{PACKAGE_VERSION}"
 
 authors = [
   { name="Belding", email="teambelding@strongmind.com" },
