@@ -18,7 +18,7 @@ class AcmCertificate(pulumi.ComponentResource):
         self, name: str, args: AcmCertificateArgs, opts: pulumi.ResourceOptions = None
     ):
         super().__init__(
-            "strongmind:global_build:commons:AcmCertificate", name, None, opts
+            "strongmind:global_build:commons:acmcertificate", name, None, opts
         )
         child_opts = pulumi.ResourceOptions(parent=self)
 
