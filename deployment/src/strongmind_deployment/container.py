@@ -429,8 +429,8 @@ class ContainerComponent(pulumi.ComponentResource):
                 comparison_operator="LessThanThreshold",
                 datapoints_to_alarm=1,
                 dimensions={
-                    "LoadBalancer":f"app/{project_stack}/{args[0]}",
-                    "TargetGroup":f"targetgroup/{project_stack}/{args[1]}",
+                    "LoadBalancer":f"app/{project_stack}/{load_balancer_dimension}",
+                    "TargetGroup":f"targetgroup/{project_stack}/{target_group_dimension}",
                 },
                 evaluation_periods=1,
                 metric_name="HealthyHostCount",
