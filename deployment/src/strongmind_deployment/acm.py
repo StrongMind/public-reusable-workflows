@@ -9,7 +9,7 @@ class AcmCertificateArgs:
     def __init__(
         self,
         zone_id: str,
-        cert_fqdn: str = None,
+        cert_fqdn: str,
     ):
         self.zone_id = zone_id
         self.cert_fqdn = cert_fqdn
