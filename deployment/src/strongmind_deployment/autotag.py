@@ -5,29 +5,8 @@ from strongmind_deployment.taggable import is_taggable
 import pulumi
 import subprocess
 
-# Usage:
-# config = pulumi.Config()
-# register_auto_tags({
-#     'user:Project': pulumi.get_project(),
-#     'user:Stack': pulumi.get_stack(),
-#     'user:Cost Center': config.require('costCenter'),
-# })
-#  Or to take existing defaults:
-# add_standard_billing_tags();
-#
-# Or to take existing defaults with a couple of additional tags:
-# add_standard_billing_tags({
-#     'Customer': 'Acme Co',
-#     'Service': 'Foobar',
-# })
-
 ########################
 ###### Entrypoint ######
-#    "product": project,
-#         "repository": project,
-#         "service": project,
-#         "environment": self.env_name,
-
 
 class StandardTags:
     def __init__(
@@ -49,8 +28,10 @@ class StandardTags:
         self.repository = repository or config.get("repository") or get_repo_name()
 
 
-def get_standard_tags(extra_tags=dict):
+def get_standard_tags(extra_tags:dict):
     """
+    Use this entrypoint if you need the tags, and auto-tagging isn't working for you.
+    This is useful for resources that need a different tagging format, like AutoScalingGroups
     merges the dictionary of tags and sets standard tags here
     """
     standard_tags = StandardTags(extra_tags)
@@ -64,8 +45,9 @@ def get_standard_tags(extra_tags=dict):
     }
 
 
-def add_standard_billing_tags(extra_tags=dict):
+def add_standard_billing_tags(extra_tags:dict):
     """
+    Main Entrypoint
     Adds tagging to all resources in the stack.
 
     Example:
@@ -80,9 +62,7 @@ def add_standard_billing_tags(extra_tags=dict):
         autotag.add_standard_billing_tags(all_tags)
     ```
     """
-    if not all(
-        isinstance(k, str) and isinstance(v, str) for k, v in extra_tags.items()
-    ):
+    if not all(isinstance(k, str) and isinstance(v, str) for k, v in extra_tags.items()):
         raise ValueError("All keys and values in 'extra_tags' must be strings.")
 
     register_auto_tags(get_standard_tags(extra_tags))
