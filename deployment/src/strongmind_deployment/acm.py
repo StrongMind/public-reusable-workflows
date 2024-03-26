@@ -27,10 +27,10 @@ class AcmCertificate(pulumi.ComponentResource):
     def create_resources(self):
 
         self.cert = self.create_certificate()
-        domain_validation_options = self.cert.domain_validation_options
+        self.domain_validation_options = self.cert.domain_validation_options
 
         self.validation_record = self.create_validation_record(
-            domain_validation_options
+            self.domain_validation_options
         )
         self.cert_validation = self.validate_certificate(self.validation_record)
 
