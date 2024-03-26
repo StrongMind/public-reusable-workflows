@@ -3,39 +3,56 @@
 from typing import Dict
 from strongmind_deployment.taggable import is_taggable
 import pulumi
+import subprocess
 
-# Usage:
-# config = pulumi.Config()
-# register_auto_tags({
-#     'user:Project': pulumi.get_project(),
-#     'user:Stack': pulumi.get_stack(),
-#     'user:Cost Center': config.require('costCenter'),
-# })
-#  Or to take existing defaults:
-# add_standard_billing_tags();
+#
 # 
-# Or to take existing defaults with a couple of additional tags:
-# add_standard_billing_tags({
-#     'Customer': 'Acme Co',
-#     'Service': 'Foobar',
-# })
-
 ########################
 ###### Entrypoint ######
 
-def get_standard_tags(extra_tags=dict):
+class StandardTags:
+    def __init__(
+        self,
+        extra_tags: dict,
+        project: str = None,
+        environment: str = None,
+        service: str = None,
+        product: str = None,
+        repository: str = None,
+    ):
+        config = pulumi.Config("tags")
+        self.extra_tags = extra_tags
+        self.project = project or pulumi.get_project()
+        self.environment = environment or pulumi.get_stack()
+        self.service = service or config.require("service")
+        self.product = product or config.require("product")
+        # get the git repository from the current git repo if not provided
+        self.repository = repository or config.get("repository") or get_repo_name()
+
+
+def get_standard_tags(extra_tags:dict):
     """
+    Use this entrypoint if you need the tags, and auto-tagging isn't working for you.
+    This is useful for resources that need a different tagging format, like AutoScalingGroups
     merges the dictionary of tags and sets standard tags here
     """
+    standard_tags = StandardTags(extra_tags)
     return {
         "environment": pulumi.get_stack(),
         "project": pulumi.get_project(),
+        "environment": standard_tags.environment,
+        "project": standard_tags.project,
+        "service": standard_tags.service,
+        "product": standard_tags.product,
+        "repository": standard_tags.repository,
         **extra_tags,
     }
 
 
-def add_standard_billing_tags(extra_tags=dict):
+def add_standard_billing_tags(extra_tags:dict):
     if not all(isinstance(k, str) and isinstance(v, str) for k, v in extra_tags.items()):
+    Main Entrypoint
+    if not all(
         raise ValueError("All keys and values in 'extra_tags' must be strings.")
     
     register_auto_tags(get_standard_tags(extra_tags))
