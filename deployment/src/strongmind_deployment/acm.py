@@ -22,13 +22,11 @@ class AcmCertificate(pulumi.ComponentResource):
         super().__init__("strongmind:global_build:commons:acmcert", name, None, opts)
         self.child_opts = pulumi.ResourceOptions(parent=self)
         self.args: AcmCertificateArgs = args
-        self.create_resources(self.args, name, child_opts)
+        self.create_resources()
 
     def create_resources(self):
 
-        full_name = self.args.cert_fqdn
-
-        self.cert = self.create_certificate(full_name, self.args.tags, child_opts)
+        self.cert = self.create_certificate()
         domain_validation_options = self.cert.domain_validation_options
 
         self.validation_record = self.create_validation_record(
@@ -36,11 +34,11 @@ class AcmCertificate(pulumi.ComponentResource):
         )
         self.cert_validation = self.validate_certificate(self.validation_record)
 
-    def create_certificate(self, full_name: str):
-        cert_name = f"acm_certificate_{full_name.replace('.', '_')}"
+    def create_certificate(self):
+        cert_name = f"acm_certificate_{self.args.cert_fqdn.replace('.', '_')}"
         return acm.Certificate(
             cert_name,
-            domain_name=full_name,
+            domain_name=self.args.cert_fqdn,
             validation_method="DNS",
             opts=self.child_opts,
         )
