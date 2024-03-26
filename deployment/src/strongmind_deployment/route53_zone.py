@@ -24,7 +24,7 @@ class Route53ZoneArgs:
         self.tags = tags
 
 
-class R53ZoneOutputs(str, Enum):
+class R53ZoneExportNames(str, Enum):
     ROUTE53_ZONE_ID = "zone_id"
     ROUTE53_ZONE_NAME = "zone_name"
     ROUTE53_ZONE_ARN = "zone_arn"

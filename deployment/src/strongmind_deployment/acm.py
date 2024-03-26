@@ -8,60 +8,44 @@ import pulumi
 class AcmCertificateArgs:
     def __init__(
         self,
-        stack: str,
         zone_id: str,
         cert_fqdn: str = None,
-        tags: dict = None,
-        domain: str = "aws2.strongmind.com",
     ):
-        self.stack = stack
         self.zone_id = zone_id
         self.cert_fqdn = cert_fqdn
-        self.tags = tags
-        self.domain = domain
 
 
 class AcmCertificate(pulumi.ComponentResource):
     def __init__(
         self, name: str, args: AcmCertificateArgs, opts: pulumi.ResourceOptions = None
     ):
-        super().__init__(
-            "strongmind:global_build:commons:acmcertificate", name, None, opts
-        )
-        child_opts = pulumi.ResourceOptions(parent=self)
+        super().__init__("strongmind:global_build:commons:acmcert", name, None, opts)
+        self.child_opts = pulumi.ResourceOptions(parent=self)
+        self.args: AcmCertificateArgs = args
+        self.create_resources(self.args, name, child_opts)
 
-        name = self.get_name(args.stack, name)
+    def create_resources(self):
 
-        full_name = args.cert_fqdn if args.cert_fqdn else f"{name}.{args.domain}"
+        full_name = self.args.cert_fqdn
 
-        self.cert = self.create_certificate(full_name, args.tags, child_opts)
+        self.cert = self.create_certificate(full_name, self.args.tags, child_opts)
         domain_validation_options = self.cert.domain_validation_options
 
-        self.validation_dns_record_value = self.create_validation_record(
-            domain_validation_options, args.zone_id, child_opts
+        self.validation_record = self.create_validation_record(
+            domain_validation_options
         )
-        self.cert_validation = self.validate_certificate(
-            self.validation_dns_record_value, child_opts
-        )
+        self.cert_validation = self.validate_certificate(self.validation_record)
 
-    def create_certificate(
-        self, full_name: str, tags: dict, opts: pulumi.ResourceOptions
-    ):
+    def create_certificate(self, full_name: str):
         cert_name = f"acm_certificate_{full_name.replace('.', '_')}"
         return acm.Certificate(
             cert_name,
             domain_name=full_name,
             validation_method="DNS",
-            tags=tags,
-            opts=opts,
+            opts=self.child_opts,
         )
 
-    def create_validation_record(
-        self,
-        domain_validation_options: list,
-        zone_id: str,
-        opts: pulumi.ResourceOptions,
-    ):
+    def create_validation_record(self, domain_validation_options: list):
         resource_record_value = domain_validation_options[0].resource_record_value
 
         def remove_trailing_period(value):
@@ -75,23 +59,19 @@ class AcmCertificate(pulumi.ComponentResource):
             record_name,
             name=domain_validation_options[0].resource_record_name,
             type=domain_validation_options[0].resource_record_type,
-            zone_id=zone_id,
+            zone_id=self.args.zone_id,
             records=[resource_record_value],
             ttl=1,
             opts=ResourceOptions(parent=self, depends_on=[self.cert]),
         )
 
-    def validate_certificate(
-        self, resource_record_value: str, opts: pulumi.ResourceOptions
-    ):
+    def validate_certificate(self, resource_record_value: str):
         try:
             # Try to import the existing certificate
             return acm.CertificateValidation.get(
                 "cert_validation",
                 self.cert.arn,
-                opts=ResourceOptions(
-                    parent=self, depends_on=[self.validation_dns_record_value]
-                ),
+                opts=ResourceOptions(parent=self, depends_on=[self.validation_record]),
             )
         except Exception:
             # If the certificate doesn't exist, create a new one
@@ -99,15 +79,5 @@ class AcmCertificate(pulumi.ComponentResource):
                 "cert_validation",
                 certificate_arn=self.cert.arn,
                 validation_record_fqdns=[resource_record_value],
-                opts=ResourceOptions(
-                    parent=self, depends_on=[self.validation_dns_record_value]
-                ),
+                opts=ResourceOptions(parent=self, depends_on=[self.validation_record]),
             )
-
-    def get_name(self, stack: str, name: str):
-        if "prod" in stack:
-            return f"{name}.prod"
-        elif "stage" in stack:
-            return f"{name}.stage"
-        elif "dev" in stack:
-            return f"{name}.dev"
