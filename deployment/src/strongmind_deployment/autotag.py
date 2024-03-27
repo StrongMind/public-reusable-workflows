@@ -1,5 +1,6 @@
 # thanks to joeduffy: https://github.com/joeduffy/aws-tags-example/tree/master/autotag-py
 
+import os
 from typing import Dict
 from strongmind_deployment.taggable import is_taggable
 import pulumi
@@ -115,10 +116,9 @@ def auto_tag(args, auto_tags):
             args.props["tags"] = {**(existing_tags), **new_tags}
 
         return pulumi.ResourceTransformationResult(args.props, args.opts)
-    # If you want to test to see if resources are not taggable, you can run a pulumi preview, and uncomment this line.
-    # This is commented out by default because there are some known resources that are not taggable, and this 
-    # clutters the output.
-    # Keep this comment here to assist future development debugging.
-    # else:
-    #     # uncomment to print resources if you think we need to add more to taggable.py.
-    #     print(f"Skipping auto-tagging for {args.type_}")
+    # If resources aren't in the taggable list they will be skipped. 
+    # If you want to know if there are resources that are not being tagged, 
+    # you can enable this environment variable and you will see a list of resources that this process isn't tagging.
+    else:
+       if os.getenv("DEBUG_LOG_UNTAGGED_RESOURCES", False):
+            print(f"Skipping auto-tagging for {args.type_}")
