@@ -53,7 +53,7 @@ class AcmCertificate(pulumi.ComponentResource):
             type=domain_validation_options[0].resource_record_type,
             zone_id=self.args.zone_id,
             records=[resource_record_value],
-            ttl=1,
+            ttl=300,
             opts=ResourceOptions(parent=self, depends_on=[self.cert]),
         )
 
