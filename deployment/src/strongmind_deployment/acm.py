@@ -63,15 +63,6 @@ class AcmCertificate(pulumi.ComponentResource):
         )
 
     def validate_certificate(self, resource_record_value: str):
-        try:
-            # Try to import the existing certificate
-            return acm.CertificateValidation.get(
-                "cert_validation",
-                self.cert.arn,
-                opts=ResourceOptions(parent=self, depends_on=[self.validation_record]),
-            )
-        except Exception:
-            # If the certificate doesn't exist, create a new one
             return acm.CertificateValidation(
                 "cert_validation",
                 certificate_arn=self.cert.arn,
