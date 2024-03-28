@@ -24,9 +24,6 @@ class AcmCertificate(pulumi.ComponentResource):
         self.args: AcmCertificateArgs = args
         self.create_resources()
 
-    import pulumi_aws.acm as acm
-    import pulumi_aws.route53 as route53
-
     def create_resources(self):
 
         self.cert = self.create_certificate()
