@@ -67,5 +67,5 @@ class AcmCertificate(pulumi.ComponentResource):
                 "cert_validation",
                 certificate_arn=self.cert.arn,
                 validation_record_fqdns=[resource_record_value],
-                opts=ResourceOptions(parent=self, depends_on=[self.validation_record]),
+                opts=ResourceOptions(parent=self, depends_on=[self.validation_record, self.cert]),
             )
