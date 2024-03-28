@@ -24,6 +24,9 @@ class AcmCertificate(pulumi.ComponentResource):
         self.args: AcmCertificateArgs = args
         self.create_resources()
 
+    import pulumi_aws.acm as acm
+    import pulumi_aws.route53 as route53
+
     def create_resources(self):
 
         self.cert = self.create_certificate()
@@ -59,7 +62,7 @@ class AcmCertificate(pulumi.ComponentResource):
             zone_id=self.args.zone_id,
             records=[resource_record_value],
             ttl=1,
-            opts=ResourceOptions(parent=self, depends_on=[self.cert]),
+            opts=ResourceOptions(parent=self, depends_on=[self.cert, self.domain_validation_options]),
         )
 
     def validate_certificate(self, resource_record_value: str):
