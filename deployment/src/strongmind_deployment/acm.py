@@ -46,12 +46,6 @@ class AcmCertificate(pulumi.ComponentResource):
 
     def create_validation_record(self, domain_validation_options: list):
         resource_record_value = domain_validation_options[0].resource_record_value
-
-        def remove_trailing_period(value):
-            return re.sub("\\.$", "", value)
-
-        if type(resource_record_value) != str:
-            resource_record_value = resource_record_value.apply(remove_trailing_period)
    
         return route53.Record(
             "cert_validation_record",
