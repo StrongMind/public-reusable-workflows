@@ -32,10 +32,11 @@ class AcmCertificate(pulumi.ComponentResource):
         self.cert = self.create_certificate()
         self.domain_validation_options = self.cert.domain_validation_options
 
-        self.validation_record = self.create_validation_record(
-            self.domain_validation_options
-        )
-        self.cert_validation = self.validate_certificate(self.validation_record)
+         # Use apply to create the validation record once domain_validation_options is ready
+        self.validation_record = self.domain_validation_options.apply(self.create_validation_record)
+
+        # Use apply to validate the certificate once validation_record is ready
+        self.cert_validation = self.validation_record.apply(self.validate_certificate)
 
     def create_certificate(self):
         cert_name = f"acm_certificate_{self.args.cert_fqdn.replace('.', '_')}"
@@ -62,7 +63,7 @@ class AcmCertificate(pulumi.ComponentResource):
             zone_id=self.args.zone_id,
             records=[resource_record_value],
             ttl=1,
-            opts=ResourceOptions(parent=self, depends_on=[self.cert, self.domain_validation_options]),
+            opts=ResourceOptions(parent=self, depends_on=[self.cert]),
         )
 
     def validate_certificate(self, resource_record_value: str):
@@ -70,5 +71,5 @@ class AcmCertificate(pulumi.ComponentResource):
                 "cert_validation",
                 certificate_arn=self.cert.arn,
                 validation_record_fqdns=[resource_record_value],
-                opts=ResourceOptions(parent=self, depends_on=[self.validation_record, self.cert]),
+                opts=ResourceOptions(parent=self, depends_on=[self.cert]),
             )
