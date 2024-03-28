@@ -51,15 +51,9 @@ class AcmCertificate(pulumi.ComponentResource):
 
         if type(resource_record_value) != str:
             resource_record_value = resource_record_value.apply(remove_trailing_period)
-
-        # Generate a unique name for the DNS validation record
-        def generate_record_name(resource_record_name):
-            return f"validation_record_{resource_record_name.replace('.', '_')}"
-
-        record_name = domain_validation_options[0].resource_record_name.apply(generate_record_name)
-
+   
         return route53.Record(
-            record_name,
+            "cert_validation_record",
             name=domain_validation_options[0].resource_record_name,
             type=domain_validation_options[0].resource_record_type,
             zone_id=self.args.zone_id,
