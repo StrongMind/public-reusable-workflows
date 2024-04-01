@@ -81,10 +81,10 @@ class EcsComponent(pulumi.ComponentResource):
 
         # ecs
         self.cluster = self.create_cluster()
-        self.create_service(
-            target_group=self.args.target_group,
-            cluster=self.cluster,
-        )
+        # self.create_service(
+        #     target_group=self.args.target_group,
+        #     cluster=self.cluster,
+        # )
 
     # TODO: candidate for common function
     def dict_to_named_env_vars(self):
@@ -101,7 +101,7 @@ class EcsComponent(pulumi.ComponentResource):
         cluster_name = f"{self.project_stack_name}-cluster"
         cluster = aws.ecs.Cluster(
             cluster_name,
-            name=cluster_name,
+            name=self.project_stack_name,
             # tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
@@ -168,6 +168,31 @@ class EcsComponent(pulumi.ComponentResource):
                 }
             ),
             opts=pulumi.ResourceOptions(parent=self),
+        )
+
+        allow_public_ecr_access = aws.iam.Policy(
+            "ECRPublicPolicy",
+            description="Allows access to public ECR repositories",
+            policy=json.dumps(
+                {
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Effect": "Allow",
+                            "Action": [
+                                "ecr-public:*",
+                            ],
+                            "Resource": "*",
+                        }
+                    ],
+                }
+            ),
+        )
+
+        aws.iam.RolePolicyAttachment(
+            "TaskRolePolicyAttachment",
+            role=execution_role.name,
+            policy_arn=allow_public_ecr_access.arn,
         )
 
         return execution_role
@@ -277,15 +302,17 @@ class EcsComponent(pulumi.ComponentResource):
         default_task_security_group = aws.ec2.SecurityGroup(
             "securityGroup",
             vpc_id=self.args.vpc_id,
-            egress=[
-                aws.ec2.SecurityGroupEgressArgs(
-                    from_port=0,
-                    to_port=0,
-                    protocol="-1",
-                    cidr_blocks=["0.0.0.0/0"],
-                    ipv6_cidr_blocks=["::/0"],
-                )
-            ],
+        )
+
+        aws.ec2.SecurityGroupRule(
+            "default_task_egress_rule",
+            type="egress",
+            from_port=0,
+            to_port=0,
+            protocol="-1",
+            cidr_blocks=["0.0.0.0/0"],
+            ipv6_cidr_blocks=["::/0"],
+            security_group_id=default_task_security_group.id,
         )
 
         self.fargate_service = awsx.ecs.FargateService(

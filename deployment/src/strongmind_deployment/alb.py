@@ -7,6 +7,7 @@ import pulumi_aws.lb as lb
 from strongmind_deployment.util import get_project_stack
 from strongmind_deployment import vpc
 
+
 class AlbPlacement(str, Enum):
     INTERNAL = "internal"
     EXTERNAL = "external"
@@ -15,19 +16,19 @@ class AlbPlacement(str, Enum):
         return str(self.value)
 
 
-class AlbArgs():
+class AlbArgs:
     def __init__(
         self,
         vpc_id: str,
         certificate_arn: str,
-        subnet_placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
+        placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
         internal_ingress_cidrs: list[str] = [],
         ingress_sg: ec2.SecurityGroup = None,
-        should_protect: bool = False
+        should_protect: bool = False,
     ):
         self.vpc_id = vpc_id
         self.certificate_arn = certificate_arn
-        self.subnet_placement = subnet_placement or AlbPlacement.EXTERNAL
+        self.placement = placement or AlbPlacement.EXTERNAL
         self.internal_ingress_cidrs = internal_ingress_cidrs
         self.ingress_sg = ingress_sg
         self.should_protect = should_protect
@@ -41,40 +42,42 @@ class Alb(pulumi.ComponentResource):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
 
         self.args = args
-        self.is_internal = args.subnet_placement == AlbPlacement.INTERNAL
-        self.subnet_ids: Sequence[str]= vpc.VpcComponent.get_subnets(
-            vpc_id=args.vpc_id, placement=args.subnet_placement
-        )
+        self.is_internal = args.placement == AlbPlacement.INTERNAL
+        self.subnet_placement: vpc.SubnetType = vpc.SubnetType.PRIVATE if self.is_internal else vpc.SubnetType.PUBLIC
+        self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
         self.project_stack = get_project_stack()
-        
+
         self.child_opts = pulumi.ResourceOptions(parent=self)
         self.create_resources()
-    
+
     def create_resources(self):
         self.alb = self.create_loadbalancer()
         self.https_listener = self.create_https_listener()
         self.create_port_80_redirect_listener()
-                        
+
     def create_loadbalancer(self):
-        specific_ingress_rules = self.create_ingress_rules()
+
         alb_default_security_group = ec2.SecurityGroup(
             f"{self.project_stack}-alb_sg",
-            description=f"Load Balancer Security Group for {self.args.subnet_placement} ALB",
+            description=f"Load Balancer Security Group for {self.args.placement} ALB",
             vpc_id=self.args.vpc_id,
-            ingress=specific_ingress_rules,
-            egress=[
-                ec2.SecurityGroupEgressArgs(
-                    from_port=0,
-                    to_port=0,
-                    protocol="-1",
-                    cidr_blocks=["0.0.0.0/0"],
-                )
-            ],
             tags={
                 "Name": "allow_tls",
             },
             opts=self.child_opts,
         )
+
+        ec2.SecurityGroupRule(
+            "alb_default_egress_rule",
+            type="egress",
+            from_port=0,
+            to_port=0,
+            protocol="-1",
+            cidr_blocks=["0.0.0.0/0"],
+            security_group_id=alb_default_security_group.id,
+        )
+
+        self.add_ingress_rules_to_security_group(security_group=alb_default_security_group)
 
         # TODO: implement feature toggle for access logs
         # create access logs bucket in the account and send access logs there.
@@ -138,55 +141,40 @@ class Alb(pulumi.ComponentResource):
         )
         return port_80_redirect_listener
 
-    def create_ingress_rules(self):
-        ingress_sg = None
+    def add_ingress_rules_to_security_group(self, security_group: ec2.SecurityGroup):
+        # TODO: for internal placment, we must allow ingress from the VPC CIDR block.
+        # currently this isn't required, so it is not implemented.
         if self.args.ingress_sg:
-            ingress_sg = ec2.SecurityGroupIngressArgs(
-                description="Group Ingress",
+            ec2.SecurityGroupRule(
+                description=f"Ingress from sg {self.args.ingress_sg.id}",
                 from_port=0,
                 to_port=0,
                 protocol="-1",
                 security_groups=[self.args.ingress_sg.id],
             )
 
-        rules: list[ec2.SecurityGroupIngressArgs] = []
-
-        if self.args.subnet_placement == AlbPlacement.EXTERNAL:
-            rules = [
-                ec2.SecurityGroupIngressArgs(
-                    description="TLS internet",
-                    from_port=443,
-                    to_port=443,
-                    protocol="tcp",
-                    cidr_blocks=[
-                        "0.0.0.0/0",
-                    ],
-                ),
-                ec2.SecurityGroupIngressArgs(
-                    description="Internet",
-                    from_port=80,
-                    to_port=80,
-                    protocol="tcp",
-                    cidr_blocks=[
-                        "0.0.0.0/0",
-                    ],
-                ),
-            ]
-        else:
-            rules = [
-                ec2.SecurityGroupIngressArgs(
-                    description="ingress",
-                    from_port=0,
-                    to_port=65535,
-                    protocol="tcp",
-                    cidr_blocks=self.args.internal_ingress_cidrs,
-                ),
-            ]
-
-        #TODO: continue refactoring this create_ingress_rules function, it's confusing, as it's doing two things.
-        if ingress_sg:
-            rules.append(ingress_sg)
-
-        return rules
-
-    
+        if not self.is_internal:
+            ec2.SecurityGroupRule(
+                "tls_ingress",
+                description="TLS internet",
+                type="ingress",
+                from_port=443,
+                to_port=443,
+                protocol="tcp",
+                cidr_blocks=[
+                    "0.0.0.0/0",
+                ],
+                security_group_id=security_group.id,
+            )
+            ec2.SecurityGroupRule(
+                "http_ingress",
+                description="Internet",
+                type="ingress",
+                from_port=80,
+                to_port=80,
+                protocol="tcp",
+                cidr_blocks=[
+                    "0.0.0.0/0",
+                ],
+                security_group_id=security_group.id,
+            )
