@@ -23,6 +23,8 @@ class SubnetType(str, Enum):
     A subnet range which is reserved, but no subnet will be created.
     """
 
+    def __str__(self):
+        return self.value
 
 class SubnetSpec:
     def __init__(self, type: SubnetType,  cidr_blocks: List[str]) -> None:

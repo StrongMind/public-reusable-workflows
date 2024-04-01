@@ -1,7 +1,7 @@
 from enum import Enum
 import pulumi
 import pulumi_aws as aws
-from typing import List, Optional
+from typing import List, Optional, Sequence
 from strongmind_deployment.subnet import SubnetSpec, SubnetType
 
 
@@ -160,7 +160,10 @@ class VpcComponent(pulumi.ComponentResource):
                 cidr_block=cidr_block,
                 map_public_ip_on_launch=False,
                 availability_zone=az,
-                tags={"Name": f"{self.vpc_name}-private-subnet-{az}"},
+                tags={
+                    "Name": f"{self.vpc_name}-private-subnet-{az}",
+                    "SubnetType": SubnetType.PRIVATE,
+                },
                 opts=self.child_opts,
             )
 
@@ -212,7 +215,6 @@ class VpcComponent(pulumi.ComponentResource):
             allocation_id=eip.id,
             tags={
                 "Name": f"{self.vpc_name}-nat-gateway-{az}",
-                "SubnetType": SubnetType.PRIVATE,
             },
             opts=self.child_opts,
         )
@@ -243,3 +245,23 @@ class VpcComponent(pulumi.ComponentResource):
             )
             database_subnets.append(database_subnet.id)
         return database_subnets
+
+    @staticmethod
+    def get_subnets(vpc_id: str, placement: SubnetType) -> Sequence[str]:
+        """
+        Get the subnet ids for a given subnet type.
+        """
+        subnets_result: aws.ec2.AwaitableGetSubnetsResult = aws.ec2.get_subnets(
+            filters=[
+                aws.ec2.GetSubnetsFilterArgs(
+                    name="vpc-id",
+                    values=[vpc_id],
+                ),
+                aws.ec2.GetSubnetsFilterArgs(
+                    name="tag:SubnetType",
+                    values=[placement],
+                ),
+            ]
+        )
+
+        return subnets_result.ids
