@@ -1,6 +1,5 @@
 import json
-from typing import Mapping, Optional, Dict
-from unittest.mock import Base
+from typing import Mapping, Optional, Dict, Sequence
 
 from strongmind_deployment.util import get_project_stack, get_project_stack_name
 import pulumi
@@ -9,12 +8,14 @@ import pulumi_aws.ecs as ecs
 import pulumi_awsx as awsx
 import pulumi_awsx.ecs as ecsx
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
-from strongmind_deployment.vpc import VpcComponent
+from strongmind_deployment import vpc
+
 
 class EcsComponentArgs:
     def __init__(
         self,
         vpc_id: pulumi.Output[str],
+        subnet_placement: vpc.SubnetType,
         container_image: pulumi.Output[str],
         target_group: Optional[aws.lb.TargetGroup] = None,
         env_vars: Dict[str, str] = None,
@@ -29,6 +30,7 @@ class EcsComponentArgs:
         secrets: Optional[Mapping[str, pulumi.Input[str]]] = None,
     ) -> None:
         self.vpc_id = vpc_id
+        self.subnet_placement = subnet_placement
         self.cluster_name = cluster_name or f"{get_project_stack_name('cluster')}"
         self.container_image = container_image
         self.target_group = target_group
@@ -42,6 +44,7 @@ class EcsComponentArgs:
         self.command = command
         self.secrets = secrets
 
+
 class EcsComponent(pulumi.ComponentResource):
     """
     This component originated from the container.py ContainerComponent class.
@@ -52,41 +55,47 @@ class EcsComponent(pulumi.ComponentResource):
     cluster: ecs.Cluster
 
     def __init__(self, name, args: EcsComponentArgs, opts=None) -> None:
-        super().__init__('strongmind:global_build:commons:clustered_container_service', name, None, opts)
+        super().__init__(
+            "strongmind:global_build:commons:clustered_container_service",
+            name,
+            None,
+            opts,
+        )
         self.name = name
         self.args = args
         self.project_stack_name = get_project_stack_name(name)
+        self.subnet_ids: Sequence[str]= vpc.VpcComponent.get_subnets(
+            vpc_id=args.vpc_id, placement=args.subnet_placement
+        )
+        
+        if len(self.subnet_ids) < 1:
+            raise ValueError("No subnets found for the given placement.")
+
         self.create_resources()
 
     def create_resources(self) -> None:
-
         self.env_vars = self.dict_to_named_env_vars() if self.args.env_vars else None
-        self.log_group = self.create_log_group()
         # # iam
         self.execution_role = self.create_execution_role()
         self.task_role = self.create_task_role()
 
         # ecs
         self.cluster = self.create_cluster()
-        self.create_service(target_group=self.args.target_group, cluster=self.cluster)
+        self.create_service(
+            target_group=self.args.target_group,
+            cluster=self.cluster,
+        )
 
     # TODO: candidate for common function
     def dict_to_named_env_vars(self):
         return [{"name": k, "value": v} for k, v in self.args.env_vars.items()]
 
-    def create_log_group(self) -> aws.cloudwatch.LogGroup:
+    def get_log_group_name(self) -> aws.cloudwatch.LogGroup:
+        # TBD - tempoarary code.
         # TODO: use a logs component for this - this was done as a quick refactor.
 
-        log_name = 'log'
-        if self.name != 'container':
-            log_name = f'{self.name}-log'
-
-        return aws.cloudwatch.LogGroup(
-                  log_name,
-                  retention_in_days=14,
-                  name=f'/aws/ecs/{get_project_stack()}',
-                #   tags=self.tags
-              )
+        log_group_name = f"/aws/ecs/{get_project_stack()}"
+        return log_group_name
 
     def create_cluster(self) -> aws.ecs.Cluster:
         cluster_name = f"{self.project_stack_name}-cluster"
@@ -104,7 +113,7 @@ class EcsComponent(pulumi.ComponentResource):
         """
         resource_name = f"{self.project_stack_name}-execution-role"
         execution_role = aws.iam.Role(
-            resource_name, 
+            resource_name,
             name=resource_name,
             assume_role_policy=json.dumps(
                 {
@@ -122,8 +131,9 @@ class EcsComponent(pulumi.ComponentResource):
             # tags=self.args.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        
+
         policy_name = f"{self.project_stack_name}-execution-policy"
+        #TODO: Is this required? we could just use a managed policy. (Copied from container.py for now)
         aws.iam.RolePolicy(
             policy_name,
             name=policy_name,
@@ -199,7 +209,7 @@ class EcsComponent(pulumi.ComponentResource):
                                 "ssmmessages:CreateControlChannel",
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
-                                "ssmmessages:OpenDataChannel"
+                                "ssmmessages:OpenDataChannel",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -215,16 +225,15 @@ class EcsComponent(pulumi.ComponentResource):
     def create_service(
         self,
         cluster: ecs.Cluster,
-        log_group: aws.cloudwatch.LogGroup,
-        target_group: aws.lb.TargetGroup = None
+        target_group: aws.lb.TargetGroup = None,
     ) -> ecsx.FargateService:
         """
-        Optionally accepts a target group. 
+        Optionally accepts a target group.
         If not supplied, the service will not have inbound network connectivity.
         """
-        
+
         port_mappings = None
-        if(target_group is not None):
+        if target_group is not None:
             port_mappings = [
                 awsx.ecs.TaskDefinitionPortMappingArgs(
                     container_port=self.args.container_port,
@@ -243,7 +252,7 @@ class EcsComponent(pulumi.ComponentResource):
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
-                        "awslogs-group": log_group.name,
+                        "awslogs-group": self.get_log_group_name(),
                         "awslogs-region": "us-west-2",
                         "awslogs-stream-prefix": "container",
                     },
@@ -259,7 +268,7 @@ class EcsComponent(pulumi.ComponentResource):
                 environment=self.env_vars,
             ),
         )
-        # This uses the naming logic of the container.py, consider revising to 
+        # This uses the naming logic of the container.py, consider revising to
         # match the pattern here.
         service_name = "service"
         if self.name != "container":
@@ -279,8 +288,6 @@ class EcsComponent(pulumi.ComponentResource):
             ],
         )
 
-        private_subnet_ids_output = VpcComponent.get_private_subnet_ids(self.args.vpc_id)
-        
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
             name=self.project_stack_name,
@@ -294,7 +301,7 @@ class EcsComponent(pulumi.ComponentResource):
             enable_execute_command=True,
             task_definition_args=task_definition_args,
             network_configuration=aws.ecs.ServiceNetworkConfigurationArgs(
-                subnets=private_subnet_ids_output.ids,
+                subnets=self.subnet_ids,
                 security_groups=[default_task_security_group.id],
             ),
             # tags=self.tags,

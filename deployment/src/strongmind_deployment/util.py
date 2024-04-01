@@ -1,4 +1,5 @@
 import pulumi
+import pulumi_aws as aws
 
 def get_project_stack_name(name: str) -> str:
     """
@@ -12,7 +13,7 @@ def get_project_stack() -> str:
   return f"{project}-{stack}"
 
 def get_account_stack_name(force_stack: str = None) -> str:
-  stack = pulumi.get_stack()
-  stack_part = "prod" if "prod" in stack else "stage"
-  account_stack = force_stack or f"strongmind_{stack_part}"
-  return f"organization/account/{account_stack}"
+    alias = aws.iam.get_account_alias().account_alias
+    account_stack_name = alias.replace("-","_")
+    account_stack = force_stack or account_stack_name
+    return f"organization/account/{account_stack}"

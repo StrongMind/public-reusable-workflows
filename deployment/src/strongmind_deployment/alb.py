@@ -1,11 +1,11 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, Sequence
 import pulumi
 import pulumi_aws as aws
 import pulumi_aws.ec2 as ec2
 import pulumi_aws.lb as lb
 from strongmind_deployment.util import get_project_stack_name
-
+from strongmind_deployment import vpc
 
 class AlbPlacement(str, Enum):
     INTERNAL = "internal"
@@ -19,17 +19,15 @@ class AlbArgs():
     def __init__(
         self,
         vpc_id: str,
-        subnet_ids: list[str],
         certificate_arn: str,
-        placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
+        subnet_placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
         internal_ingress_cidrs: list[str] = [],
         ingress_sg: ec2.SecurityGroup = None,
         should_protect: bool = False
     ):
         self.vpc_id = vpc_id
-        self.subnet_ids = subnet_ids
         self.certificate_arn = certificate_arn
-        self.placement = placement or AlbPlacement.EXTERNAL
+        self.subnet_placement = subnet_placement or AlbPlacement.EXTERNAL
         self.internal_ingress_cidrs = internal_ingress_cidrs
         self.ingress_sg = ingress_sg
         self.should_protect = should_protect
@@ -43,7 +41,10 @@ class Alb(pulumi.ComponentResource):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
 
         self.args = args
-        self.is_internal = args.placement or AlbPlacement.INTERNAL
+        self.is_internal = args.subnet_placement or AlbPlacement.INTERNAL
+        self.subnet_ids: Sequence[str]= vpc.VpcComponent.get_subnets(
+            vpc_id=args.vpc_id, placement=args.subnet_placement
+        )
         self.project_stack_name = get_project_stack_name(name)
         
         self.child_opts = pulumi.ResourceOptions(parent=self)
@@ -53,12 +54,12 @@ class Alb(pulumi.ComponentResource):
         self.alb = self.create_loadbalancer()
         self.https_listener = self.create_https_listener()
         self.create_port_80_redirect_listener()
-
+                        
     def create_loadbalancer(self):
         specific_ingress_rules = self.create_ingress_rules()
         alb_default_security_group = ec2.SecurityGroup(
             f"{self.project_stack_name}-alb_sg",
-            description=f"Load Balancer Security Group for {self.args.placement} ALB",
+            description=f"Load Balancer Security Group for {self.args.subnet_placement} ALB",
             vpc_id=self.args.vpc_id,
             ingress=specific_ingress_rules,
             egress=[
@@ -84,7 +85,7 @@ class Alb(pulumi.ComponentResource):
             internal=self.is_internal,
             load_balancer_type="application",
             security_groups=[alb_default_security_group.id],
-            subnets=self.args.subnet_ids,
+            subnets=self.subnet_ids,
             enable_deletion_protection=self.args.should_protect,
             # access_logs=aws.lb.LoadBalancerAccessLogsArgs(
             #     bucket=access_logs_bucket_name,
@@ -148,7 +149,7 @@ class Alb(pulumi.ComponentResource):
 
         rules: list[ec2.SecurityGroupIngressArgs] = []
 
-        if self.args.placement == AlbPlacement.EXTERNAL:
+        if self.args.subnet_placement == AlbPlacement.EXTERNAL:
             rules = [
                 ec2.SecurityGroupIngressArgs(
                     description="TLS internet",
@@ -180,7 +181,10 @@ class Alb(pulumi.ComponentResource):
                 ),
             ]
 
-        if ingress_sg:
-            rules.append(ingress_sg)
+        #TODO: continue refactoring this create_ingress_rules function, it's confusing, as it's doing two things.
+        # if ingress_sg:
+        #     rules.append(ingress_sg)
 
         return rules
+
+    
