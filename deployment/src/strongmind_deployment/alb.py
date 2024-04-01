@@ -4,7 +4,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_aws.ec2 as ec2
 import pulumi_aws.lb as lb
-from strongmind_deployment.util import get_project_stack_name
+from strongmind_deployment.util import get_project_stack
 from strongmind_deployment import vpc
 
 class AlbPlacement(str, Enum):
@@ -41,11 +41,11 @@ class Alb(pulumi.ComponentResource):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
 
         self.args = args
-        self.is_internal = args.subnet_placement or AlbPlacement.INTERNAL
+        self.is_internal = args.subnet_placement == AlbPlacement.INTERNAL
         self.subnet_ids: Sequence[str]= vpc.VpcComponent.get_subnets(
             vpc_id=args.vpc_id, placement=args.subnet_placement
         )
-        self.project_stack_name = get_project_stack_name(name)
+        self.project_stack = get_project_stack()
         
         self.child_opts = pulumi.ResourceOptions(parent=self)
         self.create_resources()
@@ -58,7 +58,7 @@ class Alb(pulumi.ComponentResource):
     def create_loadbalancer(self):
         specific_ingress_rules = self.create_ingress_rules()
         alb_default_security_group = ec2.SecurityGroup(
-            f"{self.project_stack_name}-alb_sg",
+            f"{self.project_stack}-alb_sg",
             description=f"Load Balancer Security Group for {self.args.subnet_placement} ALB",
             vpc_id=self.args.vpc_id,
             ingress=specific_ingress_rules,
@@ -80,8 +80,8 @@ class Alb(pulumi.ComponentResource):
         # create access logs bucket in the account and send access logs there.
         # access_logs_bucket_name = self.account_stack.get_output(....
 
-        self.alb = lb.LoadBalancer(
-            f"{self.project_stack_name}",
+        alb = lb.LoadBalancer(
+            self.project_stack[:30],
             internal=self.is_internal,
             load_balancer_type="application",
             security_groups=[alb_default_security_group.id],
@@ -94,10 +94,11 @@ class Alb(pulumi.ComponentResource):
             # ),
             opts=self.child_opts,
         )
+        return alb
 
     def create_https_listener(self):
         https_listener = lb.Listener(
-            f"{self.project_stack_name}-https-listener",
+            f"{self.project_stack}-https-listener",
             load_balancer_arn=self.alb.arn,
             port=443,
             certificate_arn=self.args.certificate_arn,
@@ -118,7 +119,7 @@ class Alb(pulumi.ComponentResource):
 
     def create_port_80_redirect_listener(self):
         port_80_redirect_listener = aws.alb.Listener(
-            f"{self.project_stack_name}-80-redirect-443",
+            f"{self.project_stack}-80-redirect-443",
             load_balancer_arn=self.alb.arn,
             port=80,
             default_actions=[
@@ -138,6 +139,7 @@ class Alb(pulumi.ComponentResource):
         return port_80_redirect_listener
 
     def create_ingress_rules(self):
+        ingress_sg = None
         if self.args.ingress_sg:
             ingress_sg = ec2.SecurityGroupIngressArgs(
                 description="Group Ingress",
@@ -182,8 +184,8 @@ class Alb(pulumi.ComponentResource):
             ]
 
         #TODO: continue refactoring this create_ingress_rules function, it's confusing, as it's doing two things.
-        # if ingress_sg:
-        #     rules.append(ingress_sg)
+        if ingress_sg:
+            rules.append(ingress_sg)
 
         return rules
 

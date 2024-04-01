@@ -31,3 +31,6 @@ dependencies = [
 [tool.hatch.version]
 path = "__version__.py"
 
+# remember to take this out before the PR, it is too opinionated for this PR
+[tool.black]
+line-length = 140
