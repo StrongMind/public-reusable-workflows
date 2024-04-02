@@ -273,12 +273,14 @@ class VpcComponent(pulumi.ComponentResource):
         service_name: str,
     ):
         region = aws.get_region().name
+        private_subnet_ids = self.get_subnets(self.vpc.id, SubnetType.PRIVATE)
         aws.ec2.VpcEndpoint(
             f"{service_name}-interface",
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
             vpc_endpoint_type="Interface",
-            security_group_ids=[self.vpc.default_security_group_id],
+            # security_group_ids=[self.vpc.default_security_group_id],
+            subnet_ids=private_subnet_ids,
             private_dns_enabled=True,
             opts=self.child_opts,
             tags={
