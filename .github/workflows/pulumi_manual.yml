@@ -26,7 +26,7 @@ jobs:
     steps:
       - id: set-vars
         run: |
-          if [[ "${{ inputs.stack }}" == "strongmind_prod" ]]; then
+          if [[ "${{ inputs.stack }}" =~ "prod" ]]; then
             echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}" >> $GITHUB_ENV
             echo "STATE_BUCKET=${{ vars.STATE_BUCKET_PROD }}" >> $GITHUB_ENV
             echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.pulumi_config_passphrase_prod }}" >> $GITHUB_ENV
