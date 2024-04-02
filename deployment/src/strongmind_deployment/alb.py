@@ -37,6 +37,7 @@ class AlbArgs:
 class Alb(pulumi.ComponentResource):
     alb: lb.LoadBalancer
     https_listener: lb.Listener
+    security_group: ec2.SecurityGroup
 
     def __init__(self, name: str, args: AlbArgs, opts=None):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
@@ -57,7 +58,7 @@ class Alb(pulumi.ComponentResource):
 
     def create_loadbalancer(self):
 
-        alb_default_security_group = ec2.SecurityGroup(
+        alb_security_group = ec2.SecurityGroup(
             f"{self.project_stack}-alb_sg",
             description=f"Load Balancer Security Group for {self.args.placement} ALB",
             vpc_id=self.args.vpc_id,
@@ -67,6 +68,9 @@ class Alb(pulumi.ComponentResource):
             opts=self.child_opts,
         )
 
+        # this is a side effect - refactor out of this function
+        self.security_group = alb_security_group
+
         ec2.SecurityGroupRule(
             "alb_default_egress_rule",
             type="egress",
@@ -74,10 +78,10 @@ class Alb(pulumi.ComponentResource):
             to_port=0,
             protocol="-1",
             cidr_blocks=["0.0.0.0/0"],
-            security_group_id=alb_default_security_group.id,
+            security_group_id=alb_security_group.id,
         )
 
-        self.add_ingress_rules_to_security_group(security_group=alb_default_security_group)
+        self.add_ingress_rules_to_security_group(security_group=alb_security_group)
 
         # TODO: implement feature toggle for access logs
         # create access logs bucket in the account and send access logs there.
@@ -87,7 +91,7 @@ class Alb(pulumi.ComponentResource):
             self.project_stack[:30],
             internal=self.is_internal,
             load_balancer_type="application",
-            security_groups=[alb_default_security_group.id],
+            security_groups=[alb_security_group.id],
             subnets=self.subnet_ids,
             enable_deletion_protection=self.args.should_protect,
             # access_logs=aws.lb.LoadBalancerAccessLogsArgs(

@@ -18,7 +18,7 @@ class EcsComponentArgs:
         subnet_placement: vpc.SubnetType,
         container_image: pulumi.Output[str],
         target_group: Optional[aws.lb.TargetGroup] = None,
-        ingress_sg: aws.ec2.SecurityGroup = None,
+        ingress_sg: str = None,
         env_vars: Dict[str, str] = None,
         health_check_path: Optional[str] = "/up",
         desired_count: Optional[int] = 1,
@@ -35,7 +35,7 @@ class EcsComponentArgs:
         self.cluster_name = cluster_name
         self.container_image = container_image
         self.target_group = target_group
-        self.ingress_sg = ingress_sg
+        self.ingress_sg_id = ingress_sg
         self.container_port = container_port
         self.env_vars = env_vars
         self.health_check_path = health_check_path
@@ -165,7 +165,8 @@ class EcsComponent(pulumi.ComponentResource):
                                 "ecr:CompleteLayerUpload",
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
-                                "secretsmanager:GetSecretValue",
+                                "secretsmanager:*",
+                                # "secretsmanager:GetSecretValue",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -222,6 +223,7 @@ class EcsComponent(pulumi.ComponentResource):
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
                                 "ssmmessages:OpenDataChannel",
+                                "*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -276,6 +278,7 @@ class EcsComponent(pulumi.ComponentResource):
                 command=self.args.command,
                 essential=True,
                 port_mappings=port_mappings,
+                # a sequence of: TaskDefinitionSecretArgs
                 secrets=self.args.secrets,
                 environment=self.env_vars,
             ),
@@ -303,14 +306,14 @@ class EcsComponent(pulumi.ComponentResource):
         )
 
         # add ingress to the task from the alb
-        if target_group is not None and self.args.ingress_sg is not None:
+        if target_group is not None and self.args.ingress_sg_id is not None:
             aws.ec2.SecurityGroupRule(
                 "default_task_ingress_rule",
                 type="ingress",
                 from_port=self.args.container_port,
                 to_port=self.args.container_port,
                 protocol="tcp",
-                source_security_group_id=self.args.ingress_sg.id,
+                source_security_group_id=self.args.ingress_sg_id,
                 security_group_id=default_task_security_group.id,
             )
 
