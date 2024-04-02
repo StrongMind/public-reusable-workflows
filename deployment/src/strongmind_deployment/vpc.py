@@ -66,6 +66,7 @@ class VpcComponent(pulumi.ComponentResource):
         self.public_subnets = self.create_public_subnets()
         self.private_subnets = self.create_private_subnets()
         self.database_subnets = self.create_database_subnets()
+        self.create_vpc_endpoints()
 
     def create_vpc(self: pulumi.ComponentResource):
         vpc_name = self.vpc_name
@@ -245,6 +246,45 @@ class VpcComponent(pulumi.ComponentResource):
             )
             database_subnets.append(database_subnet.id)
         return database_subnets
+
+    def create_vpc_endpoints(self):
+        self.create_private_link_interface("ecr.api")
+        self.create_private_link_interface("ecr.dkr")
+        self.create_private_link_interface("logs")
+        self.create_private_link_interface("dms")
+        self.create_private_link_interface("secretsmanager")
+        self.create_private_link_gateway("s3")
+
+    def create_private_link_gateway(self, service_name: str):
+        region = aws.get_region().name
+        aws.ec2.VpcEndpoint(
+            f"{service_name}-gateway",
+            
+            vpc_id=self.vpc.id,
+            service_name=f"com.amazonaws.{region}.{service_name}",
+            vpc_endpoint_type="Gateway",
+            tags={
+                "Name": f"{service_name}-gateway",
+            }
+        )
+
+    def create_private_link_interface(
+        self,
+        service_name: str,
+    ):
+        region = aws.get_region().name
+        aws.ec2.VpcEndpoint(
+            f"{service_name}-interface",
+            vpc_id=self.vpc.id,
+            service_name=f"com.amazonaws.{region}.{service_name}",
+            vpc_endpoint_type="Interface",
+            security_group_ids=[self.vpc.default_security_group_id],
+            private_dns_enabled=True,
+            opts=self.child_opts,
+            tags={
+                "Name": f"{service_name}-interface",
+            },
+        )
 
     @staticmethod
     def get_subnets(vpc_id: str, placement: SubnetType) -> Sequence[str]:
