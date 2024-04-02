@@ -29,12 +29,15 @@ jobs:
           if [[ "${{ inputs.stack }}" =~ "prod" ]]; then
             echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}" >> $GITHUB_ENV
             echo "STATE_BUCKET=${{ vars.STATE_BUCKET_PROD }}" >> $GITHUB_ENV
-            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.pulumi_config_passphrase_prod }}" >> $GITHUB_ENV
+            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD}}" >> $GITHUB_ENV
           else
             echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}" >> $GITHUB_ENV
             echo "STATE_BUCKET=${{ vars.STATE_BUCKET_STAGE }}" >> $GITHUB_ENV
-            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.pulumi_config_passphrase_stage }}" >> $GITHUB_ENV
+            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}" >> $GITHUB_ENV
           fi
+          echo "ROLE_TO_ASSUME=$ROLE_TO_ASSUME"
+          echo "STATE_BUCKET=$STATE_BUCKET"
+          echo "PULUMI_CONFIG_PASSPHRASE=$PULUMI_CONFIG_PASSPHRASE"
 
   update:
     needs: setup
