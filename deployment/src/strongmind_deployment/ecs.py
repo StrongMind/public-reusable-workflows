@@ -163,7 +163,6 @@ class EcsComponent(pulumi.ComponentResource):
                                 "ecr:InitiateLayerUpload",
                                 "ecr:UploadLayerPart",
                                 "ecr:CompleteLayerUpload",
-                                "ecr:PutImage",
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
                                 "secretsmanager:GetSecretValue",
