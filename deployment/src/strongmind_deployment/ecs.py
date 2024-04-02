@@ -1,7 +1,7 @@
 import json
 from typing import Mapping, Optional, Dict, Sequence
 
-from strongmind_deployment.util import get_project_stack, get_project_stack_name
+from strongmind_deployment.util import get_project_stack
 import pulumi
 import pulumi_aws as aws
 import pulumi_aws.ecs as ecs
@@ -18,6 +18,7 @@ class EcsComponentArgs:
         subnet_placement: vpc.SubnetType,
         container_image: pulumi.Output[str],
         target_group: Optional[aws.lb.TargetGroup] = None,
+        ingress_sg: aws.ec2.SecurityGroup = None,
         env_vars: Dict[str, str] = None,
         health_check_path: Optional[str] = "/up",
         desired_count: Optional[int] = 1,
@@ -31,9 +32,10 @@ class EcsComponentArgs:
     ) -> None:
         self.vpc_id = vpc_id
         self.subnet_placement = subnet_placement
-        self.cluster_name = cluster_name or f"{get_project_stack_name('cluster')}"
+        self.cluster_name = cluster_name
         self.container_image = container_image
         self.target_group = target_group
+        self.ingress_sg = ingress_sg
         self.container_port = container_port
         self.env_vars = env_vars
         self.health_check_path = health_check_path
@@ -63,7 +65,8 @@ class EcsComponent(pulumi.ComponentResource):
         )
         self.name = name
         self.args = args
-        self.project_stack_name = get_project_stack_name(name)
+        self.project_stack = get_project_stack()
+        self.cluster_name = args.cluster_name or self.project_stack 
         self.subnet_ids: Sequence[str]= vpc.VpcComponent.get_subnets(
             vpc_id=args.vpc_id, placement=args.subnet_placement
         )
@@ -71,8 +74,13 @@ class EcsComponent(pulumi.ComponentResource):
         if len(self.subnet_ids) < 1:
             raise ValueError("No subnets found for the given placement.")
 
+        self.validate_args()
         self.create_resources()
 
+    def validate_args(self) -> None:
+        # validate that there is an ingress sg if this has a target group, 
+        # so it has access from the alb. 
+        pass
     def create_resources(self) -> None:
         self.env_vars = self.dict_to_named_env_vars() if self.args.env_vars else None
         # # iam
@@ -81,10 +89,10 @@ class EcsComponent(pulumi.ComponentResource):
 
         # ecs
         self.cluster = self.create_cluster()
-        # self.create_service(
-        #     target_group=self.args.target_group,
-        #     cluster=self.cluster,
-        # )
+        self.create_service(
+            target_group=self.args.target_group,
+            cluster=self.cluster,
+        )
 
     # TODO: candidate for common function
     def dict_to_named_env_vars(self):
@@ -98,10 +106,9 @@ class EcsComponent(pulumi.ComponentResource):
         return log_group_name
 
     def create_cluster(self) -> aws.ecs.Cluster:
-        cluster_name = f"{self.project_stack_name}-cluster"
         cluster = aws.ecs.Cluster(
-            cluster_name,
-            name=self.project_stack_name,
+            f"{self.cluster_name}-cluster",
+            name=self.cluster_name,
             # tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
@@ -111,7 +118,7 @@ class EcsComponent(pulumi.ComponentResource):
         """
         The default execution role which is public, for modification.
         """
-        resource_name = f"{self.project_stack_name}-execution-role"
+        resource_name = f"{self.project_stack}-execution-role"
         execution_role = aws.iam.Role(
             resource_name,
             name=resource_name,
@@ -132,7 +139,7 @@ class EcsComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        policy_name = f"{self.project_stack_name}-execution-policy"
+        policy_name = f"{self.project_stack}-execution-policy"
         #TODO: Is this required? we could just use a managed policy. (Copied from container.py for now)
         aws.iam.RolePolicy(
             policy_name,
@@ -170,35 +177,16 @@ class EcsComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        allow_public_ecr_access = aws.iam.Policy(
-            "ECRPublicPolicy",
-            description="Allows access to public ECR repositories",
-            policy=json.dumps(
-                {
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Effect": "Allow",
-                            "Action": [
-                                "ecr-public:*",
-                            ],
-                            "Resource": "*",
-                        }
-                    ],
-                }
-            ),
-        )
-
         aws.iam.RolePolicyAttachment(
-            "TaskRolePolicyAttachment",
+            "TaskExecutionRolePolicyAttachment",
             role=execution_role.name,
-            policy_arn=allow_public_ecr_access.arn,
+            policy_arn="arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
         )
 
         return execution_role
 
     def create_task_role(self) -> aws.iam.Role:
-        task_role_name = f"{self.project_stack_name}-task-role"
+        task_role_name = f"{self.project_stack}-task-role"
         task_role = aws.iam.Role(
             task_role_name,
             name=task_role_name,
@@ -220,7 +208,7 @@ class EcsComponent(pulumi.ComponentResource):
         )
 
         # TODO: extract this as a named policy in a common policy lib area.
-        task_policy_name = f"{self.project_stack_name}-task-policy"
+        task_policy_name = f"{self.project_stack}-task-policy"
         aws.iam.RolePolicy(
             task_policy_name,
             name=task_policy_name,
@@ -271,9 +259,9 @@ class EcsComponent(pulumi.ComponentResource):
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
             task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
             skip_destroy=True,
-            family=self.project_stack_name,
+            family=self.project_stack,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=self.project_stack_name,
+                name=self.project_stack,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
@@ -315,9 +303,21 @@ class EcsComponent(pulumi.ComponentResource):
             security_group_id=default_task_security_group.id,
         )
 
+        # add ingress to the task from the alb
+        if target_group is not None and self.args.ingress_sg is not None:
+            aws.ec2.SecurityGroupRule(
+                "default_task_ingress_rule",
+                type="ingress",
+                from_port=self.args.container_port,
+                to_port=self.args.container_port,
+                protocol="tcp",
+                source_security_group_id=self.args.ingress_sg.id,
+                security_group_id=default_task_security_group.id,
+            )
+
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
-            name=self.project_stack_name,
+            name=self.project_stack,
             desired_count=self.args.desired_count,
             cluster=cluster.arn,
             continue_before_steady_state=True,
