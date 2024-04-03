@@ -14,6 +14,14 @@ class NatGatewayStrategy(str, Enum):
         return self.value
 
 
+class PrivateLinkType(str, Enum):
+    GATEWAY = "Gateway"
+    INTERFACE = "Interface"
+
+    def __str__(self):
+        return self.value
+
+
 class VpcComponentArgs:
     def __init__(
         self,
@@ -66,7 +74,6 @@ class VpcComponent(pulumi.ComponentResource):
         self.public_subnets = self.create_public_subnets()
         self.private_subnets = self.create_private_subnets()
         self.database_subnets = self.create_database_subnets()
-        self.create_vpc_endpoints()
 
     def create_vpc(self: pulumi.ComponentResource):
         vpc_name = self.vpc_name
@@ -224,7 +231,7 @@ class VpcComponent(pulumi.ComponentResource):
             },
             opts=self.child_opts,
         )
-      
+
         return nat_gateway
 
     def create_database_subnets(self):
@@ -252,21 +259,23 @@ class VpcComponent(pulumi.ComponentResource):
             database_subnets.append(database_subnet.id)
         return database_subnets
 
-    def create_vpc_endpoints(self):
-        self.create_private_link_interface("ecr.api")
-        self.create_private_link_interface("ecr.dkr")
-        self.create_private_link_interface("logs")
-        self.create_private_link_interface("dms", SubnetType.ISOLATED)
-        self.create_private_link_interface("secretsmanager")
-        self.create_private_link_gateway("s3")
+    def create_private_link(
+        self,
+        service_name: str,
+        placement: SubnetType = SubnetType.PRIVATE,
+        type: PrivateLinkType = PrivateLinkType.INTERFACE,
+    )-> aws.ec2.VpcEndpoint:
+        if type == PrivateLinkType.GATEWAY:
+            return self.create_private_link_gateway(service_name)
+        return self.create_private_link_interface(service_name, placement)
 
-    def create_private_link_gateway(self, service_name: str):
+    def create_private_link_gateway(self, service_name: str) -> aws.ec2.VpcEndpoint:
         region = aws.get_region().name
-        aws.ec2.VpcEndpoint(
+        return aws.ec2.VpcEndpoint(
             f"{service_name}-gateway",
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
-            vpc_endpoint_type="Gateway",
+            vpc_endpoint_type=PrivateLinkType.GATEWAY,
             tags={
                 "Name": f"{service_name}-gateway",
             },
@@ -276,14 +285,14 @@ class VpcComponent(pulumi.ComponentResource):
         self,
         service_name: str,
         subnet_type: SubnetType = SubnetType.PRIVATE,
-    ):
+    ) -> aws.ec2.VpcEndpoint:
         region = aws.get_region().name
         target_subnet_ids = self.get_subnets(self.vpc.id, subnet_type)
-        aws.ec2.VpcEndpoint(
+        return aws.ec2.VpcEndpoint(
             f"{service_name}-interface",
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
-            vpc_endpoint_type="Interface",
+            vpc_endpoint_type=PrivateLinkType.INTERFACE,
             # security_group_ids=[self.vpc.default_security_group_id],
             subnet_ids=target_subnet_ids,
             private_dns_enabled=True,
