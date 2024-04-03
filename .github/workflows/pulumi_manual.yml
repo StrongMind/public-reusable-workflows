@@ -7,18 +7,22 @@ on:
         description: 'Pulumi action to perform'
         required: true
         type: string
+        default: 'preview'
       workdir:
         description: 'Working directory'
         required: true
         type: string
+        default: 'account'
       stack:
         description: 'Stack to use'
         required: true
         type: string
+        default: 'strongmind_stage'
       aws_region:
         description: 'aws region'
         required: true
         type: string
+        default: 'us-west-2'
 
 jobs:
   manual_stage:
