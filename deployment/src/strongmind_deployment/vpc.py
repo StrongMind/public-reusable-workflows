@@ -172,6 +172,7 @@ class VpcComponent(pulumi.ComponentResource):
                 # If we are in a single nat gateawy scenario, only the first AZ will get one.
                 # However, this property will persist outside the for loop, and be assigned
                 # to other Subnets.
+                # get the public subnet for the same AZ
                 public_subnet_id = self.get_subnet_in_az(
                     self.vpc.id, SubnetType.PUBLIC, az
                 )
@@ -223,7 +224,7 @@ class VpcComponent(pulumi.ComponentResource):
             },
             opts=self.child_opts,
         )
-
+      
         return nat_gateway
 
     def create_database_subnets(self):
@@ -255,7 +256,7 @@ class VpcComponent(pulumi.ComponentResource):
         self.create_private_link_interface("ecr.api")
         self.create_private_link_interface("ecr.dkr")
         self.create_private_link_interface("logs")
-        self.create_private_link_interface("dms")
+        self.create_private_link_interface("dms", SubnetType.ISOLATED)
         self.create_private_link_interface("secretsmanager")
         self.create_private_link_gateway("s3")
 
@@ -274,16 +275,17 @@ class VpcComponent(pulumi.ComponentResource):
     def create_private_link_interface(
         self,
         service_name: str,
+        subnet_type: SubnetType = SubnetType.PRIVATE,
     ):
         region = aws.get_region().name
-        private_subnet_ids = self.get_subnets(self.vpc.id, SubnetType.PRIVATE)
+        target_subnet_ids = self.get_subnets(self.vpc.id, subnet_type)
         aws.ec2.VpcEndpoint(
             f"{service_name}-interface",
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
             vpc_endpoint_type="Interface",
             # security_group_ids=[self.vpc.default_security_group_id],
-            subnet_ids=private_subnet_ids,
+            subnet_ids=target_subnet_ids,
             private_dns_enabled=True,
             opts=self.child_opts,
             tags={
