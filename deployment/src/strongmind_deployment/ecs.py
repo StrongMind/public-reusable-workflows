@@ -29,6 +29,7 @@ class EcsComponentArgs:
         entry_point: Optional[str] = None,
         command: Optional[str] = None,
         secrets: Optional[Mapping[str, pulumi.Input[str]]] = None,
+        task_security_group: Optional[aws.ec2.SecurityGroup] = None,
     ) -> None:
         self.vpc_id = vpc_id
         self.subnet_placement = subnet_placement
@@ -45,6 +46,7 @@ class EcsComponentArgs:
         self.entry_point = entry_point
         self.command = command
         self.secrets = secrets
+        self.task_security_group = task_security_group
 
 
 class EcsComponent(pulumi.ComponentResource):
@@ -340,7 +342,7 @@ class EcsComponent(pulumi.ComponentResource):
             task_definition_args=task_definition_args,
             network_configuration=aws.ecs.ServiceNetworkConfigurationArgs(
                 subnets=self.subnet_ids,
-                security_groups=[default_task_security_group.id],
+                security_groups=[self.args.task_security_group, default_task_security_group.id],
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
