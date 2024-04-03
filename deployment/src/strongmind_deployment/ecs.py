@@ -29,7 +29,7 @@ class EcsComponentArgs:
         entry_point: Optional[str] = None,
         command: Optional[str] = None,
         secrets: Optional[Mapping[str, pulumi.Input[str]]] = None,
-        task_security_group: Optional[aws.ec2.SecurityGroup] = None,
+        task_security_group: str = None,
     ) -> None:
         self.vpc_id = vpc_id
         self.subnet_placement = subnet_placement
