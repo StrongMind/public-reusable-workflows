@@ -15,44 +15,34 @@ on:
         description: 'Stack to use'
         required: true
         type: string
+      aws_region:
+        description: 'aws region'
+        required: true
+        type: string
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      role_to_assume: ${{ steps.set-vars.outputs.role_to_assume }}
-      state_bucket: ${{ steps.set-vars.outputs.state_bucket }}
-      pulumi_config_passphrase: ${{ steps.set-vars.outputs.pulumi_config_passphrase }}
-    steps:
-      - id: set-vars
-        run: |
-          if [[ "${{ inputs.stack }}" == "sai_prod" ]]; then
-            echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}" >> $GITHUB_ENV
-            echo "STATE_BUCKET=${{ vars.STATE_BUCKET_PROD }}" >> $GITHUB_ENV
-            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD}}" >> $GITHUB_ENV
-          else
-            echo "ROLE_TO_ASSUME=${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}" >> $GITHUB_ENV
-            echo "STATE_BUCKET=${{ vars.STATE_BUCKET_STAGE }}" >> $GITHUB_ENV
-            echo "PULUMI_CONFIG_PASSPHRASE=${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}" >> $GITHUB_ENV
-          fi
-          echo "ROLE_TO_ASSUME=$ROLE_TO_ASSUME"
-          echo "STATE_BUCKET=$STATE_BUCKET"
-          echo "PULUMI_CONFIG_PASSPHRASE=$PULUMI_CONFIG_PASSPHRASE"
-
-  update:
-    needs: setup
-    name: manual_deploy
+  manual_stage:
+    if: ${{ contains(github.event.inputs.stack, 'stage') }}
     uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
     with:
-      pulumi_command: ${{ inputs.pulumi_action }}
-      pulumi_stack: ${{ inputs.stack }}
-      aws_region: us-west-2
-      working_directory: ${{ inputs.workdir }}
-      role_to_assume: ${{ needs.setup.outputs.role_to_assume }}
-      state_bucket: ${{ needs.setup.outputs.state_bucket }}
-    secrets: 
-      pulumi_config_passphrase: ${{ needs.setup.outputs.pulumi_config_passphrase }}
-    permissions:
-      id-token: write
-      contents: read
-      pull-requests: write
+      pulumi_command: ${{ github.event.inputs.pulumi_action }}
+      pulumi_stack: ${{ github.event.inputs.stack }}
+      aws_region: ${{ github.event.inputs.aws_region }}
+      working_directory: ${{ github.event.inputs.workdir }}
+      role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}
+      state_bucket: ${{ vars.STATE_BUCKET_STAGE }}
+    secrets:
+      pulumi_config_passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}
+
+  manual_prod:
+    if: ${{ contains(github.event.inputs.stack, 'prod') || contains(github.event.inputs.stack, 'main') }}
+    uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
+    with:
+      pulumi_command: ${{ github.event.inputs.pulumi_action }}
+      pulumi_stack: ${{ github.event.inputs.stack }}
+      aws_region: ${{ github.event.inputs.aws_region }}
+      working_directory: ${{ github.event.inputs.workdir }}
+      role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}
+      state_bucket: ${{ vars.STATE_BUCKET_PROD }}
+    secrets:
+      pulumi_config_passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD }}
