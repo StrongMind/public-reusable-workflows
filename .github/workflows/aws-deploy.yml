@@ -21,8 +21,7 @@ on:
 jobs:
   deploy-auto:
     name: Autodeploy to ECS
-    # uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@devops-13637
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@Devops-13637
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     with:
       environment-name: ${{ inputs.environment-name }}
