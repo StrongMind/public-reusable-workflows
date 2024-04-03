@@ -49,4 +49,4 @@ jobs:
       role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}
       state_bucket: ${{ vars.STATE_BUCKET_PROD }}
     secrets:
-      pulumi_config_passphrase: ${{ vars.PULUMI_CONFIG_PASSPHRASE_PROD }}
+      pulumi_config_passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD }}
