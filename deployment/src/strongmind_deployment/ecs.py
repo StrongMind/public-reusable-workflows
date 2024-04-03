@@ -333,6 +333,5 @@ class EcsComponent(pulumi.ComponentResource):
                 subnets=self.subnet_ids,
                 security_groups=[default_task_security_group.id],
             ),
-            # tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
