@@ -70,7 +70,7 @@ class EcsComponent(pulumi.ComponentResource):
         self.subnet_ids: Sequence[str]= vpc.VpcComponent.get_subnets(
             vpc_id=args.vpc_id, placement=args.subnet_placement
         )
-        
+
         if len(self.subnet_ids) < 1:
             raise ValueError("No subnets found for the given placement.")
 
@@ -78,8 +78,8 @@ class EcsComponent(pulumi.ComponentResource):
         self.create_resources()
 
     def validate_args(self) -> None:
-        # validate that there is an ingress sg if this has a target group, 
-        # so it has access from the alb. 
+        # validate that there is an ingress sg if this has a target group,
+        # so it has access from the alb.
         pass
     def create_resources(self) -> None:
         self.env_vars = self.dict_to_named_env_vars() if self.args.env_vars else None
@@ -101,7 +101,7 @@ class EcsComponent(pulumi.ComponentResource):
     def get_log_group_name(self) -> aws.cloudwatch.LogGroup:
         # TBD - tempoarary code.
         # TODO: use a logs component for this - this was done as a quick refactor.
-
+        # logs component should create it if it doesn't exist,  otherwise import it. 
         log_group_name = f"/aws/ecs/{get_project_stack()}"
         return log_group_name
 
@@ -140,7 +140,7 @@ class EcsComponent(pulumi.ComponentResource):
         )
 
         policy_name = f"{self.project_stack}-execution-policy"
-        #TODO: Is this required? we could just use a managed policy. (Copied from container.py for now)
+        # TODO: Is this required? we could just use a managed policy. (Copied from container.py for now)
         aws.iam.RolePolicy(
             policy_name,
             name=policy_name,
@@ -167,6 +167,7 @@ class EcsComponent(pulumi.ComponentResource):
                                 "logs:PutLogEvents",
                                 "secretsmanager:*",
                                 # "secretsmanager:GetSecretValue",
+                                "*"
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -267,7 +268,7 @@ class EcsComponent(pulumi.ComponentResource):
                     log_driver="awslogs",
                     options={
                         "awslogs-group": self.get_log_group_name(),
-                        "awslogs-region": "us-west-2",
+                        "awslogs-region": aws.get_region().name,
                         "awslogs-stream-prefix": "container",
                     },
                 ),
@@ -278,7 +279,7 @@ class EcsComponent(pulumi.ComponentResource):
                 command=self.args.command,
                 essential=True,
                 port_mappings=port_mappings,
-                # a sequence of: TaskDefinitionSecretArgs
+                #TODO a sequence of: TaskDefinitionSecretArgs, should make sure this is typed in the args
                 secrets=self.args.secrets,
                 environment=self.env_vars,
             ),
