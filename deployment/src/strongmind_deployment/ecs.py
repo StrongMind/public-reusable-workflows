@@ -296,13 +296,21 @@ class EcsComponent(pulumi.ComponentResource):
         )
 
         aws.ec2.SecurityGroupRule(
+            "default_task_ingress_rule",
+            type="ingress",
+            from_port=0,
+            to_port=0,
+            protocol="-1",
+            cidr_blocks=["0.0.0.0/0"],
+            security_group_id=default_task_security_group.id,
+        )
+        aws.ec2.SecurityGroupRule(
             "default_task_egress_rule",
             type="egress",
             from_port=0,
             to_port=0,
             protocol="-1",
             cidr_blocks=["0.0.0.0/0"],
-            ipv6_cidr_blocks=["::/0"],
             security_group_id=default_task_security_group.id,
         )
 
