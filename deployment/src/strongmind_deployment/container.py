@@ -72,11 +72,15 @@ class ContainerComponent(pulumi.ComponentResource):
         if name != 'container':
             self.project_stack = f"{self.project_stack}-{name}"
 
+        with open('../CODEOWNERS', 'r') as file:
+            owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
+
         self.tags = {
             "product": project,
             "repository": project,
             "service": project,
             "environment": self.env_name,
+            "owner": owning_team,
         }
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:

@@ -11,11 +11,15 @@ class StorageComponent(pulumi.ComponentResource):
         project = pulumi.get_project()
         stack = pulumi.get_stack()
         bucket_name = f"strongmind-{project}-{stack}"
+        with open('../CODEOWNERS', 'r') as file:
+            owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
+
         tags = {
             "product": project,
             "repository": project,
             "service": project,
-            "environment": self.env_name
+            "environment": self.env_name,
+            "owner": owning_team,
         }
         self.bucket = aws.s3.BucketV2("bucket",
                                       bucket=bucket_name,
