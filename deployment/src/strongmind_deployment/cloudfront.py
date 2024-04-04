@@ -67,11 +67,15 @@ class DistributionComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         project = pulumi.get_project()
         stack = pulumi.get_stack()
+        with open('../CODEOWNERS', 'r') as file:
+            owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
+
         self.tags = {
-          "product": project,
-          "repository": project,
-          "service": project,
-          "environment": self.env_name,
+            "product": project,
+            "repository": project,
+            "service": project,
+            "environment": self.env_name,
+            "owner": owning_team,
         }
 
         self.dns()
