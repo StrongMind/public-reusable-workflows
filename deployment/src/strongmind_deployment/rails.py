@@ -30,7 +30,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
         :key cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
         :key execution_cmd: The command for the pre-deployment execution container. Defaults to `["sh", "-c",
-                                      "bundle exec rails db:prepare db:migrate db:seed && echo 'Migrations complete'"]`.
+                                      "bundle exec rails db:prepare db:migrate db:seed assets:precompile && echo 'Migrations complete'"]`.
         :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
         :key web_cmd: The command for the web container. Defaults to `["sh", "-c", "rails assets:precompile && rails server -b 0.0.0.0"]`.
         :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
@@ -96,12 +96,15 @@ class RailsComponent(pulumi.ComponentResource):
         project = pulumi.get_project()
         stack = pulumi.get_stack()
         project_stack = f"{project}-{stack}"
+        with open('../CODEOWNERS', 'r') as file:
+            owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
         self.tags = {
             "product": project,
             "repository": project,
             "service": project,
             "environment": self.env_name,
+            "owner": owning_team,
         }
 
         self.rds(project_stack)
