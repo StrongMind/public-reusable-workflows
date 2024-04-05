@@ -23,8 +23,8 @@ on:
         default: 'us-west-2'
 
 jobs:
-  manual_stage:
-    if: ${{ contains(github.event.inputs.stack, 'stage') }}
+  manual_stage_account:
+    if: ${{ !contains(github.event.inputs.stack, 'prod') && !contains(github.event.inputs.stack, 'main') }}
     uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
     with:
       pulumi_command: ${{ github.event.inputs.pulumi_action }}
@@ -36,7 +36,7 @@ jobs:
     secrets:
       pulumi_config_passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}
 
-  manual_prod:
+  manual_main_account:
     if: ${{ contains(github.event.inputs.stack, 'prod') || contains(github.event.inputs.stack, 'main') }}
     uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
     with:
