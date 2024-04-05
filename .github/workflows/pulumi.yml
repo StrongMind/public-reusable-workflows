@@ -73,7 +73,9 @@ jobs:
           python-version: ${{inputs.python_version}}
           cache: "pip"
       - run: pip3 install --upgrade pip
+      - run: pwd
       - run: pip3 install -r ${{inputs.working_directory}}/requirements.txt
+
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
