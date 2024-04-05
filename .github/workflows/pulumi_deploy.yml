@@ -30,7 +30,7 @@ jobs:
       pulumi_command: ${{ github.event.inputs.pulumi_action }}
       pulumi_stack: ${{ github.event.inputs.stack }}
       aws_region: ${{ github.event.inputs.aws_region }}
-      working_directory: ${{ github.event.inputs.workdir }}
+      working_directory: ${{ inputs.workdir }}
       role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}
       state_bucket: ${{ vars.STATE_BUCKET_STAGE }}
     secrets:
@@ -43,7 +43,7 @@ jobs:
       pulumi_command: ${{ github.event.inputs.pulumi_action }}
       pulumi_stack: ${{ github.event.inputs.stack }}
       aws_region: ${{ github.event.inputs.aws_region }}
-      working_directory: ${{ github.event.inputs.workdir }}
+      working_directory: ${{ inputs.workdir }}
       role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}
       state_bucket: ${{ vars.STATE_BUCKET_PROD }}
     secrets:
