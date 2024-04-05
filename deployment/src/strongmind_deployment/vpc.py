@@ -14,6 +14,14 @@ class NatGatewayStrategy(str, Enum):
         return self.value
 
 
+class PrivateLinkType(str, Enum):
+    GATEWAY = "Gateway"
+    INTERFACE = "Interface"
+
+    def __str__(self):
+        return self.value
+
+
 class VpcComponentArgs:
     def __init__(
         self,
@@ -171,8 +179,13 @@ class VpcComponent(pulumi.ComponentResource):
                 # If we are in a single nat gateawy scenario, only the first AZ will get one.
                 # However, this property will persist outside the for loop, and be assigned
                 # to other Subnets.
+                # get the public subnet for the same AZ
+                public_subnet_id = self.get_subnet_in_az(
+                    self.vpc.id, SubnetType.PUBLIC, az
+                )
                 recently_created_nat_gateway = self.create_nat_gateway(
-                    az, private_subnet
+                    az=az,
+                    public_subnet_id=public_subnet_id,
                 )
 
             if not self.args.nat_gateway_strategy == NatGatewayStrategy.NONE:
@@ -202,7 +215,7 @@ class VpcComponent(pulumi.ComponentResource):
             private_subnets.append(private_subnet.id)
         return private_subnets
 
-    def create_nat_gateway(self, az, private_subnet):
+    def create_nat_gateway(self, az, public_subnet_id):
         eip = aws.ec2.Eip(
             f"{self.vpc_name}-eip-{az}",
             tags={"Name": f"{self.vpc_name}-natgateway-eip-{az}"},
@@ -211,7 +224,7 @@ class VpcComponent(pulumi.ComponentResource):
 
         nat_gateway = aws.ec2.NatGateway(
             f"{self.vpc_name}-natGateway-{az}",
-            subnet_id=private_subnet.id,
+            subnet_id=public_subnet_id,
             allocation_id=eip.id,
             tags={
                 "Name": f"{self.vpc_name}-nat-gateway-{az}",
@@ -246,6 +259,49 @@ class VpcComponent(pulumi.ComponentResource):
             database_subnets.append(database_subnet.id)
         return database_subnets
 
+    def create_private_link(
+        self,
+        service_name: str,
+        placement: SubnetType = SubnetType.PRIVATE,
+        type: PrivateLinkType = PrivateLinkType.INTERFACE,
+    )-> aws.ec2.VpcEndpoint:
+        if type == PrivateLinkType.GATEWAY:
+            return self.create_private_link_gateway(service_name)
+        return self.create_private_link_interface(service_name, placement)
+
+    def create_private_link_gateway(self, service_name: str) -> aws.ec2.VpcEndpoint:
+        region = aws.get_region().name
+        return aws.ec2.VpcEndpoint(
+            f"{service_name}-gateway",
+            vpc_id=self.vpc.id,
+            service_name=f"com.amazonaws.{region}.{service_name}",
+            vpc_endpoint_type=PrivateLinkType.GATEWAY,
+            tags={
+                "Name": f"{service_name}-gateway",
+            },
+        )
+
+    def create_private_link_interface(
+        self,
+        service_name: str,
+        subnet_type: SubnetType = SubnetType.PRIVATE,
+    ) -> aws.ec2.VpcEndpoint:
+        region = aws.get_region().name
+        target_subnet_ids = self.get_subnets(self.vpc.id, subnet_type)
+        return aws.ec2.VpcEndpoint(
+            f"{service_name}-interface",
+            vpc_id=self.vpc.id,
+            service_name=f"com.amazonaws.{region}.{service_name}",
+            vpc_endpoint_type=PrivateLinkType.INTERFACE,
+            # security_group_ids=[self.vpc.default_security_group_id],
+            subnet_ids=target_subnet_ids,
+            private_dns_enabled=True,
+            opts=self.child_opts,
+            tags={
+                "Name": f"{service_name}-interface",
+            },
+        )
+
     @staticmethod
     def get_subnets(vpc_id: str, placement: SubnetType) -> Sequence[str]:
         """
@@ -265,3 +321,26 @@ class VpcComponent(pulumi.ComponentResource):
         )
 
         return subnets_result.ids
+
+    @staticmethod
+    def get_subnet_in_az(vpc_id: str, placement: SubnetType, az: str) -> str:
+        """
+        Get the subnet id for a given subnet type and availability zone.
+        """
+        subnets_result: aws.ec2.AwaitableGetSubnetsResult = aws.ec2.get_subnets(
+            filters=[
+                aws.ec2.GetSubnetsFilterArgs(
+                    name="vpc-id",
+                    values=[vpc_id],
+                ),
+                aws.ec2.GetSubnetsFilterArgs(
+                    name="tag:SubnetType",
+                    values=[placement],
+                ),
+                aws.ec2.GetSubnetsFilterArgs(
+                    name="availability-zone",
+                    values=[az],
+                ),
+            ]
+        )
+        return subnets_result.ids[0]
