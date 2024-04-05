@@ -12,12 +12,10 @@ on:
         description: 'Working directory'
         required: true
         type: string
-        default: 'account'
       stack:
         description: 'Stack to use'
         required: true
         type: string
-        default: 'strongmind_stage'
       aws_region:
         description: 'aws region'
         required: true
