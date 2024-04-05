@@ -18,7 +18,6 @@ on:
         type: string
       aws_region:
         description: 'aws region'
-        required: true
         type: string
         default: 'us-west-2'
 
