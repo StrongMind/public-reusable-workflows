@@ -1,4 +1,5 @@
 import os
+import subprocess
 
 import pulumi
 import pulumi_aws as aws
@@ -20,7 +21,9 @@ class RedisComponent(pulumi.ComponentResource):
         stack = pulumi.get_stack()
         project_stack = f"{project}-{stack}"
 
-        with open('../CODEOWNERS', 'r') as file:
+        path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
+        file_path = f"{path}/CODEOWNERS"
+        with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
         self.tags = {

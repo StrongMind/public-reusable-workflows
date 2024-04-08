@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import subprocess
 
 import pulumi
 import pulumi_aws as aws
@@ -72,7 +73,10 @@ class ContainerComponent(pulumi.ComponentResource):
         if name != 'container':
             self.project_stack = f"{self.project_stack}-{name}"
 
-        with open('../CODEOWNERS', 'r') as file:
+        # Execute the command and decode the byte string to a normal string
+        path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
+        file_path = f"{path}/CODEOWNERS"
+        with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
         self.tags = {

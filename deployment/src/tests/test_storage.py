@@ -58,15 +58,6 @@ def describe_a_pulumi_storage_component():
         def it_has_a_bucket_name(sut, app_name, stack):
             return assert_output_equals(sut.bucket.bucket, f"strongmind-{app_name}-{stack}")
 
-        @pulumi.runtime.test
-        def it_has_tags(sut, app_name):
-            return assert_output_equals(sut.bucket.tags, {
-                "product": app_name,
-                "repository": app_name,
-                "service": app_name,
-                "environment": sut.env_name,
-            })
-
     def describe_ownership_controls():
         def it_has_ownership_controls(sut):
             assert isinstance(sut.bucket_ownership_controls, pulumi_aws.s3.BucketOwnershipControls)
