@@ -1,3 +1,4 @@
+from enum import Enum
 import json
 from typing import Mapping, Optional, Dict, Sequence
 
@@ -10,6 +11,14 @@ import pulumi_awsx.ecs as ecsx
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from strongmind_deployment import vpc
 
+class CpuArchitecture(str, Enum):
+    ARM64 = "ARM64"
+    X86_64 = "X86_64"
+
+    def __str__(self):
+        return self.value
+
+ 
 
 class EcsComponentArgs:
     def __init__(
@@ -17,18 +26,19 @@ class EcsComponentArgs:
         vpc_id: pulumi.Output[str],
         subnet_placement: vpc.SubnetType,
         container_image: pulumi.Output[str],
+        health_check_path: Optional[str],
         target_group: Optional[aws.lb.TargetGroup] = None,
         ingress_sg: str = None,
         env_vars: Dict[str, str] = None,
-        health_check_path: Optional[str] = "/up",
         desired_count: Optional[int] = 1,
         container_port: int = 80,
         cluster_name: str = None,
-        cpu: Optional[str] = None,
-        memory: Optional[str] = None,
+        cpu: Optional[int] = None,
+        memory: Optional[int] = None,
         entry_point: Optional[str] = None,
         command: Optional[str] = None,
         secrets: Optional[Mapping[str, pulumi.Input[str]]] = None,
+        cpu_architecture: Optional[CpuArchitecture] = CpuArchitecture.X86_64,
     ) -> None:
         self.vpc_id = vpc_id
         self.subnet_placement = subnet_placement
@@ -45,6 +55,7 @@ class EcsComponentArgs:
         self.entry_point = entry_point
         self.command = command
         self.secrets = secrets
+        self.cpu_architecture = cpu_architecture
 
 
 class EcsComponent(pulumi.ComponentResource):
@@ -91,7 +102,7 @@ class EcsComponent(pulumi.ComponentResource):
         # # iam
         self.execution_role = self.create_execution_role()
         self.task_role = self.create_task_role()
-
+        self.log_group_name = self.create_log_group()
         # ecs
         self.cluster = self.create_cluster()
         self.create_service(
@@ -103,23 +114,29 @@ class EcsComponent(pulumi.ComponentResource):
     def dict_to_named_env_vars(self):
         return [{"name": k, "value": v} for k, v in self.args.env_vars.items()]
 
-    def get_log_group_name(self) -> aws.cloudwatch.LogGroup:
+    # TODO: this code is temporary (I mean it!) It enables us to get going with Identity
+    # a Log component could be the best idea here, providing the following:
+    #   * log groups should be in a consistent location and not deleted when the service is deleted.
+    #   * This should either import a common log group or create a new one if it doesn't exist.
+    #   * the application shouldn't create this, as then it isn't managed by pulumi (retention etc)
+    #   * we may get away with a simple log group like this if we can manage with a dynamically created log group name (ie with a pulumi suffix).
+    def create_log_group(self) -> str:
         """
         Create a log group if it doesn't exist.
         """
         log_group_name = f"/aws/ecs/{get_project_stack()}"
-        region = aws.get_region().name
-        account = aws.get_caller_identity().account_id
-        log_group_arn = f"arn:aws:logs:{region}:{account}:log-group:{log_group_name}:*"
+        # region = aws.get_region().name
+        # account = aws.get_caller_identity().account_id
+        # log_group_arn = f"arn:aws:logs:{region}:{account}:log-group:{log_group_name}:*"
 
-        log_group = aws.cloudwatch.LogGroup.get("container_log_group", log_group_name, arn=log_group_arn)
-        if not log_group:
-            log_group = aws.cloudwatch.LogGroup(
-                "service_log_group",
-                name=log_group_name,
-                retention_in_days=30,
-                opts=pulumi.ResourceOptions(parent=self),
-            )
+        # this throws an exception.  use boto3 or just handle the exception?
+        # log_group = aws.cloudwatch.LogGroup.get("container_log_group", log_group_name, arn=log_group_arn)
+        aws.cloudwatch.LogGroup(
+            "service_log_group",
+            name=log_group_name,
+            retention_in_days=30,
+            opts=pulumi.ResourceOptions(parent=self),
+        )
 
         return log_group_name
 
@@ -127,7 +144,6 @@ class EcsComponent(pulumi.ComponentResource):
         cluster = aws.ecs.Cluster(
             f"{self.cluster_name}-cluster",
             name=self.cluster_name,
-            # tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
         return cluster
@@ -153,7 +169,6 @@ class EcsComponent(pulumi.ComponentResource):
                     ],
                 }
             ),
-            # tags=self.args.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
 
@@ -183,7 +198,6 @@ class EcsComponent(pulumi.ComponentResource):
                                 "ecr:CompleteLayerUpload",
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
-                                "secretsmanager:*",
                                 "secretsmanager:GetSecretValue",
                             ],
                             "Effect": "Allow",
@@ -221,7 +235,6 @@ class EcsComponent(pulumi.ComponentResource):
                     ],
                 }
             ),
-            # tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
 
@@ -241,6 +254,8 @@ class EcsComponent(pulumi.ComponentResource):
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
                                 "ssmmessages:OpenDataChannel",
+                                "secretsmanager:GetSecretValue",
+                                "*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -278,13 +293,17 @@ class EcsComponent(pulumi.ComponentResource):
             task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
             skip_destroy=True,
             family=self.project_stack,
+            runtime_platform=aws.ecs.TaskDefinitionRuntimePlatformArgs(
+                cpu_architecture=self.args.cpu_architecture,
+                operating_system_family="LINUX",
+            ),
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
                 name=self.project_stack,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
-                        "awslogs-group": self.get_log_group_name(),
-                        "awslogs-region": aws.get_region().name,
+                        "awslogs-group": self.log_group_name,
+                        "awslogs-region": "us-west-2",
                         "awslogs-stream-prefix": "container",
                     },
                 ),
@@ -300,11 +319,8 @@ class EcsComponent(pulumi.ComponentResource):
                 environment=self.env_vars,
             ),
         )
-        # This uses the naming logic of the container.py, consider revising to
-        # match the pattern here.
-        service_name = "service"
-        if self.name != "container":
-            service_name = f"{self.name}-service"
+        
+        service_name = f"{self.name}-service"
 
         default_task_security_group = aws.ec2.SecurityGroup(
             "securityGroup",
@@ -312,7 +328,7 @@ class EcsComponent(pulumi.ComponentResource):
         )
 
         aws.ec2.SecurityGroupRule(
-            "default_task_ingress_rule",
+            "task_ingress_anywhere",
             type="ingress",
             from_port=0,
             to_port=0,
@@ -321,7 +337,7 @@ class EcsComponent(pulumi.ComponentResource):
             security_group_id=default_task_security_group.id,
         )
         aws.ec2.SecurityGroupRule(
-            "default_task_egress_rule",
+            "task_egress_anywhere",
             type="egress",
             from_port=0,
             to_port=0,
@@ -332,7 +348,7 @@ class EcsComponent(pulumi.ComponentResource):
         )
 
         # add ingress to the task from the alb
-        if target_group is not None and self.args.ingress_sg_id is not None:
+        if self.args.target_group is not None and self.args.ingress_sg_id is not None:
             aws.ec2.SecurityGroupRule(
                 "default_task_ingress_rule",
                 type="ingress",
