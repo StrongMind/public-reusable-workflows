@@ -184,7 +184,8 @@ class RailsComponent(pulumi.ComponentResource):
             'DB_NAME': self.db_name,
             'DB_PORT': '5432',
             'DATABASE_URL': self.get_database_url(),
-            'RAILS_ENV': 'production'
+            'RAILS_ENV': 'production',
+            'NAMESPACE': project_stack
         }
 
         self.env_vars.update(additional_env_vars)
