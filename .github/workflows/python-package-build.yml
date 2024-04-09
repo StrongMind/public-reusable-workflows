@@ -6,16 +6,16 @@ on:
 jobs:
   Build-Publish:
     name: Build and Publish
-    runs-on: macos-14
+    runs-on: macos-latest
     steps:
 
     - name: Checkout repository
       uses: actions/checkout@v4
       
-    #- name: Setup Python
-    #  uses: actions/setup-python@v4 
-    #  with:
-    #    python-version: "3.10.13"
+    - name: Setup Python
+      uses: actions/setup-python@v4 
+      with:
+        python-version: "3.10"
 
     # hardcoded pip version to avoid bug in pip 23.2 (please reference to https://strongmind.atlassian.net/browse/DEVOPS-9181?focusedCommentId=234025)
     - name: Install Dependencies
