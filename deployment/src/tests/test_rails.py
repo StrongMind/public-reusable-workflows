@@ -334,7 +334,7 @@ def describe_a_pulumi_rails_component():
                 cluster_engine, engine_mode, engine_version = args
                 assert cluster_engine == 'aurora-postgresql'
                 assert engine_mode == 'provisioned'
-                assert engine_version == '15.2'
+                assert engine_version == '15.4'
 
             return pulumi.Output.all(
                 sut.rds_serverless_cluster.engine,

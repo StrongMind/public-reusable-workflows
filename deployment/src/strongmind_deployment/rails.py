@@ -52,7 +52,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         :key autoscale: Whether to autoscale the web container. Defaults to True.
-        :key db_engine_version: The version of the database engine. Defaults to 15.2.
+        :key db_engine_version: The version of the database engine. Defaults to 15.4.
         :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
         :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
@@ -86,7 +86,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
         self.autoscale = self.kwargs.get('autoscale', True)
-        self.engine_version = self.kwargs.get('db_engine_version', '15.2')
+        self.engine_version = self.kwargs.get('db_engine_version', '15.4')
         self.desired_web_count = self.kwargs.get('desired_web_count', 1)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
