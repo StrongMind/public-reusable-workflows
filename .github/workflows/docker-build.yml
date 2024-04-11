@@ -84,13 +84,14 @@ jobs:
           ECR_REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker buildx --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-          CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG")
-          --cache-from type=local,src=/tmp/.buildx-cache
-          --cache-to type=local,dest=/tmp/.buildx-cache-new
-          echo "Starting docker container $CONTAINER_ID and waiting for ${{ inputs.test_docker_timeout }} seconds"
-          sleep ${{ inputs.test_docker_timeout }}
-          OUTPUT=$(docker logs $CONTAINER_ID --tail 120)
+          docker buildx create --use
+          docker buildx build \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
+            --cache-from=type=local \
+            --cache-to=type=local \
+            --platform linux/amd64 \
+            .
 
           if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
             echo "Dockerfile test failed"
