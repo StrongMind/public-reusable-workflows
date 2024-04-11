@@ -1,0 +1,49 @@
+name: Deploy pulumi
+
+on:
+  workflow_call:
+    inputs:
+      pulumi_action:
+        description: 'Pulumi action to perform'
+        required: true
+        type: string
+        default: 'preview'
+      workdir:
+        description: 'Working directory'
+        required: true
+        type: string
+      stack:
+        description: 'Stack to use'
+        required: true
+        type: string
+      aws_region:
+        description: 'aws region'
+        type: string
+        default: 'us-west-2'
+
+jobs:
+  stage_account:
+    if: ${{ !contains(inputs.stack, 'prod') && !contains(inputs.stack, 'main') }}
+    uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
+    with:
+      pulumi_command: ${{ inputs.pulumi_action }}
+      pulumi_stack: ${{ inputs.stack }}
+      aws_region: ${{ inputs.aws_region }}
+      working_directory: ${{ inputs.workdir }}
+      role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_STAGE }}
+      state_bucket: ${{ vars.STATE_BUCKET_STAGE }}
+    secrets:
+      pulumi_config_passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE_STAGE }}
+
+  main_account:
+    if: ${{ contains(inputs.stack, 'prod') || contains(inputs.stack, 'main') }}
+    uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
+    with:
+      pulumi_command: ${{ inputs.pulumi_action }}
+      pulumi_stack: ${{ inputs.stack }}
+      aws_region: ${{ inputs.aws_region }}
+      working_directory: ${{ inputs.workdir }}
+      role_to_assume: ${{ vars.ROLE_NAME_TO_ASSUME_STRONGMIND_PROD }}
+      state_bucket: ${{ vars.STATE_BUCKET_PROD }}
+    secrets:
+      pulumi_config_passphrase: ${{ secrets.PULUMI_CONFIG_PASSPHRASE_PROD }}
