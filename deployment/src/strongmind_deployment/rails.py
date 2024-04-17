@@ -6,6 +6,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
+from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.execution import ExecutionComponent, ExecutionResourceInputs
