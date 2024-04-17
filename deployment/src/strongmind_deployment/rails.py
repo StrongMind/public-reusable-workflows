@@ -125,7 +125,8 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.register_outputs({})
 
-        self.setup_dashboard(project_stack)
+        if self.env_name != "stage":
+            self.setup_dashboard(project_stack)
 
     def setup_redis(self):
         if sidekiq_present():
