@@ -6,13 +6,13 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
-from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.execution import ExecutionComponent, ExecutionResourceInputs
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
+from strongmind_deployment.dashboard import DashboardComponent
 
 
 def sidekiq_present():  # pragma: no cover
@@ -123,6 +123,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.security()
 
         self.register_outputs({})
+
+        self.setup_dashboard(project_stack)
 
     def setup_redis(self):
         if sidekiq_present():
@@ -239,7 +241,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
         self.kwargs['desired_count'] = self.desired_web_count
-        
+
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
@@ -270,7 +272,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['log_metric_filters'] = self.worker_log_metric_filters
         self.kwargs['desired_count'] = self.desired_worker_count
-            
+
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
@@ -366,3 +368,13 @@ class RailsComponent(pulumi.ComponentResource):
                                         **self.kwargs
                                         )
         self.env_vars.update(self.storage.s3_env_vars)
+
+    def setup_dashboard(self, project_stack):
+        self.dashboard = DashboardComponent(
+                             name="dashboard",
+                             project_stack=project_stack,
+                             web_container=self.web_container,
+                             ecs_cluster=self.ecs_cluster,
+                             rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
+                         )
+
