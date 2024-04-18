@@ -84,12 +84,10 @@ jobs:
           ECR_REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker buildx build \
+          docker buildx build --push \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
             --cache-from=type=gha,src=/tmp/.buildx-cache \
             --cache-to=type=gha,dest=/tmp/.buildx-cache-new \
-            push \
             .
 
           if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
