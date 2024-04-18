@@ -302,6 +302,12 @@ class ContainerComponent(pulumi.ComponentResource):
 
         if self.kwargs.get('autoscaling'):
             self.autoscaling()
+        if self.kwargs.get('worker_autoscaling'):
+            self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
+                                                               opts=pulumi.ResourceOptions(parent=self),
+                                                               **self.kwargs)
+
+
 
         self.register_outputs({})
 
