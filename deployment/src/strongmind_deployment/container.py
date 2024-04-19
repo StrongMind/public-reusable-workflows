@@ -177,7 +177,6 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
                                 "secretsmanager:GetSecretValue",
-                                "cloudwatch:*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -221,7 +220,8 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "ssmmessages:CreateControlChannel",
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
-                                "ssmmessages:OpenDataChannel"
+                                "ssmmessages:OpenDataChannel",
+                                "clouswatch:*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
