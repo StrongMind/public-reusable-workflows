@@ -89,6 +89,7 @@ jobs:
             --cache-from=type=gha,src=/tmp/.buildx-cache \
             --cache-to=type=gha,dest=/tmp/.buildx-cache-new \
             .
+            OUTPUT=$(docker logs $CONTAINER_ID --tail 120)
 
           if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
             echo "Dockerfile test failed"
