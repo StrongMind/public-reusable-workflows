@@ -103,6 +103,7 @@ jobs:
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             --cache-from=type=gha,src=/tmp/.buildx-cache \
             .
+            docker run -d -p 3000:3000 $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
             OUTPUT=$(docker logs $CONTAINER_ID --tail 120)
 
           if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
