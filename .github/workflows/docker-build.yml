@@ -86,11 +86,11 @@ jobs:
         run: |
           echo "Gemfile.lock changed"
           docker buildx build -- push \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --cache-from=type=gha,src=/tmp/.buildx-cache \
-            --cache-to=type=gha,dest=/tmp/.buildx-cache-new \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+            --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+            --cache-to=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:CACHE
           
       - name: Test docker and upload to ECR
         env:
@@ -99,9 +99,9 @@ jobs:
           ECR_REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker buildx build --push \
+          docker buildx build \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --cache-from=type=gha,src=/tmp/.buildx-cache \
+            --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             .
 
           echo "Running docker tag of $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
