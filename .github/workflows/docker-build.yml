@@ -85,7 +85,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           echo "Gemfile.lock changed"
-          docker buildx build -- push \
+          docker buildx build --push \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --cache-to=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
