@@ -77,6 +77,24 @@ jobs:
         with:
           repository: ${{ github.event.repository.name }}
 
+      - name: Check for gemfile change
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: ${{ github.event.repository.name }}
+          IMAGE_TAG: ${{ github.sha }}
+        on:
+          push:
+            paths:
+              - '**Gemfile.lock'
+        run: |
+          echo "Gemfile.lock changed"
+          docker buildx build -- push \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            --cache-from=type=gha,src=/tmp/.buildx-cache \
+            --cache-to=type=gha,dest=/tmp/.buildx-cache-new \
+            .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
       - name: Test docker and upload to ECR
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
@@ -87,7 +105,6 @@ jobs:
           docker buildx build --push \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             --cache-from=type=gha,src=/tmp/.buildx-cache \
-            --cache-to=type=gha,dest=/tmp/.buildx-cache-new \
             .
             OUTPUT=$(docker logs $CONTAINER_ID --tail 120)
 
