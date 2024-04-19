@@ -9,7 +9,7 @@ import pulumi_awsx as awsx
 from pulumi import Config, export, Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
-
+from strongmind_deployment.autoscale import WorkerAutoscaleComponent
 
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
@@ -177,6 +177,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
                                 "secretsmanager:GetSecretValue",
+                                "cloudwatch:*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
