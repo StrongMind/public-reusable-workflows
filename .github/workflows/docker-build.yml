@@ -78,10 +78,7 @@ jobs:
           repository: ${{ github.event.repository.name }}
 
       - name: Check for gemfile change
-        on:
-          push:
-            paths:
-              - '**Gemfile.lock'
+        if: steps.checkout.outputs.changed_files == '**Gemfile.lock'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
