@@ -91,7 +91,6 @@ jobs:
             -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --provenance=false \
             .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:CACHE
           
       - name: Test docker and upload to ECR
         env:
