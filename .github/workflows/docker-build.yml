@@ -78,7 +78,7 @@ jobs:
           repository: ${{ github.event.repository.name }}
 
       - name: Check for gemfile change
-        if: steps.checkout.outputs.changed_files == '**Gemfile.lock'
+        #if: steps.checkout.outputs.changed_files == '**Gemfile.lock'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
@@ -86,6 +86,7 @@ jobs:
         run: |
           echo "Gemfile.lock changed"
           docker buildx build --push \
+            --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
             --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --cache-to mode=max,image-manifest=true,oci-mediatypes=true,type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
@@ -100,6 +101,7 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           docker buildx build \
+            --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --load \
