@@ -102,6 +102,7 @@ jobs:
           docker buildx build \
             -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+            --load \
             .
           echo "docker images are $(docker images)"
           echo "Running docker tag of $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
