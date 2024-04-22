@@ -234,7 +234,8 @@ def describe_container():
                                 "ssmmessages:CreateControlChannel",
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
-                                "ssmmessages:OpenDataChannel"
+                                "ssmmessages:OpenDataChannel",
+                                "cloudwatch:*"
                             ],
                             "Effect": "Allow",
                             "Resource": "*",

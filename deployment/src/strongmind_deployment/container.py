@@ -9,7 +9,7 @@ import pulumi_awsx as awsx
 from pulumi import Config, export, Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
-
+from strongmind_deployment.autoscale import WorkerAutoscaleComponent
 
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
@@ -220,7 +220,8 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "ssmmessages:CreateControlChannel",
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
-                                "ssmmessages:OpenDataChannel"
+                                "ssmmessages:OpenDataChannel",
+                                "cloudwatch:*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -302,6 +303,12 @@ class ContainerComponent(pulumi.ComponentResource):
 
         if self.kwargs.get('autoscaling'):
             self.autoscaling()
+        if self.kwargs.get('worker_autoscale'):
+            self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
+                                                               opts=pulumi.ResourceOptions(parent=self),
+                                                               **self.kwargs)
+
+
 
         self.register_outputs({})
 
