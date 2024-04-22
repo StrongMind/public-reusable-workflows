@@ -281,7 +281,6 @@ class RailsComponent(pulumi.ComponentResource):
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
-                                                   worker_autoscaling=self.worker_autoscale,
                                                    **self.kwargs
                                                    )
         self.kwargs['log_metric_filters'] = []
