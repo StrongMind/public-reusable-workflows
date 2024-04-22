@@ -127,7 +127,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.register_outputs({})
 
-        if self.env_name != "stage":
+        if self.env_name == "prod":
             self.setup_dashboard(project_stack)
 
     def setup_redis(self):
