@@ -86,9 +86,10 @@ jobs:
         run: |
           echo "Gemfile.lock changed"
           docker buildx build --push \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --cache-to=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+            --provenance=false \
             .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:CACHE
           
