@@ -221,7 +221,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
                                 "ssmmessages:OpenDataChannel",
-                                "clouswatch:*",
+                                "cloudwatch:*",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
