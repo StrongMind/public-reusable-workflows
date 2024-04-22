@@ -96,7 +96,7 @@ class AutoscaleComponent(pulumi.ComponentResource):
             alarm_actions=[self.autoscaling_in_policy.arn]
         )
 
-class WorkerAutoscaleComponent(AutoscaleComponent):
+class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
         :worker_max_number_of_instances: The maximum number of instances available in the scaling policy for the worker.
@@ -111,10 +111,10 @@ class WorkerAutoscaleComponent(AutoscaleComponent):
 # scale out based on EnqueuedJobs metric
     def autoscaling(self):
         self.worker_autoscaling_target = aws.appautoscaling.Target(
-            "autoscaling_target",
+            "worker-autoscaling_target",
             max_capacity=self.worker_max_capacity,
             min_capacity=self.worker_min_capacity,
-            resource_id=f"service/{self.project_stack}/{self.project_stack}",
+            resource_id=f"service/{self.project_stack}/{self.project_stack}-worker",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
         )
@@ -131,24 +131,29 @@ class WorkerAutoscaleComponent(AutoscaleComponent):
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
-                        metric_interval_upper_bound=self.worker_max_capacity,
+                        metric_interval_upper_bound="10",
                         metric_interval_lower_bound="0",
                         scaling_adjustment=1,
                     ),
+                    aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
+                        metric_interval_lower_bound="10",
+                        scaling_adjustment=1,
+                    )
                 ],
             )
         )
         self.worker_autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
-            "worker_autoscaling_alarm",
+            "worker_autoscaling_out_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
             metric_name="EnqueuedJobs",
             unit="Count",
-            dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
-            },
+# DIMENSIONS ARE COMMENTED HERE until we can update the sidekiqcloudwatchmetrcis gem to accept dimeensions
+#             dimensions={
+#                 "ClusterName": self.project_stack,
+#                 "ServiceName": self.project_stack
+#             },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
@@ -181,10 +186,11 @@ class WorkerAutoscaleComponent(AutoscaleComponent):
             evaluation_periods=5,
             metric_name="EnqueuedJobs",
             unit="Count",
-            dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
-            },
+# DIMENSIONS ARE COMMENTED HERE until we can update the sidekiqcloudwatchmetrcis gem to accept dimeensions
+#             dimensions={
+#                 "ClusterName": self.project_stack,
+#                 "ServiceName": self.project_stack
+#             },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
