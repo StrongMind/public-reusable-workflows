@@ -108,6 +108,7 @@ jobs:
           echo "Running docker tag of $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG")
           echo -e "Container ID is $CONTAINER_ID and ps:\n $(docker ps -a)"
+          sleep 5
           OUTPUT=$(docker logs $CONTAINER_ID)
           echo "docker logs are $OUTPUT"
 
