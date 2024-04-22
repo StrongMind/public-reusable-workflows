@@ -99,13 +99,15 @@ class AutoscaleComponent(pulumi.ComponentResource):
 class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
-        :worker_max_number_of_instances: The maximum number of instances available in the scaling policy for the worker.
-        :worker_min_number_of_instances: The minimum number of instances available in the scaling policy for the worker.
+        :key worker_max_number_of_instances: The maximum number of instances available in the scaling policy for the worker.
+        :key worker_min_number_of_instances: The minimum number of instances available in the scaling policy for the worker.
+        :key worker_autoscale_threshold: The threshold for the worker autoscaling policy. Default is 3.
         """
         super().__init__('strongmind:global_build:commons:worker-autoscale', name, None, opts)
         self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 1)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
+        self.threshold = kwargs.get('worker_autoscale_threshold', 3)
         self.autoscaling()
 
 # scale out based on EnqueuedJobs metric
@@ -137,7 +139,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
                     ),
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
                         metric_interval_lower_bound="10",
-                        scaling_adjustment=1,
+                        scaling_adjustment=3,
                     )
                 ],
             )
@@ -157,7 +159,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
-            threshold=1,
+            threshold=self.threshold,
             alarm_actions=[self.worker_autoscaling_out_policy.arn]
         )
         self.worker_autoscaling_in_policy = aws.appautoscaling.Policy(
@@ -169,7 +171,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             service_namespace=self.worker_autoscaling_target.service_namespace,
             step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
                 adjustment_type="ChangeInCapacity",
-                cooldown=60,
+                cooldown=900,
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
@@ -194,7 +196,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
-            threshold=1,
+            threshold=2,
             alarm_actions=[self.worker_autoscaling_in_policy.arn]
         )
         self.register_outputs({})

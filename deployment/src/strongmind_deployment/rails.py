@@ -54,6 +54,9 @@ class RailsComponent(pulumi.ComponentResource):
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         :key autoscale: Whether to autoscale the web container. Defaults to True.
         :key worker_autoscale: Whether to autoscale the worker container. Defaults to False.
+        :key worker_max_number_of_instances: The maximum number of instances available in the scaling policy for the worker.
+        :key worker_min_number_of_instances: The minimum number of instances available in the scaling policy for the worker.
+        :key worker_autoscale_threshold: The threshold for the worker autoscaling policy. Default is 3.
         :key db_engine_version: The version of the database engine. Defaults to 15.4.
         :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
