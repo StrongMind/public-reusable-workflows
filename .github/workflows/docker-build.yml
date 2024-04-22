@@ -78,7 +78,7 @@ jobs:
           repository: ${{ github.event.repository.name }}
 
       - name: Check for gemfile change
-        #if: steps.checkout.outputs.changed_files == '**Gemfile.lock'
+        if: steps.checkout.outputs.changed_files == '**Gemfile.lock'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
@@ -104,13 +104,9 @@ jobs:
             --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
             --load \
             .
-          echo -e "docker images are \n$(docker images)"
-          echo "Running docker tag of $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
           CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG")
-          echo -e "Container ID is $CONTAINER_ID and ps:\n $(docker ps -a)"
-          sleep 30
+          sleep ${{ inputs.test_docker_timeout }}
           OUTPUT=$(docker logs $CONTAINER_ID)
-          echo "docker logs are $OUTPUT"
 
           if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
             echo "Dockerfile test failed"
