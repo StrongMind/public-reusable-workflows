@@ -116,7 +116,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     **args.inputs,
                     "nat_gateways": { "asdf": "asdf"}
                 }
-            
+
             print(args.typ)
 
             return [args.name + '_id', outputs]
@@ -127,6 +127,13 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
                     "secretString": secret_string
                 }
+
+            if args.token == "aws:ec2/getSubnets:getSubnets":
+                return {"ids": ["subnet-12345", "subnet-67890"]}
+
+            raise NotImplementedError(
+                "No mock for: " + args.token + " - change PulimiMocks.call"
+            )
 
     return PulumiMocks()
 
