@@ -78,21 +78,24 @@ jobs:
           repository: ${{ github.event.repository.name }}
 
       - name: Check for gemfile change
-        #if: steps.checkout.outputs.changed_files == '**Gemfile.lock'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "Gemfile.lock changed"
-          docker buildx build --push \
-            --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
-            --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-            --cache-to mode=max,image-manifest=true,oci-mediatypes=true,type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-            --provenance=false \
-            .
+          if git diff --name-only | grep "storage.py"; then
+            echo "Gemfile.lock changed"
+            docker buildx build --push \
+              --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
+              --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+              --cache-to mode=max,image-manifest=true,oci-mediatypes=true,type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+              -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
+              --provenance=false \
+              .
+              else
+                echo "Gemfile.lock not changed"
+          fi
           
       - name: Test docker and upload to ECR
         env:
