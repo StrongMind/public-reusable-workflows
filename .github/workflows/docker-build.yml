@@ -84,7 +84,7 @@ jobs:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          if git diff --name-only | grep "storage.py"; then
+          if git diff --name-only | grep "Gemfile"; then
             echo "Gemfile.lock changed"
             docker buildx build --push \
               --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
