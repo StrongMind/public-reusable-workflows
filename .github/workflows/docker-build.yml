@@ -87,7 +87,8 @@ jobs:
           IMAGE_TAG: ${{ github.sha }}
         run: |
           git log && git status && git show --name-only
-          git diff
+          git diff && echo -e "\n"
+          echo "$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | xargs)"
           if git show --name-only | grep -e "Gemfile" -e "package-lock" ; then
             echo "lock changed"
             docker buildx build --push \
