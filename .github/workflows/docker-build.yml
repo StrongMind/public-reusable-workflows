@@ -86,8 +86,8 @@ jobs:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          echo "$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | xargs)"
-          if git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | grep -e "Gemfile" -e "package-lock" ; then
+          echo "$(git diff HEAD^1 --name-only| xargs)"
+          if git diff HEAD^1 --name-only --diff-filter=ACMRT | grep -e "Gemfile" -e "package-lock" ; then
             echo "lock changed"
             docker buildx build --push \
               --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
