@@ -1,6 +1,6 @@
 from enum import Enum
 import json
-from typing import Mapping, Optional, Dict, Sequence
+from typing import Optional, Dict, Sequence, List
 
 from strongmind_deployment.util import get_project_stack
 import pulumi
@@ -37,7 +37,7 @@ class EcsComponentArgs:
         memory: Optional[int] = None,
         entry_point: Optional[str] = None,
         command: Optional[str] = None,
-        secrets: Optional[Mapping[str, pulumi.Input[str]]] = None,
+        secrets: Optional[List[Dict[str, pulumi.Input[str]]]] = None,
         cpu_architecture: Optional[CpuArchitecture] = CpuArchitecture.X86_64,
     ) -> None:
         self.vpc_id = vpc_id
