@@ -86,8 +86,6 @@ jobs:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          git log && git status && git show --name-only
-          git diff && echo -e "\n"
           echo "$(git diff --name-only --diff-filter=ACMRT ${{ github.event.pull_request.base.sha }} ${{ github.sha }} | xargs)"
           if git show --name-only | grep -e "Gemfile" -e "package-lock" ; then
             echo "lock changed"
