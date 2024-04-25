@@ -6,7 +6,6 @@ import os
 import subprocess
 
 class BatchComponent(pulumi.ComponentResource):
-    #def __init__(self, name, max_vcpus, security_group_ids, subnets, image_id, service_role, priority, json):
     def __init__(self, name, **kwargs):
         #super().__init__("custom:module:BatchComponent", name, {})
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
@@ -38,9 +37,39 @@ class BatchComponent(pulumi.ComponentResource):
 
         default_vpc_resource = awsx.ec2.DefaultVpc("defaultVpcResource")
         default_vpc_id = default_vpc_resource.vpc_id
+        """default_security_group_resource = aws.ec2.DefaultSecurityGroup("default",
+            ingress=[aws.ec2.DefaultSecurityGroupIngressArgs(
+            from_port=0,
+            protocol="string",
+            to_port=0,
+            cidr_blocks=["0.0.0.0/0"],
+            description="string",
+            prefix_list_ids=["string"],
+            security_groups=["string"],
+            self=False,
+            )],
+            revoke_rules_on_delete=False,
+            tags={
+                "string": "string",
+            },
+            vpc_id=default_vpc_id,
+        )"""
 
         default_vpc = aws.ec2.get_vpc(default=True)
-        #default_security_group = aws.ec2.SecurityGroup.get('default', id=default_vpc.default_security_group_id)
+        default_security_group_resource = aws.ec2.get_security_groups(filters=[
+            aws.ec2.GetSecurityGroupsFilterArgs(
+                name="group-name",
+                values=["*nodes*"],
+            ),
+            aws.ec2.GetSecurityGroupsFilterArgs(
+                name="vpc-id",
+                values=[default_vpc_id],
+            ),
+        ])
+        print(default_security_group_resource.ids)
+        #for dirattr in dir(default_security_group_resource):
+            #print(f" attr is {dirattr} and the type is {type(dirattr)}")
+        #exit()
         default_subnet = default_vpc_resource.public_subnet_ids[0]
 
         create_env = aws.batch.ComputeEnvironment(f"{name}-batch",
@@ -55,6 +84,12 @@ class BatchComponent(pulumi.ComponentResource):
         service_role=self.service_role
         ) 
 
+        definition = aws.batch.JobDefinition(
+            f"{name}-definition",
+            type="container",
+            platform_capabilities=["FARGATE"],
+            container_properties=json
+        )
 
         sch_policy = aws.batch.SchedulingPolicy(f"{name}-sch_policy",
          fair_share_policy=aws.batch.SchedulingPolicyFairSharePolicyArgs(
@@ -68,7 +103,6 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags
         )
 
-
         queue = aws.batch.JobQueue(f"{name}-queue",
             compute_environments=[create_env],
             priority=self.priority,
@@ -76,9 +110,33 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags
         )
 
-        definition = aws.batch.JobDefinition(
-            f"{name}-definition",
-            type="container",
-            platform_capabilities=["FARGATE"],
-            container_properties=json
+        schedule_expression = "cron(0 0 * * ? *)"
+        event_pattern = {
+            "source": ["aws.batch"],
+            "detail-type": ["Batch Job State Change"],
+            "detail": {
+            "status": ["SUCCEEDED", "FAILED"]
+            }
+        }
+
+        rule = aws.cloudwatch.EventRule(
+            f"{name}-eventbridge-rule",
+            schedule_expression=schedule_expression,
+            state="ENABLED",
+            #event_pattern=event_pattern,
+            tags=tags
+        )
+
+        aws.cloudwatch.EventTarget(
+            f"{name}-event-target",
+            rule=rule.name,
+            arn=queue.arn,
+        )
+        
+        ecr_repo = aws.ecr.Repository(
+            f"{name}-ecr-repo",
+            image_scanning_configuration=aws.ecr.RepositoryImageScanningConfigurationArgs(
+                scan_on_push=True
+            ),
+            tags=tags
         )
