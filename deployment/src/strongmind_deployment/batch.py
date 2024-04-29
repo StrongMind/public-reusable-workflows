@@ -14,8 +14,8 @@ class BatchComponent(pulumi.ComponentResource):
         self.max_vcpus = kwargs.get('max_vcpus', None)
         #self.image_id = image_id
         self.service_role = kwargs.get('service_role', None)
-        self.priority = kwargs.get('priority', None)
-        self.json = json
+        priority = 1
+        #self.json = json
 
 
         stack = pulumi.get_stack()
@@ -35,48 +35,30 @@ class BatchComponent(pulumi.ComponentResource):
             "owner": owning_team,
         }
 
-        default_vpc_resource = awsx.ec2.DefaultVpc("defaultVpcResource")
-        default_vpc_id = default_vpc_resource.vpc_id
-        """default_security_group_resource = aws.ec2.DefaultSecurityGroup("default",
-            ingress=[aws.ec2.DefaultSecurityGroupIngressArgs(
-            from_port=0,
-            protocol="string",
-            to_port=0,
-            cidr_blocks=["0.0.0.0/0"],
-            description="string",
-            prefix_list_ids=["string"],
-            security_groups=["string"],
-            self=False,
-            )],
-            revoke_rules_on_delete=False,
-            tags={
-                "string": "string",
-            },
-            vpc_id=default_vpc_id,
-        )"""
+        default_vpc = aws.ec2.get_vpc(default="true")
+        #default_vpc_id = default_vpc.vpc_id
+        default_vpc_id = default_vpc.id
 
         default_vpc = aws.ec2.get_vpc(default=True)
-        default_security_group_resource = aws.ec2.get_security_groups(filters=[
-            aws.ec2.GetSecurityGroupsFilterArgs(
-                name="group-name",
-                values=["*nodes*"],
-            ),
-            aws.ec2.GetSecurityGroupsFilterArgs(
-                name="vpc-id",
-                values=[default_vpc_id],
-            ),
-        ])
-        print(default_security_group_resource.ids)
+        security_group  = aws.ec2.get_security_group(name="default", vpc_id=default_vpc.id)
+        print(f"sec group is: {security_group.id}")
         #for dirattr in dir(default_security_group_resource):
             #print(f" attr is {dirattr} and the type is {type(dirattr)}")
         #exit()
-        default_subnet = default_vpc_resource.public_subnet_ids[0]
-
+        default_sec_group = []
+        default_sec_group.append(security_group.id) 
+        default_subnets = aws.ec2.get_subnets(filters=[aws.ec2.GetSubnetsFilterArgs(
+            name="vpc-id",
+            values=[default_vpc.id]
+        )])
+        default_subnet = []
+        #default_subnet.append(default_vpc.public_subnet_ids) 
+        print(f"subnet is: {default_subnets.ids}")
         create_env = aws.batch.ComputeEnvironment(f"{name}-batch",
         compute_environment_name=f"{name}-batch",
         compute_resources=aws.batch.ComputeEnvironmentComputeResourcesArgs( max_vcpus=self.max_vcpus,
-            security_group_ids=[default_security_group_resource.id],
-            subnets=[default_subnet],
+            security_group_ids=default_sec_group,
+            subnets=default_subnets.ids,
             type="FARGATE",
             ),
         type="MANAGED",
@@ -84,18 +66,12 @@ class BatchComponent(pulumi.ComponentResource):
         service_role=self.service_role
         ) 
 
-        definition = aws.batch.JobDefinition(
-            f"{name}-definition",
-            type="container",
-            platform_capabilities=["FARGATE"],
-            container_properties=json
-        )
 
         sch_policy = aws.batch.SchedulingPolicy(f"{name}-sch_policy",
          fair_share_policy=aws.batch.SchedulingPolicyFairSharePolicyArgs(
              share_distributions=[
                  aws.batch.SchedulingPolicyFairSharePolicyShareDistributionArgs(
-                     share_identifier="*",
+                     share_identifier="A1*",
                      weight_factor=1
                     )
                 ]
@@ -104,10 +80,25 @@ class BatchComponent(pulumi.ComponentResource):
         )
 
         queue = aws.batch.JobQueue(f"{name}-queue",
-            compute_environments=[create_env],
-            priority=self.priority,
+            compute_environments=[create_env.arn],  # Use the ARN of the compute environment
+            priority=priority,
             state="ENABLED",
             tags=tags
+        )
+
+        CONTAINER_IMAGE = os.environ['CONTAINER_IMAGE']
+        jsonDef=json.loads({
+            "command": ["echo", "hello world"],
+            "image": CONTAINER_IMAGE,
+            "vcpus": 0.25,
+            "memory": 0.5
+        })
+
+        definition = aws.batch.JobDefinition(
+            f"{name}-definition",
+            type="container",
+            platform_capabilities=["FARGATE"],
+            container_properties=jsonDef
         )
 
         schedule_expression = "cron(0 0 * * ? *)"
