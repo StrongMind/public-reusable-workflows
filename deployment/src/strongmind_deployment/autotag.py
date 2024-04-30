@@ -1,15 +1,25 @@
 # thanks to joeduffy: https://github.com/joeduffy/aws-tags-example/tree/master/autotag-py
 
 import os
-from typing import Dict
 from strongmind_deployment.taggable import is_taggable
 import pulumi
 import subprocess
+
+from strongmind_deployment.operations import get_code_owner_team_name
+
 
 ########################
 ###### Entrypoint ######
 
 class StandardTags:
+    """
+    Represents the default tags that will be assigned to all projects.
+    Dependencies are: 
+     * Pulumi Config files for service and product.
+     * Pulumi Project / Stack for project and environment.
+     * Git for the repository name.
+     * CODEOWNERS file for owner.
+    """
     def __init__(
         self,
         extra_tags: dict,
@@ -27,6 +37,7 @@ class StandardTags:
         self.product = product or config.require("product")
         # get the git repository from the current git repo if not provided
         self.repository = repository or config.get("repository") or get_repo_name()
+        self.owner = get_code_owner_team_name()
 
 
 def get_standard_tags(extra_tags:dict):
@@ -42,6 +53,7 @@ def get_standard_tags(extra_tags:dict):
         "service": standard_tags.service,
         "product": standard_tags.product,
         "repository": standard_tags.repository,
+        "owner": standard_tags.owner,
         **extra_tags,
     }
 
