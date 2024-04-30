@@ -151,18 +151,20 @@ class BatchComponent(pulumi.ComponentResource):
         command = self.command
 
         lambda_execution_role = execution_role.arn.apply(lambda arn: arn)
-        containerProperties = {
-            "command": command,
-            "image": CONTAINER_IMAGE,
-            "resourceRequirements": [
-                {"type": "MEMORY", "value": str(memory)},
-                {"type": "VCPU", "value": str(vcpu)}
-            ],
-            "executionRoleArn": f"{lambda_execution_role}",
-            "jobRoleArn": f"{lambda_execution_role}",
-        }
 
-        jsonDef = json.dumps(containerProperties)
+        containerProperties = pulumi.Output.all(command, CONTAINER_IMAGE, memory, vcpu, lambda_execution_role).apply(
+            lambda args: {
+                "command": args[0],
+                "image": args[1],
+                "resourceRequirements": [
+                    {"type": "MEMORY", "value": str(args[2])},
+                    {"type": "VCPU", "value": str(args[3])}
+                ],
+                "executionRoleArn": args[4],
+            }
+        )
+        jsonDef = containerProperties.apply(json.dumps)
+        #jsonDef = json.dumps(containerProperties)
 
         definition = aws.batch.JobDefinition(
             f"{self.project_stack}-definition",
