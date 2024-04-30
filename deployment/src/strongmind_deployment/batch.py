@@ -4,6 +4,7 @@ import pulumi_awsx as awsx
 import json
 import os
 import subprocess
+from pulumi_aws import cloudwatch
 
 class BatchComponent(pulumi.ComponentResource):
     def __init__(self, name, **kwargs):
@@ -80,19 +81,28 @@ class BatchComponent(pulumi.ComponentResource):
         )
 
         queue = aws.batch.JobQueue(f"{name}-queue",
-            compute_environments=[create_env.arn],  # Use the ARN of the compute environment
+            compute_environments=[create_env.arn],
             priority=priority,
             state="ENABLED",
             tags=tags
         )
 
         CONTAINER_IMAGE = os.environ['CONTAINER_IMAGE']
-        jsonDef=json.loads({
+        vcpu = 0.25
+        memory = 2048
+
+        containerProperties = {
             "command": ["echo", "hello world"],
             "image": CONTAINER_IMAGE,
-            "vcpus": 0.25,
-            "memory": 0.5
-        })
+            "resourceRequirements": [
+                {"type": "MEMORY", "value": str(memory)},
+                {"type": "VCPU", "value": str(vcpu)}
+            ],
+            "executionRoleArn": "arn:aws:iam::221871915463:role/ecsTaskExecutionRole",
+            "jobRoleArn": "arn:aws:iam::221871915463:role/ecsTaskExecutionRole",
+        }
+
+        jsonDef = json.dumps(containerProperties)
 
         definition = aws.batch.JobDefinition(
             f"{name}-definition",
@@ -118,10 +128,16 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags
         )
 
-        aws.cloudwatch.EventTarget(
+        event_target = aws.cloudwatch.EventTarget(
             f"{name}-event-target",
             rule=rule.name,
             arn=queue.arn,
+            role_arn="arn:aws:iam::221871915463:role/ecsEventsRole",
+            batch_target=cloudwatch.EventTargetBatchTargetArgs(
+                job_definition=definition,
+                job_name=rule.name,
+                job_attempts=1
+                ),
         )
         
         ecr_repo = aws.ecr.Repository(
