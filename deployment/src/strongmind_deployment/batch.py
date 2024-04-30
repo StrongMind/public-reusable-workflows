@@ -5,6 +5,8 @@ import json
 import os
 import subprocess
 from pulumi_aws import cloudwatch
+import sys
+from strongmind_deployment.secrets import SecretsComponent
 
 class BatchComponent(pulumi.ComponentResource):
     def __init__(self, name, **kwargs):
@@ -15,8 +17,8 @@ class BatchComponent(pulumi.ComponentResource):
         self.max_memory = self.kwargs.get('max_memory', 2048)
         self.command = self.kwargs.get('command', '["echo", "hello world"]')
         self.cron = self.kwargs.get('cron', 'cron(0 0 * * ? *)')
+        self.secrets = self.kwargs.get('secrets', [])
         #self.image_id = image_id
-        #self.json = json
 
 
         stack = pulumi.get_stack()
@@ -38,24 +40,16 @@ class BatchComponent(pulumi.ComponentResource):
         }
 
         default_vpc = aws.ec2.get_vpc(default="true")
-        #default_vpc_id = default_vpc.vpc_id
-        default_vpc_id = default_vpc.id
 
         default_vpc = aws.ec2.get_vpc(default=True)
         security_group  = aws.ec2.get_security_group(name="default", vpc_id=default_vpc.id)
-        print(f"sec group is: {security_group.id}")
-        #for dirattr in dir(default_security_group_resource):
-            #print(f" attr is {dirattr} and the type is {type(dirattr)}")
-        #exit()
         default_sec_group = []
         default_sec_group.append(security_group.id) 
         default_subnets = aws.ec2.get_subnets(filters=[aws.ec2.GetSubnetsFilterArgs(
             name="vpc-id",
             values=[default_vpc.id]
         )])
-        default_subnet = []
-        #default_subnet.append(default_vpc.public_subnet_ids) 
-        print(f"subnet is: {default_subnets.ids}")
+
         execution_role = aws.iam.Role(
             f"{self.project_stack}-execution-role",
             name=f"{self.project_stack}-execution-role",
@@ -121,20 +115,6 @@ class BatchComponent(pulumi.ComponentResource):
             type="MANAGED",
             tags=tags,
             service_role="arn:aws:iam::221871915463:role/aws-service-role/batch.amazonaws.com/AWSServiceRoleForBatch",
-            ) 
-
-
-        sch_policy = aws.batch.SchedulingPolicy(f"{self.project_stack}-sch_policy",
-            name=f"{self.project_stack}-sch_policy",
-            fair_share_policy=aws.batch.SchedulingPolicyFairSharePolicyArgs(
-                share_distributions=[
-                    aws.batch.SchedulingPolicyFairSharePolicyShareDistributionArgs(
-                        share_identifier="A1*",
-                        weight_factor=1
-                        )
-                    ]
-                ),
-                tags=tags
             )
 
         queue = aws.batch.JobQueue(f"{self.project_stack}-queue",
@@ -151,20 +131,22 @@ class BatchComponent(pulumi.ComponentResource):
         command = self.command
 
         lambda_execution_role = execution_role.arn.apply(lambda arn: arn)
+        secrets = SecretsComponent("secrets", secret_string='{}')
+        secretsList = secrets.get_secrets()
 
-        containerProperties = pulumi.Output.all(command, CONTAINER_IMAGE, memory, vcpu, lambda_execution_role).apply(
+        containerProperties = pulumi.Output.all(command, CONTAINER_IMAGE, memory, vcpu, lambda_execution_role, secretsList).apply(
             lambda args: {
-                "command": args[0],
-                "image": args[1],
+                "command": command,
+                "image": CONTAINER_IMAGE,
                 "resourceRequirements": [
-                    {"type": "MEMORY", "value": str(args[2])},
-                    {"type": "VCPU", "value": str(args[3])}
+                    {"type": "MEMORY", "value": memory},
+                    {"type": "VCPU", "value": vcpu}
                 ],
-                "executionRoleArn": args[4],
+                "executionRoleArn": lambda_execution_role,
+                "secrets": secretsList, 
             }
         )
         jsonDef = containerProperties.apply(json.dumps)
-        #jsonDef = json.dumps(containerProperties)
 
         definition = aws.batch.JobDefinition(
             f"{self.project_stack}-definition",
@@ -175,20 +157,11 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags
         )
 
-        event_pattern = {
-            "source": ["aws.batch"],
-            "detail-type": ["Batch Job State Change"],
-            "detail": {
-            "status": ["SUCCEEDED", "FAILED"]
-            }
-        }
-
         rule = aws.cloudwatch.EventRule(
             f"{self.project_stack}-eventbridge-rule",
             name=f"{self.project_stack}-eventbridge-rule",
             schedule_expression=self.cron,
             state="ENABLED",
-            #event_pattern=event_pattern,
             tags=tags
         )
 
