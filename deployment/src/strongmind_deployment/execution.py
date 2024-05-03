@@ -4,6 +4,8 @@ from typing import Optional
 import boto3
 import pulumi
 from pulumi import ResourceOptions
+import pulumi_aws as aws
+import subprocess
 
 
 class ExecutionResourceInputs:
@@ -82,6 +84,22 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
             )
         exit_code = task['tasks'][0]['containers'][0]['exitCode']
         if exit_code:
+            """stream_command = f"aws logs describe-log-streams --log-group-name '/aws/ecs/{cluster}' --query 'logStreams[*].logStreamName' --max-items 1 --order-by LastEventTime --descending --output text | grep container"
+            stream = subprocess.run(stream_command, shell=True, capture_output=True, text=True).stdout.strip()
+
+            log_command = f"aws logs get-log-events --log-group-name /aws/ecs/ --log-stream-name {stream} --output text"
+            log_output = subprocess.run(log_command, shell=True, capture_output=True, text=True).stdout"""
+
+            logs = boto3.client('logs')
+            log_group_name = '/aws/ecs/{}'.format(cluster)
+            log_stream_name = 'container/{}'.format(task_id)
+            response = logs.get_log_events(
+                logGroupName=log_group_name,
+                logStreamName=log_stream_name,
+                startFromHead=True
+            )
+            print(response)
+
             raise Exception(f"Task exited with code {exit_code}")
         return True
 
