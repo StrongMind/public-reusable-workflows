@@ -91,7 +91,7 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
             log_output = subprocess.run(log_command, shell=True, capture_output=True, text=True).stdout"""
 
             logs = boto3.client('logs')
-            log_group_name = '/aws/ecs/{}'.format(cluster)
+            log_group_name = '/aws/ecs/{}'.format(inputs['cluster'])
             log_stream_name = 'container/{}'.format(task_id)
             response = logs.get_log_events(
                 logGroupName=log_group_name,
