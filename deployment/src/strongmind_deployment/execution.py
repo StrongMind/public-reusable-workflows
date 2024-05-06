@@ -96,7 +96,7 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
             for each in response['events']:
                 print(each['message'])
 
-            raise Execption(f"Task exited with code {exit_code}")
+            raise Exception(f"Task exited with code {exit_code}")
         return True
 
 
