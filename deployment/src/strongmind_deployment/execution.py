@@ -84,23 +84,21 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
             )
         exit_code = task['tasks'][0]['containers'][0]['exitCode']
         if exit_code:
-            """stream_command = f"aws logs describe-log-streams --log-group-name '/aws/ecs/{cluster}' --query 'logStreams[*].logStreamName' --max-items 1 --order-by LastEventTime --descending --output text | grep container"
-            stream = subprocess.run(stream_command, shell=True, capture_output=True, text=True).stdout.strip()
-
-            log_command = f"aws logs get-log-events --log-group-name /aws/ecs/ --log-stream-name {stream} --output text"
-            log_output = subprocess.run(log_command, shell=True, capture_output=True, text=True).stdout"""
-
             logs = boto3.client('logs')
-            log_group_name = '/aws/ecs/{}'.format(inputs['cluster'])
-            log_stream_name = 'container/{}'.format(task_id)
+            family = str(inputs['family'])
+            log_group_name = f'/aws/ecs/{family}'
+            print(f"Log group name: {log_group_name}")
+            log_stream_name = f'container/{family}/{format(task_id)}'
+            print(f"Log stream name: {log_stream_name}")
             response = logs.get_log_events(
                 logGroupName=log_group_name,
                 logStreamName=log_stream_name,
                 startFromHead=True
             )
-            print(response)
+            for each in response['events']:
+                print(each['message'])
 
-            raise Exception(f"Task exited with code {exit_code}")
+            raise Execption(f"Task exited with code {exit_code}")
         return True
 
 
