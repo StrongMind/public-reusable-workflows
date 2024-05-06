@@ -82,7 +82,21 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
             )
         exit_code = task['tasks'][0]['containers'][0]['exitCode']
         if exit_code:
-            raise Exception(f"Task exited with code {exit_code}")
+            logs = boto3.client('logs')
+            family = str(inputs['family'])
+            log_group_name = f'/aws/ecs/{family}'
+            print(f"Log group name: {log_group_name}")
+            log_stream_name = f'container/{family}/{format(task_id)}'
+            print(f"Log stream name: {log_stream_name}")
+            response = logs.get_log_events(
+                logGroupName=log_group_name,
+                logStreamName=log_stream_name,
+                startFromHead=True
+            )
+            for each in response['events']:
+                print(each['message'])
+
+            raise Execption(f"Task exited with code {exit_code}")
         return True
 
 
