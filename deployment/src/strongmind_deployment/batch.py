@@ -1,6 +1,5 @@
 import pulumi 
 import pulumi_aws as aws
-import pulumi_awsx as awsx
 import json
 import os
 import subprocess
@@ -130,30 +129,33 @@ class BatchComponent(pulumi.ComponentResource):
         memory = self.max_memory
         command = self.command
 
-        lambda_execution_role = execution_role.arn.apply(lambda arn: arn)
         secrets = SecretsComponent("secrets", secret_string='{}')
         secretsList = secrets.get_secrets()
 
-        containerProperties = pulumi.Output.all(command, CONTAINER_IMAGE, memory, vcpu, lambda_execution_role, secretsList).apply(
-            lambda args: {
-                "command": command,
-                "image": CONTAINER_IMAGE,
-                "resourceRequirements": [
-                    {"type": "MEMORY", "value": memory},
-                    {"type": "VCPU", "value": vcpu}
-                ],
-                "executionRoleArn": lambda_execution_role,
-                "secrets": secretsList, 
-            }
-        )
-        jsonDef = containerProperties.apply(json.dumps)
+        containerProperties = pulumi.Output.all(
+            command=command, 
+            CONTAINER_IMAGE=CONTAINER_IMAGE, 
+            memory=memory, 
+            vcpu=vcpu, 
+            lambda_execution_role=execution_role.arn, 
+            secretsList=secretsList
+        ).apply(lambda args: json.dumps( {
+            "command": args["command"],
+            "image": args["CONTAINER_IMAGE"],
+            "resourceRequirements": [
+                {"type": "MEMORY", "value": str(args["memory"])},
+                {"type": "VCPU", "value": str(args["vcpu"])}
+            ],
+            "executionRoleArn": args["lambda_execution_role"],
+            "secrets": args["secretsList"]
+        }))
 
         definition = aws.batch.JobDefinition(
             f"{self.project_stack}-definition",
             name = f"{self.project_stack}-definition",
             type="container",
             platform_capabilities=["FARGATE"],
-            container_properties=jsonDef,
+            container_properties=containerProperties,
             tags=tags
         )
 
