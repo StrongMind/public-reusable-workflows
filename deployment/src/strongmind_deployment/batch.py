@@ -14,10 +14,9 @@ class BatchComponent(pulumi.ComponentResource):
         self.kwargs = kwargs
         self.max_vcpus = self.kwargs.get('max_vcpus', 0.25)
         self.max_memory = self.kwargs.get('max_memory', 2048)
-        self.command = self.kwargs.get('command', '["echo", "hello world"]')
+        self.command = self.kwargs.get('command', ["echo", "hello world"])
         self.cron = self.kwargs.get('cron', 'cron(0 0 * * ? *)')
         self.secrets = self.kwargs.get('secrets', [])
-        #self.image_id = image_id
 
 
         stack = pulumi.get_stack()
@@ -59,7 +58,12 @@ class BatchComponent(pulumi.ComponentResource):
                         {
                             "Sid": "",
                             "Effect": "Allow",
-                            "Principal": {"Service": "ecs-tasks.amazonaws.com"},
+                            "Principal": {
+                                "Service": [
+                                    "ecs-tasks.amazonaws.com",
+                                    "batch.amazonaws.com",
+                                    "events.amazonaws.com"
+                            ]},
                             "Action": "sts:AssumeRole",
                         }
                     ],
@@ -81,6 +85,9 @@ class BatchComponent(pulumi.ComponentResource):
                                 "ecs:*",
                                 "ecr:GetAuthorizationToken",
                                 "ecr:BatchCheckLayerAvailability",
+                                "batch:*",
+                                "event:*",
+                                "s3:*",
                                 "ecr:GetDownloadUrlForLayer",
                                 "ecr:BatchGetImage",
                                 "ecr:GetRepositoryPolicy",
@@ -113,7 +120,7 @@ class BatchComponent(pulumi.ComponentResource):
                 ),
             type="MANAGED",
             tags=tags,
-            service_role="arn:aws:iam::221871915463:role/aws-service-role/batch.amazonaws.com/AWSServiceRoleForBatch",
+            service_role=execution_role.arn,
             )
 
         queue = aws.batch.JobQueue(f"{self.project_stack}-queue",
@@ -129,6 +136,13 @@ class BatchComponent(pulumi.ComponentResource):
         memory = self.max_memory
         command = self.command
 
+        logGroup = aws.cloudwatch.LogGroup(
+            f"{self.project_stack}-log-group",
+            name=f"/aws/batch/{self.project_stack}-job",
+            retention_in_days=14,
+            tags=tags
+        )
+
         secrets = SecretsComponent("secrets", secret_string='{}')
         secretsList = secrets.get_secrets()
 
@@ -137,8 +151,10 @@ class BatchComponent(pulumi.ComponentResource):
             CONTAINER_IMAGE=CONTAINER_IMAGE, 
             memory=memory, 
             vcpu=vcpu, 
-            lambda_execution_role=execution_role.arn, 
-            secretsList=secretsList
+            execution_role=execution_role.arn, 
+            secretsList=secretsList,
+            logGroup=logGroup.id,
+            region=region
         ).apply(lambda args: json.dumps( {
             "command": args["command"],
             "image": args["CONTAINER_IMAGE"],
@@ -146,7 +162,18 @@ class BatchComponent(pulumi.ComponentResource):
                 {"type": "MEMORY", "value": str(args["memory"])},
                 {"type": "VCPU", "value": str(args["vcpu"])}
             ],
-            "executionRoleArn": args["lambda_execution_role"],
+            "executionRoleArn": args["execution_role"],
+            "jobRoleArn": args["execution_role"],
+            "networkConfiguration":
+                {"assignPublicIp": "ENABLED"},
+            "logConfiguration": {
+                "logDriver": "awslogs",
+                "options": {
+                    "awslogs-group": args["logGroup"],
+                    "awslogs-region": args["region"],
+                    "awslogs-stream-prefix": "batch"
+                }
+            },
             "secrets": args["secretsList"]
         }))
 
