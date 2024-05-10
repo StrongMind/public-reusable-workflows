@@ -12,8 +12,10 @@ class BatchComponent(pulumi.ComponentResource):
         super().__init__("custom:module:BatchComponent", name, {})
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.kwargs = kwargs
-        self.max_vcpus = self.kwargs.get('max_vcpus', 0.25)
+        self.max_vcpus = self.kwargs.get('max_vcpus', 16)
+        self.vcpu = self.kwargs.get('vcpu', 0.25)
         self.max_memory = self.kwargs.get('max_memory', 2048)
+        self.memory = self.kwargs.get('memory', 512)
         self.command = self.kwargs.get('command', ["echo", "hello world"])
         self.cron = self.kwargs.get('cron', 'cron(0 0 * * ? *)')
         self.secrets = self.kwargs.get('secrets', [])
@@ -132,9 +134,6 @@ class BatchComponent(pulumi.ComponentResource):
         )
 
         CONTAINER_IMAGE = os.environ['CONTAINER_IMAGE']
-        vcpu = self.max_vcpus
-        memory = self.max_memory
-        command = self.command
 
         logGroup = aws.cloudwatch.LogGroup(
             f"{self.project_stack}-log-group",
@@ -147,10 +146,10 @@ class BatchComponent(pulumi.ComponentResource):
         secretsList = secrets.get_secrets()
 
         containerProperties = pulumi.Output.all(
-            command=command, 
+            command=self.command, 
             CONTAINER_IMAGE=CONTAINER_IMAGE, 
-            memory=memory, 
-            vcpu=vcpu, 
+            memory=self.memory, 
+            vcpu=self.vcpu, 
             execution_role=execution_role.arn, 
             secretsList=secretsList,
             logGroup=logGroup.id,
