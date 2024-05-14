@@ -100,9 +100,12 @@ class BatchComponent(pulumi.ComponentResource):
                                 "ecr:UploadLayerPart",
                                 "ecr:CompleteLayerUpload",
                                 "ecr:PutImage",
-                                "logs:CreateLogStream",
-                                "logs:PutLogEvents",
+                                "logs:*",
                                 "secretsmanager:GetSecretValue",
+                                "ec2:*",
+                                "iam:GetInstanceProfile",
+				                "iam:GetRole",
+				                "iam:PassRole",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -115,7 +118,8 @@ class BatchComponent(pulumi.ComponentResource):
 
         create_env = aws.batch.ComputeEnvironment(f"{self.project_stack}-batch",
             compute_environment_name=f"{self.project_stack}-batch",
-            compute_resources=aws.batch.ComputeEnvironmentComputeResourcesArgs( max_vcpus=self.max_vcpus,
+            compute_resources=aws.batch.ComputeEnvironmentComputeResourcesArgs( 
+                max_vcpus=self.max_vcpus,
                 security_group_ids=default_sec_group,
                 subnets=default_subnets.ids,
                 type="FARGATE",
@@ -127,10 +131,11 @@ class BatchComponent(pulumi.ComponentResource):
 
         queue = aws.batch.JobQueue(f"{self.project_stack}-queue",
             name=f"{self.project_stack}-queue",
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[create_env]),
             compute_environments=[create_env.arn],
             priority=1,
             state="ENABLED",
-            tags=tags
+            tags=tags,
         )
 
         CONTAINER_IMAGE = os.environ['CONTAINER_IMAGE']
@@ -148,9 +153,9 @@ class BatchComponent(pulumi.ComponentResource):
         containerProperties = pulumi.Output.all(
             command=self.command, 
             CONTAINER_IMAGE=CONTAINER_IMAGE, 
-            memory=self.memory, 
-            vcpu=self.vcpu, 
-            execution_role=execution_role.arn, 
+            memory=self.memory,
+            vcpu=self.vcpu,
+            execution_role=execution_role.arn,
             secretsList=secretsList,
             logGroup=logGroup.id,
             region=region
