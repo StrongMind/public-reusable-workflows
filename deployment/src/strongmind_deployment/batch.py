@@ -88,7 +88,7 @@ class BatchComponent(pulumi.ComponentResource):
                                 "ecr:GetAuthorizationToken",
                                 "ecr:BatchCheckLayerAvailability",
                                 "batch:*",
-                                "event:*",
+                                "events:*",
                                 "s3:*",
                                 "ecr:GetDownloadUrlForLayer",
                                 "ecr:BatchGetImage",
