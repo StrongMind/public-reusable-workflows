@@ -71,6 +71,8 @@ class VpcComponent(pulumi.ComponentResource):
         self.vpc = self.create_vpc()
         self.gateway = self.create_internet_gateway()
 
+        self.vpce_security_group = self.create_vpce_security_group()
+
         self.public_subnets = self.create_public_subnets()
         self.private_subnets = self.create_private_subnets()
         self.database_subnets = self.create_database_subnets()
@@ -259,6 +261,27 @@ class VpcComponent(pulumi.ComponentResource):
             database_subnets.append(database_subnet.id)
         return database_subnets
 
+    def create_vpce_security_group(self):
+
+        vpce_sg = aws.ec2.SecurityGroup(
+            f"{self.vpc_name}-vpce-sg",
+            vpc_id=self.vpc.id,
+            description="Security group for VPC endpoints",
+            tags={"Name": f"{self.vpc_name}-vpc-endpoint"},
+            opts=self.child_opts,
+        )
+
+        aws.ec2.SecurityGroupRule(
+            "allow_tls_ipv4",
+            type="ingress",
+            from_port=443,
+            to_port=443,
+            protocol=aws.ec2.ProtocolType.TCP,
+            cidr_blocks=[self.vpc.cidr_block],
+            security_group_id=vpce_sg.id,
+        )
+        return vpce_sg
+
     def create_private_link(
         self,
         service_name: str,
@@ -276,6 +299,7 @@ class VpcComponent(pulumi.ComponentResource):
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
             vpc_endpoint_type=PrivateLinkType.GATEWAY,
+            security_group_ids=[self.vpce_security_group.id],
             tags={
                 "Name": f"{service_name}-gateway",
             },
@@ -293,7 +317,7 @@ class VpcComponent(pulumi.ComponentResource):
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
             vpc_endpoint_type=PrivateLinkType.INTERFACE,
-            # security_group_ids=[self.vpc.default_security_group_id],
+            security_group_ids=[self.vpce_security_group.id],
             subnet_ids=target_subnet_ids,
             private_dns_enabled=True,
             opts=self.child_opts,
