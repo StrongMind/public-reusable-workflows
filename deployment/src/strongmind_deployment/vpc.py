@@ -299,7 +299,6 @@ class VpcComponent(pulumi.ComponentResource):
             vpc_id=self.vpc.id,
             service_name=f"com.amazonaws.{region}.{service_name}",
             vpc_endpoint_type=PrivateLinkType.GATEWAY,
-            security_group_ids=[self.vpce_security_group.id],
             tags={
                 "Name": f"{service_name}-gateway",
             },
