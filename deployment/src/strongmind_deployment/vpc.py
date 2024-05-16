@@ -277,7 +277,7 @@ class VpcComponent(pulumi.ComponentResource):
             from_port=443,
             to_port=443,
             protocol=aws.ec2.ProtocolType.TCP,
-            cidr_blocks=[self.vpc.cidr_block],
+            cidr_blocks=["0.0.0.0/0"],
             security_group_id=vpce_sg.id,
         )
         return vpce_sg
