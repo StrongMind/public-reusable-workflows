@@ -14,6 +14,10 @@ on:
         required: false
         type: string
         default: ${{ github.event.repository.name }}:${{ github.sha }}
+      pulumi-command:
+        required: true
+        type: string
+        default: "up"
 
 env:
   AWS_REGION: us-west-2
@@ -55,4 +59,4 @@ jobs:
         pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
         pulumi stack init ${{ inputs.environment-name }} --non-interactive || true
         pulumi stack select ${{ inputs.environment-name }}
-        pulumi up --yes -v=3
+        pulumi ${{ inputs.pulumi-command }} --yes -v=3
