@@ -31,7 +31,7 @@ jobs:
       environment-name: ${{ inputs.environment-name }}
       web-container-image: ${{ inputs.web-repository-name }}:${{ github.event.workflow_run.head_sha }}
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.event.workflow_run.head_sha }}
-      pulumi-command: $ {{ inputs.pulumi-command }}
+      pulumi-command: ${{ inputs.pulumi-command }}
     secrets: inherit
 
   deploy-manual:
@@ -42,7 +42,7 @@ jobs:
       environment-name: ${{ inputs.environment-name }}
       web-container-image: ${{ inputs.web-repository-name }}:${{ github.sha }}
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.sha }}
-      pulumi-command: $ {{ inputs.pulumi-command }}
+      pulumi-command: ${{ inputs.pulumi-command }}
     secrets: inherit
 
 
