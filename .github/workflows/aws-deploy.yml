@@ -25,7 +25,7 @@ on:
 jobs:
   deploy-auto:
     name: Autodeploy to ECS
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@DEVOPS-14437
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     with:
       environment-name: ${{ inputs.environment-name }}
@@ -36,7 +36,7 @@ jobs:
 
   deploy-manual:
     name: Manually deploy to ECS
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@DEVOPS-14437
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy-with-pulumi.yml@main
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.commit-sha == '' }}
     with:
       environment-name: ${{ inputs.environment-name }}
