@@ -15,7 +15,7 @@ on:
         type: string
         default: ${{ github.event.repository.name }}:${{ github.sha }}
       pulumi-command:
-        required: true
+        required: false
         type: string
         default: "up"
 
