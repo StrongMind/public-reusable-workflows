@@ -10,7 +10,6 @@ class VpcComponent(pulumi.ComponentResource):
         super().__init__("custom:module:VPC", name, {})
         self.kwargs = kwargs
         self.name = name
-        self.stack = kwargs.get('stack')
         self.cidr = kwargs.get('cidr')
         try: 
             self.cidr_ending = int(self.cidr.split('/')[-1])
@@ -84,7 +83,7 @@ class VpcComponent(pulumi.ComponentResource):
     def split_cidr(self,cidr):
         print(cidr)
         try:
-            network = ipaddress.ip_network(cidr)
+            network = ipaddress.ip_network(cidr) # 10.40.0.0/16 10.40.0.1 .2 .4 .5 .6
         except ValueError:
             print("Invalid CIDR notation")
 
