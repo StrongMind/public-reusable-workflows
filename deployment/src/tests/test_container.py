@@ -231,6 +231,8 @@ def describe_container():
                     "Statement": [
                         {
                             "Action": [
+                                "bedrock:InvokeModel",
+                                "bedrock:InvokeModelWithResponseStream",
                                 "ssmmessages:CreateControlChannel",
                                 "ssmmessages:CreateDataChannel",
                                 "ssmmessages:OpenControlChannel",
