@@ -161,6 +161,8 @@ class ContainerComponent(pulumi.ComponentResource):
                     "Statement": [
                         {
                             "Action": [
+                                "bedrock:InvokeModel",
+                                "bedrock:InvokeModelWithResponseStream",
                                 "ecs:*",
                                 "ecr:GetAuthorizationToken",
                                 "ecr:BatchCheckLayerAvailability",
