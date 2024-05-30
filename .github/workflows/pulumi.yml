@@ -1,20 +1,20 @@
 # This is intended to be called from other workflows.
 # Any workflow in this repo that deploys a pulumi stack will use this one re-usable workflow.
-name: Pulumi Sub Workflow 
+name: Pulumi Sub Workflow
 
 on:
   workflow_call:
     inputs:
       pulumi_command:
-        description: 'pulumi command. either up or preview'
+        description: "pulumi command. either up or preview"
         type: string
-        default: 'preview'
-      python_version: 
-        description: 'Python version'
+        default: "preview"
+      python_version:
+        description: "Python version"
         type: string
         default: 3.10.12
       pulumi_stack:
-        description: Pulumi stack 
+        description: Pulumi stack
         type: string
         default: dev
       aws_region:
@@ -22,29 +22,29 @@ on:
         type: string
         default: us-east-1
       working_directory:
-        description: 'The directory to run commands in'
+        description: "The directory to run commands in"
         type: string
         required: true
       config_map:
-        description: 'Optional Pulumi configuration values'
+        description: "Optional Pulumi configuration values"
         type: string
         required: false
-        default: ''
+        default: ""
       stack_timeout:
-        description: 'Timeout in seconds to wait for the stack to unlock'
+        description: "Timeout in seconds to wait for the stack to unlock"
         type: string
         required: false
-        default: '300'  # 5min
+        default: "300" # 5min
       sha:
-        description: 'The commit SHA'
+        description: "The commit SHA"
         type: string
         required: false
         default: ${{ github.sha }}
       role_to_assume:
-        description: 'The role to assume'
+        description: "The role to assume"
         type: string
       state_bucket:
-        description: 'The S3 bucket to store the state'
+        description: "The S3 bucket to store the state"
         type: string
     secrets:
       pulumi_config_passphrase:
@@ -52,7 +52,7 @@ on:
 
 jobs:
   Pulumi:
-    # important, as collisions can occur between the dispatch handler and the PR it creates and merges, 
+    # important, as collisions can occur between the dispatch handler and the PR it creates and merges,
     # when the pull_request_merge.yml workflow runs.
     concurrency:
       group: "${{ inputs.pulumi_command }}-${{ inputs.working_directory }}-${{ inputs.pulumi_stack }}"
@@ -92,3 +92,4 @@ jobs:
           config-map: ${{inputs.config_map}}
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{secrets.pulumi_config_passphrase}}
+          CLOUDFLARE_API_TOKEN: ${{secrets.CLOUDFLARE_TOKEN}}
