@@ -1,0 +1,94 @@
+# This is intended to be called from other workflows.
+# Any workflow in this repo that deploys a pulumi stack will use this one re-usable workflow.
+name: Pulumi Sub Workflow 
+
+on:
+  workflow_call:
+    inputs:
+      pulumi_command:
+        description: 'pulumi command. either up or preview'
+        type: string
+        default: 'preview'
+      python_version: 
+        description: 'Python version'
+        type: string
+        default: 3.10.12
+      pulumi_stack:
+        description: Pulumi stack 
+        type: string
+        default: dev
+      aws_region:
+        description: AWS region
+        type: string
+        default: us-east-1
+      working_directory:
+        description: 'The directory to run commands in'
+        type: string
+        required: true
+      config_map:
+        description: 'Optional Pulumi configuration values'
+        type: string
+        required: false
+        default: ''
+      stack_timeout:
+        description: 'Timeout in seconds to wait for the stack to unlock'
+        type: string
+        required: false
+        default: '300'  # 5min
+      sha:
+        description: 'The commit SHA'
+        type: string
+        required: false
+        default: ${{ github.sha }}
+      role_to_assume:
+        description: 'The role to assume'
+        type: string
+      state_bucket:
+        description: 'The S3 bucket to store the state'
+        type: string
+    secrets:
+      pulumi_config_passphrase:
+        description: passphrase for the Pulumi stacks config files
+
+jobs:
+  Pulumi:
+    # important, as collisions can occur between the dispatch handler and the PR it creates and merges, 
+    # when the pull_request_merge.yml workflow runs.
+    concurrency:
+      group: "${{ inputs.pulumi_command }}-${{ inputs.working_directory }}-${{ inputs.pulumi_stack }}"
+    name: ${{ inputs.working_directory }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.sha }}
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{inputs.python_version}}
+          cache: "pip"
+      - run: pip3 install --upgrade pip
+      - run: pwd
+      - run: pip3 install -r ${{inputs.working_directory}}/requirements.txt
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{inputs.role_to_assume}}
+          aws-region: ${{inputs.aws_region}}
+      - uses: pulumi/actions@v5
+        with:
+          command: ${{inputs.pulumi_command}}
+          stack-name: ${{ inputs.pulumi_stack }}
+          work-dir: ${{inputs.working_directory}}
+          comment-on-pr: true
+          cloud-url: s3://${{inputs.state_bucket}}
+          diff: true
+          config-map: ${{inputs.config_map}}
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{secrets.pulumi_config_passphrase}}

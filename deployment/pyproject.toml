@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "strongmind_deployment"
-version = "{PACKAGE_VERSION}"
+dynamic = ["version"]
 
 authors = [
   { name="Belding", email="teambelding@strongmind.com" },
@@ -27,3 +27,7 @@ dependencies = [
 
 [project.urls]
 "Homepage" = "https://github.com/strongmind/public-reusable-workflows/tree/main/deployment"
+
+[tool.hatch.version]
+path = "__version__.py"
+

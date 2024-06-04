@@ -106,6 +106,18 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     **args.inputs,
                     "arn": f"arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy",
                 }
+            if args.typ == "awsx:ec2:Vpc":
+                outputs = {
+                    **args.inputs,
+                    "vpc_id": f"vpc-{faker.word()}",
+                }
+            if args.typ == "aws:ec2/natGateway:NatGateway":
+                outputs = {
+                    **args.inputs,
+                    "nat_gateways": { "asdf": "asdf"}
+                }
+
+            print(args.typ)
 
             return [args.name + '_id', outputs]
 
@@ -115,6 +127,13 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
                     "secretString": secret_string
                 }
+
+            if args.token == "aws:ec2/getSubnets:getSubnets":
+                return {"ids": ["subnet-12345", "subnet-67890"]}
+
+            raise NotImplementedError(
+                "No mock for: " + args.token + " - change PulimiMocks.call"
+            )
 
     return PulumiMocks()
 
