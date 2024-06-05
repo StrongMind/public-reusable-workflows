@@ -108,12 +108,12 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 1)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
         self.threshold = kwargs.get('worker_autoscale_threshold', 3)
-        self.autoscaling()
+        self.worker_autoscaling()
 
 # scale out based on EnqueuedJobs metric
-    def autoscaling(self):
+    def worker_autoscaling(self):
         self.worker_autoscaling_target = aws.appautoscaling.Target(
-            "worker-autoscaling_target",
+            "worker_autoscaling_target",
             max_capacity=self.worker_max_capacity,
             min_capacity=self.worker_min_capacity,
             resource_id=f"service/{self.project_stack}/{self.project_stack}-worker",
