@@ -134,7 +134,6 @@ def describe_batch():
                     ],
                 }))
         
-
         @pulumi.runtime.test
         def it_has_an_execution_policy(sut):
             assert sut.execution_policy
@@ -262,6 +261,29 @@ def describe_batch():
         @pulumi.runtime.test
         def it_has_an_event_rule(sut):
             assert sut.rule
+
+        def describe_event_rule():
+            @pulumi.runtime.test
+            def it_has_an_event_rule(sut):
+                assert hasattr(sut, 'rule')
+                assert sut.rule is not None
+
+            @pulumi.runtime.test
+            def it_is_an_aws_cloudwatch_event_rule(sut):
+                assert isinstance(sut.rule, aws.cloudwatch.EventRule)
+
+            @pulumi.runtime.test
+            def it_has_correct_name(sut):
+                expected_name = f"{sut.project_stack}-eventbridge-rule"
+                return sut.rule.name.apply(lambda name: name == expected_name)
+
+            @pulumi.runtime.test
+            def it_has_correct_schedule_expression(sut, cron):
+                return sut.rule.schedule_expression.apply(lambda c: c == cron)
+
+            @pulumi.runtime.test
+            def it_has_correct_state(sut):
+                assert sut.rule.state.apply(lambda state: state == "ENABLED")
 
         @pulumi.runtime.test
         def it_has_an_event_target(sut):
