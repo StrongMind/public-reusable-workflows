@@ -50,7 +50,7 @@ class BatchComponent(pulumi.ComponentResource):
             values=[default_vpc.id]
         )])
 
-        execution_role = aws.iam.Role(
+        self.execution_role = aws.iam.Role(
             f"{self.project_stack}-execution-role",
             name=f"{self.project_stack}-execution-role",
             assume_role_policy=json.dumps(
@@ -74,10 +74,10 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-        execution_policy = aws.iam.RolePolicy(
+        self.execution_policy = aws.iam.RolePolicy(
             f"{self.project_stack}-execution-policy",
             name=f"{self.project_stack}-execution-policy",
-            role=execution_role.id,
+            role=self.execution_role.id,
             policy=json.dumps(
                 {
                     "Version": "2012-10-17",
@@ -116,7 +116,7 @@ class BatchComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        create_env = aws.batch.ComputeEnvironment(f"{self.project_stack}-batch",
+        self.create_env = aws.batch.ComputeEnvironment(f"{self.project_stack}-batch",
             compute_environment_name=f"{self.project_stack}-batch",
             compute_resources=aws.batch.ComputeEnvironmentComputeResourcesArgs( 
                 max_vcpus=self.max_vcpus,
@@ -126,13 +126,13 @@ class BatchComponent(pulumi.ComponentResource):
                 ),
             type="MANAGED",
             tags=tags,
-            service_role=execution_role.arn,
+            service_role=self.execution_role.arn,
             )
 
-        queue = aws.batch.JobQueue(f"{self.project_stack}-queue",
+        self.queue = aws.batch.JobQueue(f"{self.project_stack}-queue",
             name=f"{self.project_stack}-queue",
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[create_env]),
-            compute_environments=[create_env.arn],
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.create_env]),
+            compute_environments=[self.create_env.arn],
             priority=1,
             state="ENABLED",
             tags=tags,
@@ -140,7 +140,7 @@ class BatchComponent(pulumi.ComponentResource):
 
         CONTAINER_IMAGE = os.environ['CONTAINER_IMAGE']
 
-        logGroup = aws.cloudwatch.LogGroup(
+        self.logGroup = aws.cloudwatch.LogGroup(
             f"{self.project_stack}-log-group",
             name=f"/aws/batch/{self.project_stack}-job",
             retention_in_days=14,
@@ -155,9 +155,9 @@ class BatchComponent(pulumi.ComponentResource):
             CONTAINER_IMAGE=CONTAINER_IMAGE, 
             memory=self.memory,
             vcpu=self.vcpu,
-            execution_role=execution_role.arn,
+            execution_role=self.execution_role.arn,
             secretsList=secretsList,
-            logGroup=logGroup.id,
+            logGroup=self.logGroup.id,
             region=region
         ).apply(lambda args: json.dumps( {
             "command": args["command"],
@@ -181,7 +181,7 @@ class BatchComponent(pulumi.ComponentResource):
             "secrets": args["secretsList"]
         }))
 
-        definition = aws.batch.JobDefinition(
+        self.definition = aws.batch.JobDefinition(
             f"{self.project_stack}-definition",
             name = f"{self.project_stack}-definition",
             type="container",
@@ -190,7 +190,7 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags
         )
 
-        rule = aws.cloudwatch.EventRule(
+        self.rule = aws.cloudwatch.EventRule(
             f"{self.project_stack}-eventbridge-rule",
             name=f"{self.project_stack}-eventbridge-rule",
             schedule_expression=self.cron,
@@ -198,14 +198,14 @@ class BatchComponent(pulumi.ComponentResource):
             tags=tags
         )
 
-        event_target = aws.cloudwatch.EventTarget(
+        self.event_target = aws.cloudwatch.EventTarget(
             f"{self.project_stack}-event-target",
-            rule=rule.name,
-            arn=queue.arn,
+            rule=self.rule.name,
+            arn=self.queue.arn,
             role_arn="arn:aws:iam::221871915463:role/ecsEventsRole",
             batch_target=cloudwatch.EventTargetBatchTargetArgs(
-                job_definition=definition.arn,
-                job_name=rule.name,
+                job_definition=self.definition.arn,
+                job_name=self.rule.name,
                 job_attempts=1
                 ),
         )
