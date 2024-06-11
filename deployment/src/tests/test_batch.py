@@ -134,60 +134,62 @@ def describe_batch():
                     ],
                 }))
         
-        @pulumi.runtime.test
-        def it_has_an_execution_policy(sut):
-            assert sut.execution_policy
+        def describe_execution_policy():
+            @pulumi.runtime.test
+            def it_has_an_execution_policy(sut):
+                assert hasattr(sut, 'execution_role')
+                assert sut.execution_role is not None
 
-        @pulumi.runtime.test
-        def it_has_a_execution_policy_with_a_name(sut):
-            return assert_output_equals(sut.execution_policy.name, f"{sut.project_stack}-execution-policy")
+            @pulumi.runtime.test
+            def it_has_a_name(sut):
+                return assert_output_equals(sut.execution_policy.name, f"{sut.project_stack}-execution-policy")
 
-        @pulumi.runtime.test
-        def it_has_a_execution_policy_with_a_policy(sut):
-            return assert_output_equals(sut.execution_policy.policy, json.dumps({
-                    "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Action": [
-                                "ecs:*",
-                                "ecr:GetAuthorizationToken",
-                                "ecr:BatchCheckLayerAvailability",
-                                "batch:*",
-                                "events:*",
-                                "s3:*",
-                                "ecr:GetDownloadUrlForLayer",
-                                "ecr:BatchGetImage",
-                                "ecr:GetRepositoryPolicy",
-                                "ecr:DescribeRepositories",
-                                "ecr:ListImages",
-                                "ecr:DescribeImages",
-                                "ecr:InitiateLayerUpload",
-                                "ecr:UploadLayerPart",
-                                "ecr:CompleteLayerUpload",
-                                "ecr:PutImage",
-                                "logs:*",
-                                "secretsmanager:GetSecretValue",
-                                "ec2:*",
-                                "iam:GetInstanceProfile",
-				                "iam:GetRole",
-				                "iam:PassRole",
-                            ],
-                            "Effect": "Allow",
-                            "Resource": "*",
-                        }
-                    ],
-                }))
-        
-        @pulumi.runtime.test
-        def it_has_a_execution_policy_with_a_role_attached(sut):
-            def check_role(role):
-                def compare_roles(role_id):
-                    assert role == role_id
-                sut.execution_role.id.apply(compare_roles)
-                return True
+            @pulumi.runtime.test
+            def it_has_a_policy(sut):
+                return assert_output_equals(sut.execution_policy.policy, json.dumps({
+                        "Version": "2012-10-17",
+                        "Statement": [
+                            {
+                                "Action": [
+                                    "ecs:*",
+                                    "ecr:GetAuthorizationToken",
+                                    "ecr:BatchCheckLayerAvailability",
+                                    "batch:*",
+                                    "events:*",
+                                    "s3:*",
+                                    "ecr:GetDownloadUrlForLayer",
+                                    "ecr:BatchGetImage",
+                                    "ecr:GetRepositoryPolicy",
+                                    "ecr:DescribeRepositories",
+                                    "ecr:ListImages",
+                                    "ecr:DescribeImages",
+                                    "ecr:InitiateLayerUpload",
+                                    "ecr:UploadLayerPart",
+                                    "ecr:CompleteLayerUpload",
+                                    "ecr:PutImage",
+                                    "logs:*",
+                                    "secretsmanager:GetSecretValue",
+                                    "ec2:*",
+                                    "iam:GetInstanceProfile",
+                                    "iam:GetRole",
+                                    "iam:PassRole",
+                                ],
+                                "Effect": "Allow",
+                                "Resource": "*",
+                            }
+                        ],
+                    }))
             
-            # Check if the execution role is attached to the policy
-            return sut.execution_policy.role.apply(check_role)
+            @pulumi.runtime.test
+            def it_has_a_role_attached(sut):
+                def check_role(role):
+                    def compare_roles(role_id):
+                        assert role == role_id
+                    sut.execution_role.id.apply(compare_roles)
+                    return True
+            
+                # Check if the execution role is attached to the policy
+                return sut.execution_policy.role.apply(check_role)
 
         def describe_compute_environment():
             @pulumi.runtime.test
