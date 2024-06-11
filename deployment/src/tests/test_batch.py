@@ -235,9 +235,29 @@ def describe_batch():
             def it_has_correct_retention_in_days(sut):
                 return sut.logGroup.retention_in_days.apply(lambda retention_in_days: retention_in_days == 14)
 
-        @pulumi.runtime.test
-        def it_has_a_job_definition(sut):
-            assert sut.definition
+        def describe_job_definition():
+            @pulumi.runtime.test
+            def it_has_a_job_definition(sut):
+                assert hasattr(sut, 'definition')
+                assert sut.definition is not None
+
+            @pulumi.runtime.test
+            def it_is_an_aws_batch_job_definition(sut):
+                assert isinstance(sut.definition, aws.batch.JobDefinition)
+
+            @pulumi.runtime.test
+            def it_has_correct_name(sut):
+                expected_name = f"{sut.project_stack}-definition"
+                return sut.definition.name.apply(lambda name: name == expected_name)
+
+            @pulumi.runtime.test
+            def it_has_correct_type(sut):
+                assert sut.definition.type.apply(lambda type: type == "container")
+
+            @pulumi.runtime.test
+            def it_has_correct_platform_capabilities(sut):
+                expected_capabilities = ["FARGATE"]
+                return sut.definition.platform_capabilities.apply(lambda capabilities: capabilities == expected_capabilities)
 
         @pulumi.runtime.test
         def it_has_an_event_rule(sut):
