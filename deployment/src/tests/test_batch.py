@@ -107,6 +107,14 @@ def describe_batch():
             assert sut.execution_role
 
         @pulumi.runtime.test
+        def it_has_a_project_stack(sut):
+            assert sut.project_stack
+
+        @pulumi.runtime.test
+        def it_has_a_execution_role_with_a_name(sut):
+            return assert_output_equals(sut.execution_role.name, f"{sut.project_stack}-execution-role")
+
+        @pulumi.runtime.test
         def it_has_a_execution_role_with_a_role_policy(sut):
             return assert_output_equals(sut.execution_role.assume_role_policy, json.dumps({
                     "Version": "2008-10-17",
@@ -124,6 +132,7 @@ def describe_batch():
                         }
                     ],
                 }))
+        
 
         @pulumi.runtime.test
         def it_has_an_execution_policy(sut):
