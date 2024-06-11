@@ -1,9 +1,11 @@
 import os
+import json
 
 import pulumi.runtime
 from pytest_describe import behaves_like
 import pytest
 
+from tests.shared import assert_output_equals, assert_outputs_equal
 from tests.mocks import get_pulumi_mocks
 
 def a_pulumi_batch_component():
