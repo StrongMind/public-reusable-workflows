@@ -212,10 +212,15 @@ def describe_batch():
             def it_has_a_service_role(sut):
             assert_outputs_equal(sut.create_env.service_role, sut.execution_role.arn)
 
-        @pulumi.runtime.test
-        def it_has_a_job_queue(sut):
-            assert sut.queue
-            assert sut.queue is not None
+        def describe_job_queue():
+            @pulumi.runtime.test
+            def it_has_a_job_queue(sut):
+                assert hasattr(sut, 'queue')
+                assert sut.queue is not None
+
+            @pulumi.runtime.test
+            def it_is_an_aws_batch_job_queue(sut):
+                assert isinstance(sut.queue, aws.batch.JobQueue)
 
         def describe_log_group():
             @pulumi.runtime.test
