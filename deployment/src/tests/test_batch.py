@@ -107,6 +107,25 @@ def describe_batch():
             assert sut.execution_role
 
         @pulumi.runtime.test
+        def it_has_a_execution_role_with_a_role_policy(sut):
+            return assert_output_equals(sut.execution_role.assume_role_policy, json.dumps({
+                    "Version": "2008-10-17",
+                    "Statement": [
+                        {
+                            "Sid": "",
+                            "Effect": "Allow",
+                            "Principal": {
+                                "Service": [
+                                    "ecs-tasks.amazonaws.com",
+                                    "batch.amazonaws.com",
+                                    "events.amazonaws.com"
+                            ]},
+                            "Action": "sts:AssumeRole",
+                        }
+                    ],
+                }))
+
+        @pulumi.runtime.test
         def it_has_an_execution_policy(sut):
             assert sut.execution_policy
 
