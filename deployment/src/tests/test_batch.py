@@ -189,26 +189,28 @@ def describe_batch():
             # Check if the execution role is attached to the policy
             return sut.execution_policy.role.apply(check_role)
 
-        @pulumi.runtime.test
-        def it_has_a_compute_environment(sut):
-            assert sut.create_env
+        def describe_compute_environment():
+            @pulumi.runtime.test
+            def it_has_a_compute_environment(sut):
+                assert hasattr(sut, 'create_env')
+                assert sut.create_env is not None
 
-        @pulumi.runtime.test
-        def it_has_a_compute_environment_with_a_name(sut):
-            return assert_output_equals(sut.create_env.compute_environment_name, f"{sut.project_stack}-batch")
-        
-        @pulumi.runtime.test
-        def it_has_correct_compute_resources(sut):
-            def check_compute_resources(compute_resources):
-                assert compute_resources['max_vcpus'] == sut.max_vcpus
-                assert compute_resources['type'] == "FARGATE"
-                return True
+            @pulumi.runtime.test
+            def it_has_a_name(sut):
+                return assert_output_equals(sut.create_env.compute_environment_name, f"{sut.project_stack}-batch")
             
-            return sut.create_env.compute_resources.apply(check_compute_resources)
-        
-        @pulumi.runtime.test
-        def it_has_a_compute_environment_with_a_service_role(sut):
-            return sut.create_env.service_role.apply(lambda role: assert_outputs_equal(role, sut.execution_role.arn))
+            @pulumi.runtime.test
+            def it_has_correct_compute_resources(sut):
+                def check_compute_resources(compute_resources):
+                    assert compute_resources['max_vcpus'] == sut.max_vcpus
+                    assert compute_resources['type'] == "FARGATE"
+                    return True
+                
+                return sut.create_env.compute_resources.apply(check_compute_resources)
+            
+            @pulumi.runtime.test
+            def it_has_a_service_role(sut):
+            assert_outputs_equal(sut.create_env.service_role, sut.execution_role.arn)
 
         @pulumi.runtime.test
         def it_has_a_job_queue(sut):
