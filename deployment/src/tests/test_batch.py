@@ -105,7 +105,8 @@ def describe_batch():
 
         @pulumi.runtime.test
         def it_has_a_project_stack(sut):
-            assert sut.project_stack 
+            assert hasattr(sut, 'project_stack')
+            assert sut.project_stack is not None
            
         def describe_execution_role():
             @pulumi.runtime.test
