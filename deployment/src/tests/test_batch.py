@@ -210,7 +210,7 @@ def describe_batch():
             
             @pulumi.runtime.test
             def it_has_a_service_role(sut):
-            assert_outputs_equal(sut.create_env.service_role, sut.execution_role.arn)
+                assert_outputs_equal(sut.create_env.service_role, sut.execution_role.arn)
 
         def describe_job_queue():
             @pulumi.runtime.test
