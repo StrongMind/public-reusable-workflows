@@ -59,7 +59,10 @@ class Alb(pulumi.ComponentResource):
         self.is_internal = args.placement == AlbPlacement.INTERNAL
         self.subnet_placement: vpc.SubnetType = vpc.SubnetType.PRIVATE if self.is_internal else vpc.SubnetType.PUBLIC
         self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
-        self.project_stack = get_project_stack()
+        stack = pulumi.get_stack()
+        project = pulumi.get_project()[:18]
+        self.project_stack = f"{project}-{stack}"
+
 
         self.child_opts = pulumi.ResourceOptions(parent=self)
         self.create_resources()
@@ -97,7 +100,7 @@ class Alb(pulumi.ComponentResource):
         self.add_ingress_rules_to_security_group(security_group=alb_security_group)
 
         alb = lb.LoadBalancer(
-            self.project_stack[:30],
+            self.project_stack,
             internal=self.is_internal,
             load_balancer_type="application",
             security_groups=[alb_security_group.id],
