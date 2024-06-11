@@ -139,6 +139,46 @@ def describe_batch():
             assert sut.execution_policy
 
         @pulumi.runtime.test
+        def it_has_a_execution_policy_with_a_name(sut):
+            return assert_output_equals(sut.execution_policy.name, f"{sut.project_stack}-execution-policy")
+
+        @pulumi.runtime.test
+        def it_has_a_execution_policy_with_a_policy(sut):
+            return assert_output_equals(sut.execution_policy.policy, json.dumps({
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {
+                            "Action": [
+                                "ecs:*",
+                                "ecr:GetAuthorizationToken",
+                                "ecr:BatchCheckLayerAvailability",
+                                "batch:*",
+                                "events:*",
+                                "s3:*",
+                                "ecr:GetDownloadUrlForLayer",
+                                "ecr:BatchGetImage",
+                                "ecr:GetRepositoryPolicy",
+                                "ecr:DescribeRepositories",
+                                "ecr:ListImages",
+                                "ecr:DescribeImages",
+                                "ecr:InitiateLayerUpload",
+                                "ecr:UploadLayerPart",
+                                "ecr:CompleteLayerUpload",
+                                "ecr:PutImage",
+                                "logs:*",
+                                "secretsmanager:GetSecretValue",
+                                "ec2:*",
+                                "iam:GetInstanceProfile",
+				                "iam:GetRole",
+				                "iam:PassRole",
+                            ],
+                            "Effect": "Allow",
+                            "Resource": "*",
+                        }
+                    ],
+                }))
+
+        @pulumi.runtime.test
         def it_has_a_compute_environment(sut):
             assert sut.create_env
 
