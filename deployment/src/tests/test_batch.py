@@ -2,6 +2,7 @@ import os
 import json
 
 import pulumi.runtime
+import pulumi_aws as aws
 from pytest_describe import behaves_like
 import pytest
 
@@ -215,9 +216,24 @@ def describe_batch():
             assert sut.queue
             assert sut.queue is not None
 
-        @pulumi.runtime.test
-        def it_has_a_log_group(sut):
-            assert sut.logGroup
+        def describe_log_group():
+            @pulumi.runtime.test
+            def it_has_a_log_group(sut):
+                assert hasattr(sut, 'logGroup')
+                assert sut.logGroup is not None
+
+            @pulumi.runtime.test
+            def it_is_an_aws_cloudwatch_log_group(sut):
+                assert isinstance(sut.logGroup, aws.cloudwatch.LogGroup)
+
+            @pulumi.runtime.test
+            def it_has_correct_log_group_name(sut):
+                expected_name = f"/aws/batch/{sut.project_stack}-job"
+                return sut.logGroup.name.apply(lambda name: name == expected_name)
+
+            @pulumi.runtime.test
+            def it_has_correct_retention_in_days(sut):
+                return sut.logGroup.retention_in_days.apply(lambda retention_in_days: retention_in_days == 14)
 
         @pulumi.runtime.test
         def it_has_a_job_definition(sut):
