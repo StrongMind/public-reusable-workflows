@@ -147,7 +147,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "worker_autoscaling_out_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
-            comparison_operator="GreaterThanThreshold",
+            comparison_operator="GreaterThanOrEqualToThreshold",
             evaluation_periods=1,
             metric_name="EnqueuedJobs",
             unit="Count",
@@ -184,7 +184,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             "worker_autoscaling_in_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-in-alarm",
-            comparison_operator="LessThanOrEqualToThreshold",
+            comparison_operator="LessThanThreshold",
             evaluation_periods=5,
             metric_name="EnqueuedJobs",
             unit="Count",
@@ -196,7 +196,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
-            threshold=2,
+            threshold=self.threshold,
             alarm_actions=[self.worker_autoscaling_in_policy.arn]
         )
         self.register_outputs({})

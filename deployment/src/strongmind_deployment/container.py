@@ -61,10 +61,15 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
+        self.worker_autoscaling_target = None
+        self.worker_autoscaling_out_policy = None
         self.max_capacity = kwargs.get('max_number_of_instances', 1)
         self.min_capacity = kwargs.get('min_number_of_instances', 1)
         self.desired_web_count = self.kwargs.get('desired_web_count', 1)
         self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
+        self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 1)
+        self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
+        self.threshold = kwargs.get('worker_autoscale_threshold', 3)
 
 
         stack = pulumi.get_stack()
@@ -260,7 +265,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 f"{self.project_stack}-s3PolicyAttachment",
                 role=self.task_role.id,
                 policy_arn=self.s3_policy.arn,
-            )  
+            )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
@@ -311,8 +316,8 @@ class ContainerComponent(pulumi.ComponentResource):
         if self.kwargs.get('worker_autoscaling'):
             pulumi.log.info("WORKER AUTOSCALING ENABLED")
             self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
-                                                               opts=pulumi.ResourceOptions(parent=self),
-                                                               **self.kwargs)
+                                                                opts=pulumi.ResourceOptions(parent=self),
+                                                                **self.kwargs)
 
 
 
