@@ -281,6 +281,44 @@ def describe_batch():
             def it_has_correct_state(sut):
                 assert sut.rule.state.apply(lambda state: state == "ENABLED")
 
-        @pulumi.runtime.test
-        def it_has_an_event_target(sut):
-            assert sut.event_target
+        def describe_event_target():
+            @pulumi.runtime.test
+            def it_has_an_event_target(sut):
+                assert hasattr(sut, 'event_target')
+                assert sut.event_target is not None
+
+            @pulumi.runtime.test
+            def it_is_an_aws_cloudwatch_event_target(sut):
+                assert isinstance(sut.event_target, aws.cloudwatch.EventTarget)
+
+            @pulumi.runtime.test
+            def it_has_correct_rule_name(sut):
+                return pulumi.Output.all(sut.event_target.rule, sut.rule.name).apply(
+                    lambda args: args[0] == args[1]
+                )
+
+            @pulumi.runtime.test
+            def it_has_correct_target_arn(sut):
+                return pulumi.Output.all(sut.event_target.arn, sut.queue.arn).apply(
+                    lambda args: args[0] == args[1]
+                )
+
+            @pulumi.runtime.test
+            def it_has_correct_role_arn(sut):
+                expected_role_arn = "arn:aws:iam::221871915463:role/ecsEventsRole"
+                return sut.event_target.role_arn.apply(lambda role_arn: role_arn == expected_role_arn)
+
+            @pulumi.runtime.test
+            def it_has_correct_batch_target(sut):
+                def check_batch_target(batch_target):
+                    return pulumi.Output.all(
+                        batch_target['job_definition'], sut.definition.arn,
+                        batch_target['job_name'], sut.rule.name,
+                        batch_target['job_attempts']
+                    ).apply(lambda args: (
+                        args[0] == args[1] and
+                        args[2] == args[3] and
+                        args[4] == 1
+                    ))
+
+                return sut.event_target.batch_target.apply(check_batch_target)
