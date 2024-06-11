@@ -1,5 +1,7 @@
 import os
 
+import pulumi.runtime
+from pytest_describe import behaves_like
 import pytest
 
 from tests.mocks import get_pulumi_mocks
@@ -90,3 +92,42 @@ def a_pulumi_batch_component():
         import strongmind_deployment.batch
         return strongmind_deployment.batch.BatchComponent("batch-test",
                                                         **component_kwargs)
+
+@behaves_like(a_pulumi_batch_component)
+def describe_batch():
+    def describe_a_batch_component():
+        @pulumi.runtime.test
+        def it_exists(sut):
+            assert sut
+            
+        @pulumi.runtime.test
+        def it_has_an_execution_role(sut):
+            assert sut.execution_role
+
+        @pulumi.runtime.test
+        def it_has_an_execution_policy(sut):
+            assert sut.execution_policy
+
+        @pulumi.runtime.test
+        def it_has_a_compute_environment(sut):
+            assert sut.create_env
+
+        @pulumi.runtime.test
+        def it_has_a_job_queue(sut):
+            assert sut.queue
+
+        @pulumi.runtime.test
+        def it_has_a_log_group(sut):
+            assert sut.logGroup
+
+        @pulumi.runtime.test
+        def it_has_a_job_definition(sut):
+            assert sut.definition
+
+        @pulumi.runtime.test
+        def it_has_an_event_rule(sut):
+            assert sut.rule
+
+        @pulumi.runtime.test
+        def it_has_an_event_target(sut):
+            assert sut.event_target
