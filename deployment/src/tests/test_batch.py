@@ -185,6 +185,7 @@ def describe_batch():
         @pulumi.runtime.test
         def it_has_a_job_queue(sut):
             assert sut.queue
+            assert sut.queue is not None
 
         @pulumi.runtime.test
         def it_has_a_log_group(sut):
