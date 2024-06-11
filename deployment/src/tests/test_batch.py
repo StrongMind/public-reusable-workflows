@@ -183,6 +183,10 @@ def describe_batch():
             assert sut.create_env
 
         @pulumi.runtime.test
+        def it_has_a_compute_environment_with_a_name(sut):
+            return assert_output_equals(sut.create_env.compute_environment_name, f"{sut.project_stack}-batch")
+
+        @pulumi.runtime.test
         def it_has_a_job_queue(sut):
             assert sut.queue
             assert sut.queue is not None
