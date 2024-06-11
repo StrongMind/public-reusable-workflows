@@ -258,10 +258,6 @@ def describe_batch():
                 expected_capabilities = ["FARGATE"]
                 return sut.definition.platform_capabilities.apply(lambda capabilities: capabilities == expected_capabilities)
 
-        @pulumi.runtime.test
-        def it_has_an_event_rule(sut):
-            assert sut.rule
-
         def describe_event_rule():
             @pulumi.runtime.test
             def it_has_an_event_rule(sut):
