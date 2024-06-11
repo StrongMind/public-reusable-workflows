@@ -177,6 +177,17 @@ def describe_batch():
                         }
                     ],
                 }))
+        
+        @pulumi.runtime.test
+        def it_has_a_execution_policy_with_a_role_attached(sut):
+            def check_role(role):
+                def compare_roles(role_id):
+                    assert role == role_id
+                sut.execution_role.id.apply(compare_roles)
+                return True
+            
+            # Check if the execution role is attached to the policy
+            return sut.execution_policy.role.apply(check_role)
 
         @pulumi.runtime.test
         def it_has_a_compute_environment(sut):
@@ -185,6 +196,19 @@ def describe_batch():
         @pulumi.runtime.test
         def it_has_a_compute_environment_with_a_name(sut):
             return assert_output_equals(sut.create_env.compute_environment_name, f"{sut.project_stack}-batch")
+        
+        @pulumi.runtime.test
+        def it_has_correct_compute_resources(sut):
+            def check_compute_resources(compute_resources):
+                assert compute_resources['max_vcpus'] == sut.max_vcpus
+                assert compute_resources['type'] == "FARGATE"
+                return True
+            
+            return sut.create_env.compute_resources.apply(check_compute_resources)
+        
+        @pulumi.runtime.test
+        def it_has_a_compute_environment_with_a_service_role(sut):
+            return sut.create_env.service_role.apply(lambda role: assert_outputs_equal(role, sut.execution_role.arn))
 
         @pulumi.runtime.test
         def it_has_a_job_queue(sut):
