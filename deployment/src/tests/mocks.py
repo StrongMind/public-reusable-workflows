@@ -130,6 +130,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
 
             if args.token == "aws:ec2/getSubnets:getSubnets":
                 return {"ids": ["subnet-12345", "subnet-67890"]}
+            
+            if args.token == "aws:ec2/getVpc:getVpc":
+                return {"id": "vpc-12345"}
+            
+            if args.token == "aws:ec2/getSecurityGroup:getSecurityGroup":
+                return {"id": "sg-12345"}
 
             raise NotImplementedError(
                 "No mock for: " + args.token + " - change PulimiMocks.call"
