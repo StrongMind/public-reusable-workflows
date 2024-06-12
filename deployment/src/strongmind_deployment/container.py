@@ -24,8 +24,8 @@ class ContainerComponent(pulumi.ComponentResource):
         :key env_vars: A dictionary of environment variables to pass to the Rails application.
         :key entry_point: The entry point for the container.
         :key command: The command to run when the container starts.
-        :key cpu: The number of CPU units to reserve for the container. Defaults to 256.
-        :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
+        :key cpu: The number of CPU units to reserve for the container. Defaults to 512.
+        :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 1028.
         :key secrets: A list of secrets to pass to the container. Each secret is a dictionary with the following keys:
         - name: The name of the secret.
         - value_from: The ARN of the secret.
@@ -51,8 +51,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.need_load_balancer = kwargs.get('need_load_balancer', True)
         self.container_image = kwargs.get('container_image')
         self.container_port = kwargs.get('container_port', 3000)
-        self.cpu = kwargs.get('cpu', 256)
-        self.memory = kwargs.get("memory", 512)
+        self.cpu = kwargs.get('cpu', 512)
+        self.memory = kwargs.get("memory", 1028)
         self.entry_point = kwargs.get('entry_point')
         self.command = kwargs.get('command')
         self.env_vars = kwargs.get('env_vars', {})
