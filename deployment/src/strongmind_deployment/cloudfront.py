@@ -52,7 +52,7 @@ class DistributionComponent(pulumi.ComponentResource):
             allowed_headers=["*"],
             allowed_methods=[
                 "HEAD",
-                "GET"
+                "GET",
             ],
             allowed_origins=["*"],
             expose_headers=["ETag"],
