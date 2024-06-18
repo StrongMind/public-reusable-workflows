@@ -53,6 +53,7 @@ class DistributionComponent(pulumi.ComponentResource):
             allowed_methods=[
                 "HEAD",
                 "GET",
+                "OPTIONS", # Allow preflight requests
             ],
             allowed_origins=["*"],
             expose_headers=["ETag"],
