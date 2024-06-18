@@ -52,8 +52,7 @@ class DistributionComponent(pulumi.ComponentResource):
             allowed_headers=["*"],
             allowed_methods=[
                 "HEAD",
-                "GET",
-                "OPTIONS", # Allow preflight requests
+                "GET"
             ],
             allowed_origins=["*"],
             expose_headers=["ETag"],
@@ -103,10 +102,6 @@ class DistributionComponent(pulumi.ComponentResource):
             allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
             cached_methods=["GET", "HEAD"],
             target_origin_id=origin_id,
-            forwarded_values=aws.cloudfront.DistributionDefaultCacheBehaviorForwardedValuesArgs(
-              query_string=False,
-              headers=["*"],  # Forward all headers for CORS requests
-            ),
             viewer_protocol_policy="redirect-to-https",
             compress=True,
             default_ttl=0,
