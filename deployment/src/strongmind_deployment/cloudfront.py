@@ -63,6 +63,7 @@ class DistributionComponent(pulumi.ComponentResource):
         stack = kwargs.get('stack')
         origin_domain = bucket.bucket.bucket_regional_domain_name
         origin_id = f"{fqdn_prefix}-origin"
+        cors_with_preflight_policy_id = "5cc3b908-e619-4b99-88e5-2cf7f45965bd"
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         project = pulumi.get_project()
@@ -106,6 +107,7 @@ class DistributionComponent(pulumi.ComponentResource):
             default_ttl=0,
             max_ttl=0,
             min_ttl=0,
+            response_headers_policy_id=cors_with_preflight_policy_id,
           ),
           restrictions=aws.cloudfront.DistributionRestrictionsArgs(
             geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
