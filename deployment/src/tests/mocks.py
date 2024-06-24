@@ -117,6 +117,16 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "nat_gateways": { "asdf": "asdf"}
                 }
 
+            if args.typ == "awsx:lb:ApplicationLoadBalancer":
+                outputs = {
+                    **args.inputs,
+                    "access_logs": {
+                        "bucket": args.inputs["accessLogs"]["bucket"],
+                        "prefix": args.inputs["accessLogs"]["prefix"],
+                        "enabled": args.inputs["accessLogs"]["enabled"],
+                    }
+                }
+
             print(args.typ)
 
             return [args.name + '_id', outputs]

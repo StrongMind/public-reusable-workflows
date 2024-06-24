@@ -327,6 +327,15 @@ def describe_container():
             def it_sets_the_load_balancer_name(sut, stack, app_name):
                 return assert_output_equals(sut.load_balancer.name, f"{app_name}-{stack}")
 
+            @pulumi.runtime.test
+            def it_sets_the_access_logs(sut, stack, app_name):
+
+                return assert_output_equals(sut.load_balancer.access_logs, {
+                    "bucket": "loadbalancer-logs-221871915463",
+                    "prefix": f"{app_name}-{stack}",
+                    "enabled": True
+                })
+
             def describe_target_group():
                 @pulumi.runtime.test
                 def it_sets_the_target_group_port(sut, container_port):

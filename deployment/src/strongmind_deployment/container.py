@@ -436,9 +436,9 @@ class ContainerComponent(pulumi.ComponentResource):
             default_target_group_port=self.container_port,
             tags=self.tags,
             access_logs=aws.lb.LoadBalancerAccessLogsArgs(
-                bucket = "loadbalancer-logs-221871915463",
-                prefix = self.project_stack,
-                enabled = True,
+                bucket="loadbalancer-logs-221871915463",
+                prefix=self.project_stack,
+                enabled=True,
             ),
             opts=pulumi.ResourceOptions(parent=self),
         )
