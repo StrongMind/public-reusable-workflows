@@ -202,10 +202,10 @@ class BatchComponent(pulumi.ComponentResource):
             f"{self.project_stack}-event-target",
             rule=self.rule.name,
             arn=self.queue.arn,
-            role_arn="arn:aws:iam::221871915463:role/ecsEventsRole",
+            role_arn=self.execution_role.arn,
             batch_target=cloudwatch.EventTargetBatchTargetArgs(
                 job_definition=self.definition.arn,
-                job_name=self.rule.name,
+                job_name=self.definition.name,
                 job_attempts=1
                 ),
         )
