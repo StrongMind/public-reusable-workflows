@@ -9,6 +9,9 @@ on:
       github_actor:
         required: true
         type: string
+      update_type:
+        required: true
+        type: string
 
 jobs:
   dependabot:
@@ -17,13 +20,6 @@ jobs:
     # PRs but also ensures that it only does work for Dependabot PRs.
     if: ${{ inputs.github_actor }}
     steps:
-      # This first step will fail if there's no metadata and so the approval
-      # will not occur.
-      - name: Dependabot metadata
-        id: dependabot-metadata
-        uses: dependabot/fetch-metadata@v1.1.1
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
       # Here the PR gets approved.
       - name: Approve a PR
         run: gh pr review --approve "$PR_URL"
@@ -33,7 +29,7 @@ jobs:
       # Finally, this sets the PR to allow auto-merging for patch and minor
       # updates if all checks pass
       - name: Enable auto-merge for Dependabot PRs
-        if: ${{ steps.dependabot-metadata.outputs.update-type != 'version-update:semver-major' }}
+        if: ${{ inputs.update_type != 'version-update:semver-major' }}
         run: gh pr merge --auto "$PR_URL"
         env:
           PR_URL: ${{ inputs.PR_URL }}
