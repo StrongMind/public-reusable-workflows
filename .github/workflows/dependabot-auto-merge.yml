@@ -9,9 +9,6 @@ on:
       github_actor:
         required: true
         type: string
-      update_type:
-        required: true
-        type: string
 
 jobs:
   dependabot:
