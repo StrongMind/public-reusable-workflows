@@ -1,4 +1,4 @@
-name: Dependabot Pull Request Approve and Merge
+name: Shared dependabot Pull Request Approve and Merge
 
 on:
   workflow_call:
