@@ -22,7 +22,7 @@ jobs:
     steps:
       # Here the PR gets approved.
       - name: Approve a PR
-        run: gh pr review --merge --approve "$PR_URL"
+        run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{ inputs.PR_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -30,7 +30,7 @@ jobs:
       # updates if all checks pass
       - name: Enable auto-merge for Dependabot PRs
         if: ${{ inputs.update_type != 'version-update:semver-major' }}
-        run: gh pr merge --auto "$PR_URL"
+        run: gh pr merge --merge --auto "$PR_URL"
         env:
           PR_URL: ${{ inputs.PR_URL }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
