@@ -413,9 +413,8 @@ class ContainerComponent(pulumi.ComponentResource):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
         health_check_path = kwargs.get('custom_health_check_path', '/up')
 
-        self.target_group = aws.lb.TargetGroup(
-            "targetgroup",
-            name=project_stack,
+        self.target_group = aws.lb.TargetGroupArgs(
+            name=f"{project_stack}-tg",
             port=self.container_port,
             protocol="HTTP",
             target_type="ip",
@@ -433,10 +432,36 @@ class ContainerComponent(pulumi.ComponentResource):
             ),
         )
 
+        self.certificate(project, stack)
+
+        self.load_balancer_listener = awsx.lb.ListenerArgs(
+            certificate_arn=self.cert.arn,
+            port=443,
+            protocol="HTTPS",
+            tags=self.tags
+        )
+        self.load_balancer_listener_redirect_http_to_https = awsx.lb.ListenerArgs(
+            port=80,
+            protocol="HTTP",
+            default_actions=[aws.lb.ListenerDefaultActionArgs(
+                type="redirect",
+                redirect=aws.lb.ListenerDefaultActionRedirectArgs(
+                    port="443",
+                    protocol="HTTPS",
+                    status_code="HTTP_301",
+                ),
+            )],
+            tags=self.tags
+        )
+
         self.load_balancer = awsx.lb.ApplicationLoadBalancer(
             "loadbalancer",
             name=project_stack,
-            default_target_group_port=self.container_port,
+            default_target_group=self.target_group,
+            listeners=[
+                self.load_balancer_listener,
+                self.load_balancer_listener_redirect_http_to_https
+            ],
             tags=self.tags,
             access_logs=aws.lb.LoadBalancerAccessLogsArgs(
                 bucket="loadbalancer-logs-221871915463",
@@ -448,10 +473,10 @@ class ContainerComponent(pulumi.ComponentResource):
         load_balancer_dimension = self.load_balancer.load_balancer.arn.apply(
             lambda arn: arn.split("/")[-1]
         )
-        target_group_dimension = self.target_group.arn.apply(
+        target_group_dimension = self.load_balancer.default_target_group.arn.apply(
             lambda arn: arn.split("/")[-1]
         )
-        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension).apply(lambda args: 
+        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension).apply(lambda args:
             aws.cloudwatch.MetricAlarm(
                 "healthy_host_metric_alarm",
                 name=f"{project_stack}-healthy-host-metric-alarm",
@@ -475,40 +500,18 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         self.dns(project, stack)
-        load_balancer_arn = kwargs.get('load_balancer_arn', self.load_balancer.load_balancer.arn)
-        target_group_arn = kwargs.get('target_group_arn', self.target_group.arn)
-        self.load_balancer_listener = aws.lb.Listener(
-            "listener443",
-            load_balancer_arn=load_balancer_arn,
-            certificate_arn=self.cert.arn,
-            port=443,
-            protocol="HTTPS",
-            default_actions=[
-                aws.lb.ListenerDefaultActionArgs(
-                    type="forward",
-                    target_group_arn=target_group_arn
-                )],
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self,
-                                        depends_on=[
-                                            self.cert,
-                                            self.cert_validation_record,
-                                            self.cert_validation_cert,
-                                        ]),
-        )
-        self.load_balancer_listener_redirect_http_to_https = aws.lb.Listener(
-            "listener80",
-            load_balancer_arn=load_balancer_arn,
-            port=80,
-            protocol="HTTP",
-            default_actions=[aws.lb.ListenerDefaultActionArgs(
-                type="redirect",
-                redirect=aws.lb.ListenerDefaultActionRedirectArgs(
-                    port="443",
-                    protocol="HTTPS",
-                    status_code="HTTP_301",
-                ),
-            )],
+
+
+    def certificate(self, name, stack):
+        if stack != "prod":
+            name = f"{stack}-{name}"
+        domain = 'strongmind.com'
+        full_name = f"{name}.{domain}"
+
+        self.cert = aws.acm.Certificate(
+            "cert",
+            domain_name=full_name,
+            validation_method="DNS",
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
@@ -533,13 +536,6 @@ class ContainerComponent(pulumi.ComponentResource):
             )
         pulumi.export("url", Output.concat("https://", full_name))
 
-        self.cert = aws.acm.Certificate(
-            "cert",
-            domain_name=full_name,
-            validation_method="DNS",
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self),
-        )
         domain_validation_options = self.kwargs.get('domain_validation_options',
                                                     self.cert.domain_validation_options)  # pragma: no cover
 
