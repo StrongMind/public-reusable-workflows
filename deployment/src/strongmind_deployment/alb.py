@@ -29,6 +29,7 @@ class AlbArgs:
     def __init__(
         self,
         vpc_id: str,
+        subnets: Sequence[str],
         certificate_arn: str,
         placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
         internal_ingress_cidrs: list[str] = [],
@@ -36,6 +37,7 @@ class AlbArgs:
         should_protect: bool = False,
     ):
         self.vpc_id = vpc_id
+        self.subnets = subnets
         self.certificate_arn = certificate_arn
         self.placement = placement or AlbPlacement.EXTERNAL
         self.internal_ingress_cidrs = internal_ingress_cidrs
@@ -58,7 +60,10 @@ class Alb(pulumi.ComponentResource):
         self.args = args
         self.is_internal = args.placement == AlbPlacement.INTERNAL
         self.subnet_placement: vpc.SubnetType = vpc.SubnetType.PRIVATE if self.is_internal else vpc.SubnetType.PUBLIC
-        self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
+        if args.subnets:
+            self.subnet_ids = args.subnets
+        else:
+            self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
         stack = pulumi.get_stack()
         project = pulumi.get_project()[:18]
         self.project_stack = f"{project}-{stack}"
