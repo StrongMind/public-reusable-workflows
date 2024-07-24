@@ -419,8 +419,8 @@ class ContainerComponent(pulumi.ComponentResource):
         health_check_path = kwargs.get('custom_health_check_path', '/up')
 
         self.target_group = aws.lb.TargetGroup(
-            "targetgroup",
-            name=project_stack,
+            "target_group",
+            name=f"{project_stack}-tg",
             port=self.container_port,
             protocol="HTTP",
             target_type="ip",
