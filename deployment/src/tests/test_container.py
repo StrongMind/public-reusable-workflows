@@ -418,6 +418,22 @@ def describe_container():
                 def it_forwards(listener_rule):
                     return assert_output_equals(listener_rule.actions[0].type, "forward")
 
+                @pulumi.runtime.test
+                def it_defaults_to_fixed_response(listener):
+                    return assert_output_equals(listener.default_actions[0].type, "fixed-response")
+
+                @pulumi.runtime.test
+                def it_defaults_to_404(listener):
+                    return assert_output_equals(listener.default_actions[0].fixed_response.status_code, "404")
+
+                @pulumi.runtime.test
+                def it_defaults_to_text_plain(listener):
+                    return assert_output_equals(listener.default_actions[0].fixed_response.content_type, "text/plain")
+
+                @pulumi.runtime.test
+                def it_defaults_to_path_not_found(listener):
+                    return assert_output_equals(listener.default_actions[0].fixed_response.message_body, "Path Not Found")
+
             def describe_the_load_balancer_listener_for_http():
                 @pytest.fixture
                 def listener(sut):
