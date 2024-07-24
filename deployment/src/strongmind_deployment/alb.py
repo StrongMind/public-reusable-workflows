@@ -75,7 +75,7 @@ class Alb(pulumi.ComponentResource):
     def create_resources(self):
         self.alb = self.create_loadbalancer()
         self.https_listener = self.create_https_listener()
-        self.create_port_80_redirect_listener()
+        self.redirect_listener = self.create_port_80_redirect_listener()
 
     def create_loadbalancer(self)-> lb.LoadBalancer:
 
@@ -111,6 +111,11 @@ class Alb(pulumi.ComponentResource):
             security_groups=[alb_security_group.id],
             subnets=self.subnet_ids,
             enable_deletion_protection=self.args.should_protect,
+            access_logs=lb.LoadBalancerAccessLogsArgs(
+                bucket="loadbalancer-logs-221871915463",
+                prefix=self.project_stack,
+                enabled=True,
+            ),
             opts=self.child_opts,
         )
         return alb
@@ -147,6 +152,7 @@ class Alb(pulumi.ComponentResource):
         port_80_redirect_listener = aws.alb.Listener(
             f"{self.project_stack}-80-redirect-443",
             load_balancer_arn=self.alb.arn,
+            protocol="HTTP",
             port=80,
             default_actions=[
                 {

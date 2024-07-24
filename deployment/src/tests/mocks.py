@@ -117,14 +117,10 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "nat_gateways": { "asdf": "asdf"}
                 }
 
-            if args.typ == "awsx:lb:ApplicationLoadBalancer":
+            if args.typ == "aws:lb/loadBalancer:LoadBalancer":
                 outputs = {
                     **args.inputs,
-                    "access_logs": {
-                        "bucket": args.inputs["accessLogs"]["bucket"],
-                        "prefix": args.inputs["accessLogs"]["prefix"],
-                        "enabled": args.inputs["accessLogs"]["enabled"],
-                    }
+                    "arn": f"arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/{faker.word()}",
                 }
 
             print(args.typ)

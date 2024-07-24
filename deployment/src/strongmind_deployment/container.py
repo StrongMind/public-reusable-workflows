@@ -445,8 +445,10 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.alb = alb.Alb("loadbalancer", alb_args)
         self.load_balancer = self.alb.alb
+        self.load_balancer_listener = self.alb.https_listener
+        self.load_balancer_listener_redirect_http_to_https = self.alb.redirect_listener
 
-        aws.lb.ListenerRule(
+        self.listener_rule = aws.lb.ListenerRule(
             "service_listener_rule",
             listener_arn=self.alb.https_listener.arn,
             priority=1000,
