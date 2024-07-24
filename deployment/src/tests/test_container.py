@@ -459,6 +459,56 @@ def describe_container():
                 def it_redirects(redirect_action):
                     return assert_output_equals(redirect_action.type, "redirect")
 
+            def describe_security_group_rules():
+                @pytest.fixture
+                def tls_ingress(sut):
+                    return sut.alb.tls_ingress
+
+                @pytest.fixture
+                def http_ingress(sut):
+                    return sut.alb.http_ingress
+
+                @pulumi.runtime.test
+                def it_allows_tls_ingress_from_anywhere(tls_ingress):
+                    return assert_output_equals(tls_ingress.cidr_blocks, ["0.0.0.0/0"])
+
+                @pulumi.runtime.test
+                def it_allows_tls_ingress_on_port_443(tls_ingress):
+                    return assert_output_equals(tls_ingress.from_port, 443)
+
+                @pulumi.runtime.test
+                def it_allows_http_ingress_from_anywhere(http_ingress):
+                    return assert_output_equals(http_ingress.cidr_blocks, ["0.0.0.0/0"])
+
+                @pulumi.runtime.test
+                def it_allows_http_ingress_on_port_80(http_ingress):
+                    return assert_output_equals(http_ingress.from_port, 80)
+
+                @pulumi.runtime.test
+                def it_allows_tls_ingress_from_sg(tls_ingress, sut):
+                    return assert_outputs_equal(tls_ingress.security_group_id, sut.alb.security_group.id)
+
+                @pulumi.runtime.test
+                def it_allows_http_ingress_from_sg(http_ingress, sut):
+                    return assert_outputs_equal(http_ingress.security_group_id, sut.alb.security_group.id)
+
+                @pulumi.runtime.test
+                def it_uses_tcp_for_tls_ingress(tls_ingress):
+                    return assert_output_equals(tls_ingress.protocol, "tcp")
+
+                @pulumi.runtime.test
+                def it_uses_tcp_for_http_ingress(http_ingress):
+                    return assert_output_equals(http_ingress.protocol, "tcp")
+
+                @pulumi.runtime.test
+                def it_uses_ingress_type_for_tls_ingress(tls_ingress):
+                    return assert_output_equals(tls_ingress.type, "ingress")
+
+                @pulumi.runtime.test
+                def it_uses_ingress_type_for_http_ingress(http_ingress):
+                    return assert_output_equals(http_ingress.type, "ingress")
+
+
         @pulumi.runtime.test
         def describe_the_fargate_service():
             @pulumi.runtime.test

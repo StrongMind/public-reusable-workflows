@@ -57,6 +57,8 @@ class Alb(pulumi.ComponentResource):
     def __init__(self, name: str, args: AlbArgs, opts=None):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
 
+        self.http_ingress = None
+        self.tls_ingress = None
         self.args = args
         self.is_internal = args.placement == AlbPlacement.INTERNAL
         self.subnet_placement: vpc.SubnetType = vpc.SubnetType.PRIVATE if self.is_internal else vpc.SubnetType.PUBLIC
@@ -186,7 +188,7 @@ class Alb(pulumi.ComponentResource):
             )
 
         if not self.is_internal:
-            ec2.SecurityGroupRule(
+            self.tls_ingress = ec2.SecurityGroupRule(
                 "tls_ingress",
                 description="TLS internet",
                 type="ingress",
@@ -198,7 +200,7 @@ class Alb(pulumi.ComponentResource):
                 ],
                 security_group_id=security_group.id,
             )
-            ec2.SecurityGroupRule(
+            self.http_ingress = ec2.SecurityGroupRule(
                 "http_ingress",
                 description="Internet",
                 type="ingress",

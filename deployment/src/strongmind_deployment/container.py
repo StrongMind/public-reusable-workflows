@@ -39,6 +39,7 @@ class ContainerComponent(pulumi.ComponentResource):
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
+        self.alb = None
         self.autoscaling_out_alarm = None
         self.log_metric_filters = []
         self.target_group = None
