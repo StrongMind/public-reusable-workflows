@@ -1,0 +1,27 @@
+name: Send Deployment Notification
+
+on:
+  workflow_call:
+    inputs:
+      repository_name:
+        required: true
+        type: string
+
+jobs:
+  send_notification:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get current time
+        id: time
+        run: echo "current_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
+
+      - name: Send deployment notification
+        run: |
+          payload=$(jq -n --arg repo "$GITHUB_REPOSITORY" --arg time "$CURRENT_TIME" '{repository_name: $repo, most_recent_period: $time}')
+          curl -X POST https://repository-dashboard.strongmind.com/api/deployments \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+        env:
+          GITHUB_REPOSITORY: ${{ inputs.repository_name }}
+          CURRENT_TIME: ${{ env.current_time }}
