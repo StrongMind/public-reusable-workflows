@@ -16,11 +16,22 @@ jobs:
         id: time
         run: echo "current_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")" >> $GITHUB_ENV
 
+      - name: Get auth token
+        id: get_token
+        run: |
+          response=$(curl -s -X POST https://login.strongmind.com/connect/token \
+            -d "grant_type=client_credentials" \
+            -d "client_id=${{ secrets.REPOSITORY_DASHBOARD_CLIENT_ID }}" \
+            -d "client_secret=${{ secrets.REPOSITORY_DASHBOARD_CLIENT_SECRET }}")
+          token=$(echo $response | jq -r '.access_token')
+          echo "auth_token=$token" >> $GITHUB_ENV
+
       - name: Send deployment notification
         run: |
           payload=$(jq -n --arg repo "$GITHUB_REPOSITORY" --arg time "$CURRENT_TIME" '{repository_name: $repo, most_recent_period: $time}')
           curl -X POST https://repository-dashboard.strongmind.com/api/deployments \
             -H "Content-Type: application/json" \
+            -H "Authorization: Bearer ${{ env.auth_token }}" \
             -d "$payload"
         env:
           GITHUB_REPOSITORY: ${{ inputs.repository_name }}
