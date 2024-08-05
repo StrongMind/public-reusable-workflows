@@ -5,8 +5,8 @@ class AutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:autoscale', name, None, opts)
         self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
-        self.max_capacity = kwargs.get("max_capacity", 10)
-        self.min_capacity = kwargs.get("min_capacity", 1)
+        self.max_capacity = kwargs.get("max_capacity")
+        self.min_capacity = kwargs.get("min_capacity")
         self.autoscaling()
     def autoscaling(self):
 

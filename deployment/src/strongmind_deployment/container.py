@@ -30,10 +30,6 @@ class ContainerComponent(pulumi.ComponentResource):
         - name: The name of the secret.
         - value_from: The ARN of the secret.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
-        :max_number_of_instances: The maximum number of instances available in the scaling policy. This should be as low
-        as possible and only used when the defaults are no longer providing sufficent scaling.
-        :min_number_of_instances: The minimum number of instances available in the scaling policy. This should be as low
-        as possible and only used when the defaults are no longer providing sufficent scaling.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
 
@@ -61,9 +57,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
-        self.max_capacity = kwargs.get('max_number_of_instances', 1)
-        self.min_capacity = kwargs.get('min_number_of_instances', 1)
-        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
+        self.max_capacity = 100
+        self.min_capacity = kwargs.get('desired_count')
         self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
 
 
@@ -297,7 +292,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
             name=self.project_stack,
-            desired_count=kwargs.get('desired_count', 1),
+            desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
             assign_public_ip=True,
@@ -468,7 +463,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 ok_actions=[self.sns_topic_arn],
                 period=60,
                 statistic="Maximum",
-                threshold=self.desired_web_count,
+                threshold=self.desired_count,
                 treat_missing_data="notBreaching",
                 tags=self.tags,
             )
