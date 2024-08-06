@@ -10,6 +10,7 @@ from pulumi import Config, export, Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
 from strongmind_deployment.autoscale import WorkerAutoscaleComponent
+from strongmind_deployment.util import create_ecs_cluster
 
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
