@@ -58,7 +58,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
-        self.desired_count = kwargs.get('desired_count')
+        self.desired_count = kwargs.get('desired_count', 2)
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
