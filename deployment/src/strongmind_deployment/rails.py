@@ -14,6 +14,9 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
+from strongmind_deployment.util import create_ecs_cluster
+
+
 
 
 def sidekiq_present():  # pragma: no cover
@@ -169,11 +172,7 @@ class RailsComponent(pulumi.ComponentResource):
         stack = pulumi.get_stack()
         project = pulumi.get_project()
         project_stack = f"{project}-{stack}"
-        self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                           name=project_stack,
-                                           tags=self.tags,
-                                           opts=pulumi.ResourceOptions(parent=self),
-                                           )
+        self.ecs_cluster = create_ecs_cluster(self, project_stack)
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
 
         container_image = os.environ['CONTAINER_IMAGE']

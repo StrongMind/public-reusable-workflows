@@ -57,8 +57,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
+        self.desired_count = kwargs.get('desired_count')
         self.max_capacity = 100
-        self.min_capacity = kwargs.get('desired_count')
+        self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
 
 
@@ -83,11 +84,8 @@ class ContainerComponent(pulumi.ComponentResource):
         }
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:
-            self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                               name=self.project_stack,
-                                               tags=self.tags,
-                                               opts=pulumi.ResourceOptions(parent=self),
-                                               )
+            self.ecs_cluster = create_ecs_cluster(self, self.project_stack)
+
             self.ecs_cluster_arn = self.ecs_cluster.arn
 
         if self.need_load_balancer:
@@ -321,7 +319,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_target = aws.appautoscaling.Target(
             "autoscaling_target",
             max_capacity=self.max_capacity,
-            min_capacity=self.min_capacity,
+            min_capacity=self.desired_count,
             resource_id=f"service/{self.project_stack}/{self.project_stack}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
