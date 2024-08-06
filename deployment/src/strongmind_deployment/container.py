@@ -36,6 +36,7 @@ class ContainerComponent(pulumi.ComponentResource):
         as possible and only used when the defaults are no longer providing sufficent scaling.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
+        stack = pulumi.get_stack()
 
         self.autoscaling_out_alarm = None
         self.log_metric_filters = []
@@ -66,8 +67,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.desired_web_count = self.kwargs.get('desired_web_count', 1)
         self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
 
+        if stack.lower() == 'stage':
+            self.sns_topic_arn = 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie-Stage'
 
-        stack = pulumi.get_stack()
         project = pulumi.get_project()
         self.project_stack = f"{project}-{stack}"
         if name != 'container':
