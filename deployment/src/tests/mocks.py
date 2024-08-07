@@ -143,6 +143,13 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
             if args.token == "aws:ec2/getSecurityGroup:getSecurityGroup":
                 return {"id": "sg-12345"}
 
+            if args.token == "aws:index/getCallerIdentity:getCallerIdentity":
+                return {
+                    "account_id": "123456789012",
+                    "arn": "arn:aws:sts::123456789012:assumed-role/pulumi/pulumi",
+                    "user_id": "AIDAJDPLRKLG7UEXAMPLE",
+                }
+
             raise NotImplementedError(
                 "No mock for: " + args.token + " - change PulimiMocks.call"
             )

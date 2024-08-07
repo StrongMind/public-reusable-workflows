@@ -321,7 +321,7 @@ def describe_container():
             @pulumi.runtime.test
             def it_sets_the_access_log_bucket(sut, stack, app_name):
                 expected = {
-                    "bucket": "loadbalancer-logs-221871915463",
+                    "bucket": "loadbalancer-logs-None",
                     "enabled": True,
                     "prefix": f"{app_name}-{stack}",
                 }

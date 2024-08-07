@@ -106,6 +106,8 @@ class Alb(pulumi.ComponentResource):
 
         self.add_ingress_rules_to_security_group(security_group=alb_security_group)
 
+        current = aws.get_caller_identity()
+
         alb = lb.LoadBalancer(
             self.project_stack,
             internal=self.is_internal,
@@ -114,7 +116,7 @@ class Alb(pulumi.ComponentResource):
             subnets=self.subnet_ids,
             enable_deletion_protection=self.args.should_protect,
             access_logs=lb.LoadBalancerAccessLogsArgs(
-                bucket="loadbalancer-logs-221871915463",
+                bucket=f"loadbalancer-logs-{current.account_id}",
                 prefix=self.project_stack,
                 enabled=True,
             ),
