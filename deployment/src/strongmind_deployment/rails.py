@@ -55,7 +55,6 @@ class RailsComponent(pulumi.ComponentResource):
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
-        :key autoscale: Whether to autoscale the web container. Defaults to True.
         :key worker_autoscale: Whether to autoscale the worker container. Defaults to False.
         :key db_engine_version: The version of the database engine. Defaults to 15.4.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
