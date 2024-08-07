@@ -525,6 +525,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 'cname_record',
                 name=name,
                 type='CNAME',
+                allow_overwrite=True,
                 zone_id=zone_id,
                 value=lb_dns_name,
                 ttl=1,
