@@ -5,15 +5,15 @@ class AutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:autoscale', name, None, opts)
         self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
-        self.max_capacity = kwargs.get("max_capacity", 10)
-        self.min_capacity = kwargs.get("min_capacity", 1)
+        self.max_capacity = kwargs.get("max_capacity")
+        self.desired_count = kwargs.get("desired_count")
         self.autoscaling()
     def autoscaling(self):
 
         self.autoscaling_target = aws.appautoscaling.Target(
             "autoscaling_target",
             max_capacity=self.max_capacity,
-            min_capacity=self.min_capacity,
+            min_capacity=self.desired_count,
             resource_id=f"service/{self.project_stack}/{self.project_stack}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",

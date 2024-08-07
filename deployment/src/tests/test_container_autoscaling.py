@@ -19,7 +19,7 @@ def describe_autoscaling():
 
         @pulumi.runtime.test
         def it_has_a_default_max_capacity(sut):
-            return assert_output_equals(sut.autoscaling_target.max_capacity, 1)
+            return assert_output_equals(sut.autoscaling_target.max_capacity, 100)
 
         def describe_autoscaling_overrides():
             @pytest.fixture
@@ -27,13 +27,9 @@ def describe_autoscaling():
                 component_kwargs["max_number_of_instances"] = 10
                 return component_kwargs
 
-            @pulumi.runtime.test
-            def it_has_a_configurable_max_capacity(sut):
-                return assert_output_equals(sut.autoscaling_target.max_capacity, 10)
-
         @pulumi.runtime.test
         def it_has_a_default_min_capacity(sut):
-            return assert_output_equals(sut.autoscaling_target.min_capacity, 1)
+            return assert_output_equals(sut.autoscaling_target.min_capacity, 2)
 
         @pulumi.runtime.test
         def it_has_a_default_scalable_dimension_of_desired_count(sut):

@@ -14,6 +14,9 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
+from strongmind_deployment.util import create_ecs_cluster
+
+
 
 
 def sidekiq_present():  # pragma: no cover
@@ -52,10 +55,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
-        :key autoscale: Whether to autoscale the web container. Defaults to True.
         :key worker_autoscale: Whether to autoscale the worker container. Defaults to False.
         :key db_engine_version: The version of the database engine. Defaults to 15.4.
-        :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
         :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
         :key rds_maximum_capacity: The maximum capacity of the RDS cluster. Defaults to 16.
@@ -90,7 +91,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.autoscale = self.kwargs.get('autoscale', True)
         self.worker_autoscale = self.kwargs.get('worker_autoscale', False)
         self.engine_version = self.kwargs.get('db_engine_version', '15.4')
-        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
+        self.desired_web_count = 2
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 16)
@@ -170,11 +171,7 @@ class RailsComponent(pulumi.ComponentResource):
         stack = pulumi.get_stack()
         project = pulumi.get_project()
         project_stack = f"{project}-{stack}"
-        self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                           name=project_stack,
-                                           tags=self.tags,
-                                           opts=pulumi.ResourceOptions(parent=self),
-                                           )
+        self.ecs_cluster = create_ecs_cluster(self, project_stack)
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
 
         container_image = os.environ['CONTAINER_IMAGE']

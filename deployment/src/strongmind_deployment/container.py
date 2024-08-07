@@ -10,6 +10,7 @@ from pulumi import Config, export, Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
 from strongmind_deployment.autoscale import WorkerAutoscaleComponent
+from strongmind_deployment.util import create_ecs_cluster
 
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
@@ -30,10 +31,6 @@ class ContainerComponent(pulumi.ComponentResource):
         - name: The name of the secret.
         - value_from: The ARN of the secret.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
-        :max_number_of_instances: The maximum number of instances available in the scaling policy. This should be as low
-        as possible and only used when the defaults are no longer providing sufficent scaling.
-        :min_number_of_instances: The minimum number of instances available in the scaling policy. This should be as low
-        as possible and only used when the defaults are no longer providing sufficent scaling.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -62,9 +59,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
-        self.max_capacity = kwargs.get('max_number_of_instances', 1)
-        self.min_capacity = kwargs.get('min_number_of_instances', 1)
-        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
+        self.desired_count = kwargs.get('desired_count', 2)
+        self.max_capacity = 100
+        self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
 
         if stack.lower() == 'stage':
@@ -90,11 +87,8 @@ class ContainerComponent(pulumi.ComponentResource):
         }
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:
-            self.ecs_cluster = aws.ecs.Cluster("cluster",
-                                               name=self.project_stack,
-                                               tags=self.tags,
-                                               opts=pulumi.ResourceOptions(parent=self),
-                                               )
+            self.ecs_cluster = create_ecs_cluster(self, self.project_stack)
+
             self.ecs_cluster_arn = self.ecs_cluster.arn
 
         if self.need_load_balancer:
@@ -299,7 +293,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
             name=self.project_stack,
-            desired_count=kwargs.get('desired_count', 1),
+            desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
             assign_public_ip=True,
@@ -328,7 +322,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_target = aws.appautoscaling.Target(
             "autoscaling_target",
             max_capacity=self.max_capacity,
-            min_capacity=self.min_capacity,
+            min_capacity=self.desired_count,
             resource_id=f"service/{self.project_stack}/{self.project_stack}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
@@ -410,6 +404,25 @@ class ContainerComponent(pulumi.ComponentResource):
             threshold=50,
             alarm_actions=[self.autoscaling_in_policy.arn]
         )
+        self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
+            "running_tasks_alarm",
+            name=f"{self.project_stack}-running-tasks-alarm",
+            comparison_operator="GreaterThanThreshold",
+            evaluation_periods=1,
+            metric_name="RunningTaskCount",
+            namespace="AWS/ECS",
+            dimensions={
+                "ClusterName": self.project_stack,
+                "ServiceName": self.project_stack
+            },
+            period=60,
+            statistic="Maximum",
+            threshold=15,
+            alarm_actions=[self.sns_topic_arn],
+            ok_actions=[self.sns_topic_arn],
+            alarm_description="Alarm when ECS service running tasks exceed 15",
+            tags=self.tags
+        )
 
     def setup_load_balancer(self, kwargs, project, project_stack, stack):
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
@@ -470,7 +483,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 ok_actions=[self.sns_topic_arn],
                 period=60,
                 statistic="Maximum",
-                threshold=self.desired_web_count,
+                threshold=self.desired_count,
                 treat_missing_data="notBreaching",
                 tags=self.tags,
             )

@@ -83,4 +83,4 @@ component = RailsComponent("rails", autoscale=False)
 
 ## Autoscaling
 
-When necessary, remove `autoscale=false` from the `infrastructure/__main__.py` file and redeploy.
+Remove `autoscale=false` from the `infrastructure/__main__.py` file and redeploy.
