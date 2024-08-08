@@ -27,6 +27,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     }
                 outputs = {
                     **args.inputs,
+                    "desired_count": args.inputs["desiredCount"],
                     "task_definition_args": args.inputs["taskDefinitionArgs"],
                     "task_definition": TaskDefinitionMock(),
                     "propagate_tags": args.inputs.get("propagateTags"),
