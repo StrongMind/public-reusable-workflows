@@ -95,7 +95,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.desired_web_count = self.kwargs.get('desired_web_count', 1)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
-        self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 16)
+        self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
