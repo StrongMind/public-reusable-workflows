@@ -617,6 +617,24 @@ def describe_a_pulumi_rails_component():
             ).apply(check_machine_specs)
 
         @pulumi.runtime.test
+        def it_sets_the_desired_web_count_to_a_default_of_one(sut):
+            return assert_output_equals(sut.web_container.fargate_service.desired_count, 1)
+
+        def describe_when_desired_web_count_is_provided():
+            @pytest.fixture
+            def desired_web_count(faker):
+                return faker.random_int()
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, desired_web_count):
+                component_kwargs['desired_web_count'] = desired_web_count
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_sets_the_desired_web_count(sut, desired_web_count):
+                return assert_output_equals(sut.web_container.fargate_service.desired_count, desired_web_count)
+
+        @pulumi.runtime.test
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
 

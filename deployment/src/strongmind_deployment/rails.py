@@ -57,6 +57,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
         :key worker_autoscale: Whether to autoscale the worker container. Defaults to False.
         :key db_engine_version: The version of the database engine. Defaults to 15.4.
+        :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
         :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
         :key rds_maximum_capacity: The maximum capacity of the RDS cluster. Defaults to 16.
@@ -91,7 +92,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.autoscale = self.kwargs.get('autoscale', True)
         self.worker_autoscale = self.kwargs.get('worker_autoscale', False)
         self.engine_version = self.kwargs.get('db_engine_version', '15.4')
-        self.desired_web_count = 2
+        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 16)
