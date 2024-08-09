@@ -381,7 +381,7 @@ def describe_a_pulumi_rails_component():
             def check_rds_cluster_scaling_configuration(args):
                 min_capacity, max_capacity = args
                 assert min_capacity == 0.5
-                assert max_capacity == 16
+                assert max_capacity == 128
 
             return pulumi.Output.all(
                 sut.rds_serverless_cluster.serverlessv2_scaling_configuration.min_capacity,
