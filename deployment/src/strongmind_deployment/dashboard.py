@@ -19,7 +19,7 @@ class DashboardComponent(pulumi.ComponentResource):
 
     def setup_dashboard(self, project_stack, **kwargs):
         self.log_metric_filter_definitions = self.kwargs.get('log_metric_filters', [])
-        load_balancer_arn = kwargs.get('load_balancer_arn', self.web_container.load_balancer.load_balancer.arn)
+        load_balancer_arn = kwargs.get('load_balancer_arn', self.web_container.load_balancer.arn)
         self.load_balancer_arn_name = load_balancer_arn.apply(lambda arn: arn.split("loadbalancer/")[1])
         self.target_group_arn = self.web_container.target_group.arn.apply(lambda arn: arn.split(":")[-1])
         widgets = []

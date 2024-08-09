@@ -29,6 +29,7 @@ class AlbArgs:
     def __init__(
         self,
         vpc_id: str,
+        subnets: Sequence[str],
         certificate_arn: str,
         placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
         internal_ingress_cidrs: list[str] = [],
@@ -36,6 +37,7 @@ class AlbArgs:
         should_protect: bool = False,
     ):
         self.vpc_id = vpc_id
+        self.subnets = subnets
         self.certificate_arn = certificate_arn
         self.placement = placement or AlbPlacement.EXTERNAL
         self.internal_ingress_cidrs = internal_ingress_cidrs
@@ -55,10 +57,15 @@ class Alb(pulumi.ComponentResource):
     def __init__(self, name: str, args: AlbArgs, opts=None):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
 
+        self.http_ingress = None
+        self.tls_ingress = None
         self.args = args
         self.is_internal = args.placement == AlbPlacement.INTERNAL
         self.subnet_placement: vpc.SubnetType = vpc.SubnetType.PRIVATE if self.is_internal else vpc.SubnetType.PUBLIC
-        self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
+        if args.subnets:
+            self.subnet_ids = args.subnets
+        else:
+            self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
         stack = pulumi.get_stack()
         project = pulumi.get_project()[:18]
         self.project_stack = f"{project}-{stack}"
@@ -70,7 +77,7 @@ class Alb(pulumi.ComponentResource):
     def create_resources(self):
         self.alb = self.create_loadbalancer()
         self.https_listener = self.create_https_listener()
-        self.create_port_80_redirect_listener()
+        self.redirect_listener = self.create_port_80_redirect_listener()
 
     def create_loadbalancer(self)-> lb.LoadBalancer:
 
@@ -99,6 +106,8 @@ class Alb(pulumi.ComponentResource):
 
         self.add_ingress_rules_to_security_group(security_group=alb_security_group)
 
+        current = aws.get_caller_identity()
+
         alb = lb.LoadBalancer(
             self.project_stack,
             internal=self.is_internal,
@@ -106,6 +115,11 @@ class Alb(pulumi.ComponentResource):
             security_groups=[alb_security_group.id],
             subnets=self.subnet_ids,
             enable_deletion_protection=self.args.should_protect,
+            access_logs=lb.LoadBalancerAccessLogsArgs(
+                bucket=f"loadbalancer-logs-{current.account_id}",
+                prefix=self.project_stack,
+                enabled=True,
+            ),
             opts=self.child_opts,
         )
         return alb
@@ -142,6 +156,7 @@ class Alb(pulumi.ComponentResource):
         port_80_redirect_listener = aws.alb.Listener(
             f"{self.project_stack}-80-redirect-443",
             load_balancer_arn=self.alb.arn,
+            protocol="HTTP",
             port=80,
             default_actions=[
                 {
@@ -175,7 +190,7 @@ class Alb(pulumi.ComponentResource):
             )
 
         if not self.is_internal:
-            ec2.SecurityGroupRule(
+            self.tls_ingress = ec2.SecurityGroupRule(
                 "tls_ingress",
                 description="TLS internet",
                 type="ingress",
@@ -187,7 +202,7 @@ class Alb(pulumi.ComponentResource):
                 ],
                 security_group_id=security_group.id,
             )
-            ec2.SecurityGroupRule(
+            self.http_ingress = ec2.SecurityGroupRule(
                 "http_ingress",
                 description="Internet",
                 type="ingress",

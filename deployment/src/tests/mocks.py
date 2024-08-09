@@ -118,14 +118,10 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "nat_gateways": { "asdf": "asdf"}
                 }
 
-            if args.typ == "awsx:lb:ApplicationLoadBalancer":
+            if args.typ == "aws:lb/loadBalancer:LoadBalancer":
                 outputs = {
                     **args.inputs,
-                    "access_logs": {
-                        "bucket": args.inputs["accessLogs"]["bucket"],
-                        "prefix": args.inputs["accessLogs"]["prefix"],
-                        "enabled": args.inputs["accessLogs"]["enabled"],
-                    }
+                    "arn": f"arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/{faker.word()}",
                 }
 
             print(args.typ)
@@ -147,6 +143,13 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
             
             if args.token == "aws:ec2/getSecurityGroup:getSecurityGroup":
                 return {"id": "sg-12345"}
+
+            if args.token == "aws:index/getCallerIdentity:getCallerIdentity":
+                return {
+                    "account_id": "123456789012",
+                    "arn": "arn:aws:sts::123456789012:assumed-role/pulumi/pulumi",
+                    "user_id": "AIDAJDPLRKLG7UEXAMPLE",
+                }
 
             raise NotImplementedError(
                 "No mock for: " + args.token + " - change PulimiMocks.call"

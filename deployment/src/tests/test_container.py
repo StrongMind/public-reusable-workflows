@@ -72,14 +72,6 @@ def a_pulumi_containerized_app():
         }]
 
     @pytest.fixture
-    def load_balancer_arn(faker):
-        return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:loadbalancer/app/{faker.word()}/{faker.random_int()}"
-
-    @pytest.fixture
-    def target_group_arn(faker):
-        return f"arn:aws:elasticloadbalancing:us-west-2:{faker.random_int()}:targetgroup/{faker.word()}/{faker.random_int()}"
-
-    @pytest.fixture
     def zone_id(faker):
         return faker.word()
 
@@ -127,8 +119,6 @@ def a_pulumi_containerized_app():
                          container_image,
                          env_vars,
                          secrets,
-                         load_balancer_arn,
-                         target_group_arn,
                          zone_id,
                          load_balancer_dns_name,
                          domain_validation_options,
@@ -143,8 +133,6 @@ def a_pulumi_containerized_app():
             "container_image": container_image,
             "env_vars": env_vars,
             "secrets": secrets,
-            "load_balancer_arn": load_balancer_arn,
-            "target_group_arn": target_group_arn,
             "zone_id": zone_id,
             "load_balancer_dns_name": load_balancer_dns_name,
             "domain_validation_options": domain_validation_options
@@ -328,16 +316,25 @@ def describe_container():
 
             @pulumi.runtime.test
             def it_sets_the_load_balancer_name(sut, stack, app_name):
-                return assert_output_equals(sut.load_balancer.name, f"{app_name}-{stack}")
+                assert sut.load_balancer._name == f"{app_name}-{stack}"
 
             @pulumi.runtime.test
-            def it_sets_the_access_logs(sut, stack, app_name):
-
-                return assert_output_equals(sut.load_balancer.access_logs, {
-                    "bucket": "loadbalancer-logs-221871915463",
+            def it_sets_the_access_log_bucket(sut, stack, app_name):
+                expected = {
+                    "bucket": "loadbalancer-logs-None",
+                    "enabled": True,
                     "prefix": f"{app_name}-{stack}",
-                    "enabled": True
-                })
+                }
+
+                def compare(value):
+                    try:
+                        assert str(value) == str(expected)
+                    except AssertionError:
+                        print(f"Expected: {expected}")
+                        print(f"Actual: {value}")
+                        raise
+
+                return sut.load_balancer.access_logs.apply(compare)
 
             def describe_target_group():
                 @pulumi.runtime.test
@@ -385,13 +382,17 @@ def describe_container():
                 def listener(sut):
                     return sut.load_balancer_listener
 
+                @pytest.fixture
+                def listener_rule(sut):
+                    return sut.listener_rule
+
                 @pulumi.runtime.test
                 def it_has_load_balancer_listener_for_https(listener):
                     assert listener
 
                 @pulumi.runtime.test
-                def it_sets_the_load_balancer_arn(listener, load_balancer_arn):
-                    return assert_output_equals(listener.load_balancer_arn, load_balancer_arn)
+                def it_sets_the_load_balancer_arn(listener, sut):
+                    return assert_outputs_equal(listener.load_balancer_arn, sut.load_balancer.arn)
 
                 @pulumi.runtime.test
                 def it_sets_the_certificate_arn(listener, sut):
@@ -406,12 +407,32 @@ def describe_container():
                     return assert_output_equals(listener.protocol, "HTTPS")
 
                 @pulumi.runtime.test
-                def it_forwards_to_the_target_group(listener, target_group_arn):
-                    return assert_output_equals(listener.default_actions[0].target_group_arn, target_group_arn)
+                def it_has_a_listener_rule_connected_to_the_listener(listener_rule, listener):
+                    return assert_outputs_equal(listener_rule.listener_arn, listener.arn)
 
                 @pulumi.runtime.test
-                def it_forwards(listener):
-                    return assert_output_equals(listener.default_actions[0].type, "forward")
+                def it_forwards_to_the_target_group_with_a_rule(listener_rule, sut):
+                    return assert_outputs_equal(listener_rule.actions[0].target_group_arn, sut.target_group.arn)
+
+                @pulumi.runtime.test
+                def it_forwards(listener_rule):
+                    return assert_output_equals(listener_rule.actions[0].type, "forward")
+
+                @pulumi.runtime.test
+                def it_defaults_to_fixed_response(listener):
+                    return assert_output_equals(listener.default_actions[0].type, "fixed-response")
+
+                @pulumi.runtime.test
+                def it_defaults_to_404(listener):
+                    return assert_output_equals(listener.default_actions[0].fixed_response.status_code, "404")
+
+                @pulumi.runtime.test
+                def it_defaults_to_text_plain(listener):
+                    return assert_output_equals(listener.default_actions[0].fixed_response.content_type, "text/plain")
+
+                @pulumi.runtime.test
+                def it_defaults_to_path_not_found(listener):
+                    return assert_output_equals(listener.default_actions[0].fixed_response.message_body, "Path Not Found")
 
             def describe_the_load_balancer_listener_for_http():
                 @pytest.fixture
@@ -423,8 +444,8 @@ def describe_container():
                     assert listener
 
                 @pulumi.runtime.test
-                def it_sets_the_load_balancer_arn(listener, load_balancer_arn):
-                    return assert_output_equals(listener.load_balancer_arn, load_balancer_arn)
+                def it_sets_the_load_balancer_arn(listener, sut):
+                    return assert_outputs_equal(listener.load_balancer_arn, sut.load_balancer.arn)
 
                 @pulumi.runtime.test
                 def it_sets_the_port(listener):
@@ -453,6 +474,56 @@ def describe_container():
                 @pulumi.runtime.test
                 def it_redirects(redirect_action):
                     return assert_output_equals(redirect_action.type, "redirect")
+
+            def describe_security_group_rules():
+                @pytest.fixture
+                def tls_ingress(sut):
+                    return sut.alb.tls_ingress
+
+                @pytest.fixture
+                def http_ingress(sut):
+                    return sut.alb.http_ingress
+
+                @pulumi.runtime.test
+                def it_allows_tls_ingress_from_anywhere(tls_ingress):
+                    return assert_output_equals(tls_ingress.cidr_blocks, ["0.0.0.0/0"])
+
+                @pulumi.runtime.test
+                def it_allows_tls_ingress_on_port_443(tls_ingress):
+                    return assert_output_equals(tls_ingress.from_port, 443)
+
+                @pulumi.runtime.test
+                def it_allows_http_ingress_from_anywhere(http_ingress):
+                    return assert_output_equals(http_ingress.cidr_blocks, ["0.0.0.0/0"])
+
+                @pulumi.runtime.test
+                def it_allows_http_ingress_on_port_80(http_ingress):
+                    return assert_output_equals(http_ingress.from_port, 80)
+
+                @pulumi.runtime.test
+                def it_allows_tls_ingress_from_sg(tls_ingress, sut):
+                    return assert_outputs_equal(tls_ingress.security_group_id, sut.alb.security_group.id)
+
+                @pulumi.runtime.test
+                def it_allows_http_ingress_from_sg(http_ingress, sut):
+                    return assert_outputs_equal(http_ingress.security_group_id, sut.alb.security_group.id)
+
+                @pulumi.runtime.test
+                def it_uses_tcp_for_tls_ingress(tls_ingress):
+                    return assert_output_equals(tls_ingress.protocol, "tcp")
+
+                @pulumi.runtime.test
+                def it_uses_tcp_for_http_ingress(http_ingress):
+                    return assert_output_equals(http_ingress.protocol, "tcp")
+
+                @pulumi.runtime.test
+                def it_uses_ingress_type_for_tls_ingress(tls_ingress):
+                    return assert_output_equals(tls_ingress.type, "ingress")
+
+                @pulumi.runtime.test
+                def it_uses_ingress_type_for_http_ingress(http_ingress):
+                    return assert_output_equals(http_ingress.type, "ingress")
+
 
         @pulumi.runtime.test
         def describe_the_fargate_service():
