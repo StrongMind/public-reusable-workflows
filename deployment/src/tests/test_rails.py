@@ -617,8 +617,8 @@ def describe_a_pulumi_rails_component():
             ).apply(check_machine_specs)
 
         @pulumi.runtime.test
-        def it_sets_the_desired_web_count_to_a_default_of_one(sut):
-            return assert_output_equals(sut.web_container.fargate_service.desired_count, 1)
+        def it_sets_the_desired_web_count_to_a_default_of_two(sut):
+            return assert_output_equals(sut.web_container.fargate_service.desired_count, 2)
 
         def describe_when_desired_web_count_is_provided():
             @pytest.fixture

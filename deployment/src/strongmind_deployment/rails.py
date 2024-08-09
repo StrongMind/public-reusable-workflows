@@ -92,7 +92,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.autoscale = self.kwargs.get('autoscale', True)
         self.worker_autoscale = self.kwargs.get('worker_autoscale', False)
         self.engine_version = self.kwargs.get('db_engine_version', '15.4')
-        self.desired_web_count = self.kwargs.get('desired_web_count', 1)
+        self.desired_web_count = self.kwargs.get('desired_web_count', 2)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
