@@ -313,7 +313,10 @@ class ContainerComponent(pulumi.ComponentResource):
         if self.kwargs.get('worker_autoscaling'):
             pulumi.log.info("WORKER AUTOSCALING ENABLED")
             self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
-                                                               opts=pulumi.ResourceOptions(parent=self),
+                                                               opts=pulumi.ResourceOptions(
+                                                                   parent=self,
+                                                                   depends_on=[self.fargate_service]
+                                                               ),
                                                                **self.kwargs)
 
 
@@ -329,6 +332,9 @@ class ContainerComponent(pulumi.ComponentResource):
             resource_id=f"service/{self.project_stack}/{self.project_stack}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
+            opts=pulumi.ResourceOptions(
+                depends_on=[self.fargate_service]
+            ),
         )
         self.autoscaling_out_policy = aws.appautoscaling.Policy(
             "autoscaling_out_policy",
