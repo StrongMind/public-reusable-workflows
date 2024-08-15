@@ -52,7 +52,8 @@ jobs:
   pulumi-refresh:
     name: pulumi refresh
     uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@bel-3524
-    if: ${{ inputs.pulumi-refresh == 'true' }}
+    if: ${{ (github.event.workflow_run.conclusion == 'success' || github.event_name
+      == 'workflow_dispatch' ) && inputs.pulumi-refresh == 'true' }}
     with:
       environment-name: prod
       pulumi-command: refresh
