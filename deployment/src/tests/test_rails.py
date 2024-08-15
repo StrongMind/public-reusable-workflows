@@ -775,6 +775,10 @@ def describe_a_pulumi_rails_component():
         def it_sends_the_url_to_the_ecs_environment(sut):
             return assert_outputs_equal(sut.env_vars["CACHE_REDIS_URL"], sut.cache_redis.url)
 
+        @pulumi.runtime.test
+        def it_sends_the_url_to_the_ecs_environment(sut):
+            return assert_outputs_equal(sut.env_vars["REDIS_SERVER"], sut.cache_redis.url)
+
     def describe_with_custom_cache_redis():
         @pytest.fixture
         def component_kwargs(component_kwargs):
