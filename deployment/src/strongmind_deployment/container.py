@@ -548,7 +548,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 type='CNAME',
                 allow_overwrite=True,
                 zone_id=zone_id,
-                value=lb_dns_name,
+                content=lb_dns_name,
                 ttl=1,
                 opts=pulumi.ResourceOptions(parent=self),
             )
@@ -570,7 +570,7 @@ class ContainerComponent(pulumi.ComponentResource):
             name=domain_validation_options[0].resource_record_name,
             type=domain_validation_options[0].resource_record_type,
             zone_id=zone_id,
-            value=resource_record_value,
+            content=resource_record_value,
             ttl=1,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
         )
