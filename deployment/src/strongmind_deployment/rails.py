@@ -153,6 +153,7 @@ class RailsComponent(pulumi.ComponentResource):
 
             if self.cache_redis:
                 self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
+                self.env_vars['REDIS_SERVER'] = self.cache_redis.url
 
     def security(self):
         self.firewall_rule = aws.ec2.SecurityGroupRule(
