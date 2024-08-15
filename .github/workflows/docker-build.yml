@@ -40,6 +40,15 @@ permissions:
   contents: read
 
 jobs:
+  Verify-Plumi-Refresh:
+    name: Verify pulumi refresh
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: echo pulumi refresh
+        run: |
+          echo "PULUMI REFRESH== ${{ inputs.pulumi-refresh }}"
   pulumi-refresh:
     name: pulumi refresh
     uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@bel-3524
