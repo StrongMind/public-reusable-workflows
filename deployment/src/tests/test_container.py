@@ -644,7 +644,7 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_points_to_load_balancer(sut, load_balancer_dns_name):
-            return assert_output_equals(sut.cname_record.value, load_balancer_dns_name)
+            return assert_output_equals(sut.cname_record.content, load_balancer_dns_name)
 
     def describe_cert():
         @pulumi.runtime.test
@@ -677,7 +677,7 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_adds_validation_record_with_value(sut, resource_record_value):
-            return assert_output_equals(sut.cert_validation_record.value, resource_record_value)
+            return assert_output_equals(sut.cert_validation_record.content, resource_record_value)
 
         @pulumi.runtime.test
         def it_adds_validation_record_with_ttl(sut):
