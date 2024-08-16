@@ -51,7 +51,7 @@ jobs:
           echo "PULUMI REFRESH== ${{ inputs.pulumi-refresh }}"
   pulumi-refresh:
     name: pulumi refresh
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@bel-3524
+    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
     if: ${{ (github.event.workflow_run.conclusion == 'success' || github.event_name
       == 'workflow_dispatch' ) && inputs.pulumi-refresh == 'true' }}
     with:
