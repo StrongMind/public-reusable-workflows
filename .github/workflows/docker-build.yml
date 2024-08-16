@@ -40,15 +40,6 @@ permissions:
   contents: read
 
 jobs:
-  Verify-Plumi-Refresh:
-    name: Verify pulumi refresh
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: echo pulumi refresh
-        run: |
-          echo "PULUMI REFRESH== ${{ inputs.pulumi-refresh }}"
   pulumi-refresh:
     name: pulumi refresh
     uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
@@ -75,9 +66,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: '0'
-      - name: echo pulumi refresh
-        run: |
-          echo "PULUMI REFRESH== ${{ inputs.pulumi-refresh }}"
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
