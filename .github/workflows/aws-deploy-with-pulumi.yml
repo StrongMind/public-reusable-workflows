@@ -46,6 +46,21 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
+    - name: Set up Python
+      if: ${{ inputs.pulumi-command == 'refresh' }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: Install dependencies
+      if: ${{ inputs.pulumi-command == 'refresh' }}
+      run: |
+        cd ./infrastructure/
+        python -m venv venv
+        source venv/bin/activate
+        pip install -r requirements.txt  
+        cd ..
+
     - name: Deploy with Pulumi
       env:
         PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
