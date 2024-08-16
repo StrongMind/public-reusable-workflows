@@ -368,7 +368,7 @@ class RailsComponent(pulumi.ComponentResource):
 
     def setup_storage(self):
         self.storage = StorageComponent("storage",
-                                        pulumi.ResourceOptions(parent=self),
+                                        pulumi.ResourceOptions(parent=self, protect=True),
                                         **self.kwargs
                                         )
         self.env_vars.update(self.storage.s3_env_vars)

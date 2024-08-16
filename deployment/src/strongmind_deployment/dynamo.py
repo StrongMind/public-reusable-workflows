@@ -19,7 +19,9 @@ class DynamoComponent(pulumi.ComponentResource):
         stack = pulumi.get_stack()
         table_opts = ResourceOptions(
             parent=self,
-            ignore_changes=["read_capacity", "write_capacity"])  # pragma: no cover
+            ignore_changes=["read_capacity", "write_capacity"],
+            protect=True
+        )  # pragma: no cover
         hash_key = kwargs.get("hash_key")
         if not hash_key:
             raise ValueError("hash_key is required")
