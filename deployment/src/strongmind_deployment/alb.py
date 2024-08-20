@@ -29,8 +29,8 @@ class AlbArgs:
     def __init__(
         self,
         vpc_id: str,
-        subnets: Sequence[str],
         certificate_arn: str,
+        subnets: Sequence[str] = None,
         placement: Optional[AlbPlacement] = AlbPlacement.EXTERNAL,
         internal_ingress_cidrs: list[str] = [],
         ingress_sg: ec2.SecurityGroup = None,
