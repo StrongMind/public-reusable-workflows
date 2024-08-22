@@ -1,9 +1,7 @@
 name: Push Commit Information
 
 on:
-  push:
-    branches:
-      - main
+  workflow_call:
 
 jobs:
   push-commit-info:
