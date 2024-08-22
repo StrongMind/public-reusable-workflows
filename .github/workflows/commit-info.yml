@@ -18,7 +18,16 @@ jobs:
         with:
           node-version: '14'
 
-      - name: Run Process Commits Script
-        run: ./scripts/process-commits.sh
+      - name: Check current directory
+        run: pwd
+
+      - name: Download the script
+        run: curl -o $PWD/process-commits.sh https://raw.githubusercontent.com/strongmind/public-reusable-workflows/main/scripts/process-commits.sh
+
+      - name: Give script permissions
+        run: chmod +x $PWD/process-commits.sh
+
+      - name: Execute script
+        run: $PWD/process-commits.sh
         env:
             REPO_NAME: ${{ github.repository }}
