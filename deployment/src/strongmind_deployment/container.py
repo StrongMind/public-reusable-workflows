@@ -419,7 +419,7 @@ class ContainerComponent(pulumi.ComponentResource):
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
             metric_name="RunningTaskCount",
-            namespace="AWS/ECS",
+            namespace="ECS/ContainerInsights",
             dimensions={
                 "ClusterName": self.project_stack,
                 "ServiceName": self.project_stack
