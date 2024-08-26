@@ -364,18 +364,48 @@ class ContainerComponent(pulumi.ComponentResource):
             "autoscaling_alarm",
             name=f"{self.project_stack}-auto-scaling-out-alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
+            actions_enabled=True,
+            alarm_actions=[self.autoscaling_out_policy.arn],
             evaluation_periods=1,
-            metric_name="CPUUtilization",
-            unit="Percent",
-            dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
-            },
-            namespace="AWS/ECS",
-            period=60,
-            statistic="Average",
-            threshold=65,
-            alarm_actions=[self.autoscaling_out_policy.arn]
+            datapoints_to_alarm=1,
+            threshold=50,
+            treat_missing_data="missing",
+            metric_queries=[
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="e1",
+                    label="Expression1",
+                    return_data=True,
+                    expression="100*(m1/m2)",
+                ),
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="m1",
+                    return_data=False,
+                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                        namespace="ECS/ContainerInsights",
+                        metric_name="CpuUtilized",
+                        dimensions={
+                            "ClusterName": self.project_stack,
+                            "ServiceName": self.project_stack
+                        },
+                        period=60,
+                        stat="p99",
+                    ),
+                ),
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="m2",
+                    return_data=False,
+                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                        namespace="ECS/ContainerInsights",
+                        metric_name="CpuReserved",
+                        dimensions={
+                            "ServiceName": self.project_stack,
+                            "ClusterName": self.project_stack,
+                        },
+                        period=60,
+                        stat="p99",
+                    ),
+                )
+            ],
         )
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
             "autoscaling_in_policy",
@@ -400,37 +430,48 @@ class ContainerComponent(pulumi.ComponentResource):
             "autoscaling_in_alarm",
             name=f"{self.project_stack}-auto-scaling-in-alarm",
             comparison_operator="LessThanOrEqualToThreshold",
+            actions_enabled=True,
+            alarm_actions=[self.autoscaling_in_policy.arn],
             evaluation_periods=5,
-            metric_name="CPUUtilization",
-            unit="Percent",
-            dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
-            },
-            namespace="AWS/ECS",
-            period=60,
-            statistic="Average",
-            threshold=50,
-            alarm_actions=[self.autoscaling_in_policy.arn]
-        )
-        self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
-            "running_tasks_alarm",
-            name=f"{self.project_stack}-running-tasks-alarm",
-            comparison_operator="GreaterThanThreshold",
-            evaluation_periods=1,
-            metric_name="RunningTaskCount",
-            namespace="ECS/ContainerInsights",
-            dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
-            },
-            period=60,
-            statistic="Maximum",
-            threshold=15,
-            alarm_actions=[self.sns_topic_arn],
-            ok_actions=[self.sns_topic_arn],
-            alarm_description="Alarm when ECS service running tasks exceed 15",
-            tags=self.tags
+            datapoints_to_alarm=1,
+            threshold=35,
+            treat_missing_data="missing",
+            metric_queries=[
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="e1",
+                    label="Expression1",
+                    return_data=True,
+                    expression="100*(m1/m2)",
+                ),
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="m1",
+                    return_data=False,
+                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                        namespace="ECS/ContainerInsights",
+                        metric_name="CpuUtilized",
+                        dimensions={
+                            "ClusterName": self.project_stack,
+                            "ServiceName": self.project_stack
+                        },
+                        period=60,
+                        stat="p99",
+                    ),
+                ),
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="m2",
+                    return_data=False,
+                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                        namespace="ECS/ContainerInsights",
+                        metric_name="CpuReserved",
+                        dimensions={
+                            "ServiceName": self.project_stack,
+                            "ClusterName": self.project_stack,
+                        },
+                        period=60,
+                        stat="p99",
+                    ),
+                ),
+            ],
         )
 
     def setup_load_balancer(self, kwargs, project, project_stack, stack):
