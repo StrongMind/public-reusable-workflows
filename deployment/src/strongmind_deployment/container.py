@@ -536,26 +536,78 @@ class ContainerComponent(pulumi.ComponentResource):
         target_group_dimension = self.target_group.arn.apply(
             lambda arn: arn.split("/")[-1]
         )
-        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension).apply(lambda args: 
+        target_group_name = self.target_group.name.apply(
+            lambda name: name.split("/")[-1]
+        )
+        load_balancer_name = self.load_balancer.name.apply(
+            lambda name: name.split("/")[-1]
+        )
+        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension, load_balancer_name, target_group_name).apply(lambda args:
             aws.cloudwatch.MetricAlarm(
                 "healthy_host_metric_alarm",
                 name=f"{project_stack}-healthy-host-metric-alarm",
-                comparison_operator="LessThanThreshold",
-                datapoints_to_alarm=1,
-                dimensions={
-                    "LoadBalancer":f"app/{project_stack}/{args[0]}",
-                    "TargetGroup":f"targetgroup/{project_stack}/{args[1]}",
-                },
-                evaluation_periods=1,
-                metric_name="HealthyHostCount",
-                namespace="AWS/ApplicationELB",
-                alarm_actions=[self.sns_topic_arn],
+                actions_enabled=True,
                 ok_actions=[self.sns_topic_arn],
-                period=60,
-                statistic="Maximum",
+                alarm_actions=[self.sns_topic_arn],
+                insufficient_data_actions=[],
+                evaluation_periods=1,
+                datapoints_to_alarm=1,
                 threshold=self.desired_count,
+                comparison_operator="LessThanThreshold",
                 treat_missing_data="notBreaching",
-                tags=self.tags,
+                metric_queries=[
+                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                        id="e1",
+                        label="Expression1",
+                        return_data=True,
+                        expression="SUM(METRICS())"
+                    ),
+                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                        id="m2",
+                        return_data=False,
+                        metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                            namespace="AWS/ApplicationELB",
+                            metric_name="HealthyHostCount",
+                            dimensions={
+                                "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                "AvailabilityZone": "us-west-2b",
+                                "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                            },
+                            period=60,
+                            stat="Maximum"
+                        ),
+                    ),
+                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                        id="m3",
+                        return_data=False,
+                        metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                            namespace="AWS/ApplicationELB",
+                            metric_name="HealthyHostCount",
+                            dimensions={
+                                "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                "AvailabilityZone": "us-west-2c",
+                                "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                            },
+                            period=60,
+                            stat="Maximum"
+                        ),
+                    ),
+                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                        id="m4",
+                        return_data=False,
+                        metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                            namespace="AWS/ApplicationELB",
+                            metric_name="HealthyHostCount",
+                            dimensions={
+                                "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                "AvailabilityZone": "us-west-2a",
+                                "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                            },
+                            period=60,
+                            stat="Maximum"
+                        ),
+                    ),
+                ]
             )
         )
 
