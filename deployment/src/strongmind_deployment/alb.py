@@ -35,6 +35,7 @@ class AlbArgs:
         internal_ingress_cidrs: list[str] = [],
         ingress_sg: ec2.SecurityGroup = None,
         should_protect: bool = False,
+        tags: dict = None,
     ):
         self.vpc_id = vpc_id
         self.subnets = subnets
@@ -43,6 +44,7 @@ class AlbArgs:
         self.internal_ingress_cidrs = internal_ingress_cidrs
         self.ingress_sg = ingress_sg
         self.should_protect = should_protect
+        self.tags = tags
 
 
 class Alb(pulumi.ComponentResource):
@@ -69,6 +71,7 @@ class Alb(pulumi.ComponentResource):
         stack = pulumi.get_stack()
         project = pulumi.get_project()[:18]
         self.project_stack = f"{project}-{stack}"
+        self.tags = args.tags or {}
 
 
         self.child_opts = pulumi.ResourceOptions(parent=self)
@@ -120,6 +123,7 @@ class Alb(pulumi.ComponentResource):
                 prefix=self.project_stack,
                 enabled=True,
             ),
+            tags=self.tags,
             opts=self.child_opts,
         )
         return alb

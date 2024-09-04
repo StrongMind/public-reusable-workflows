@@ -505,6 +505,7 @@ class ContainerComponent(pulumi.ComponentResource):
             subnets=default_vpc.public_subnet_ids,
             placement=alb.AlbPlacement.EXTERNAL,
             certificate_arn=self.cert.arn,
+            tags=self.tags,
         )
         self.alb = alb.Alb("loadbalancer", alb_args)
         self.load_balancer = self.alb.alb
