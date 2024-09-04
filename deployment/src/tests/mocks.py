@@ -122,6 +122,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                 outputs = {
                     **args.inputs,
                     "arn": f"arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/{faker.word()}",
+                    "name": f"loadbalancer-{faker.word()}",
                 }
 
             print(args.typ)
