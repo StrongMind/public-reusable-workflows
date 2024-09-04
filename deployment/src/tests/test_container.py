@@ -812,3 +812,61 @@ def describe_container():
             def it_sets_the_jobs_namespace(sut):
                 return assert_output_equals(sut.log_metric_filters[1].metric_transformation.namespace,
                                             "Jobs")
+
+    def describe_unhealthy_host_metric_alarm():
+        @pulumi.runtime.test
+        def it_exits(sut):
+            assert sut.unhealthy_host_metric_alarm != None
+
+        @pulumi.runtime.test
+        def it_is_named_unhealthy_host_metric_alarm(sut, app_name, stack):
+            # Function to check the name property of unhealthy_host_metric_alarm
+            def check_alarm_name(unhealthy_alarm):
+                # unhealthy_alarm is the resolved value of sut.unhealthy_host_metric_alarm
+                print(f"^^^^^^^^^{unhealthy_alarm.name}^^^^^^^^^")
+                expected_name = f"{app_name}-{stack}-unhealthy-host-metric-alarm"
+                assert unhealthy_alarm.name == expected_name, f"Expected {expected_name}, but got {unhealthy_alarm.name}"
+
+            # Use apply on the Output object and check the name property
+            return sut.unhealthy_host_metric_alarm.apply(check_alarm_name)
+        @pulumi.runtime.test
+        def it_triggers_when_greater_than_threshold(sut):
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.comparison_operator, "GreaterThanThreshold")
+
+        @pulumi.runtime.test
+        def it_evaluates_for_one_period(sut):
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.evaluation_periods, 1)
+
+        @pulumi.runtime.test
+        def it_triggers_based_on_mathematical_expression(sut):
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].expression, "SUM(METRICS())")
+
+        @pulumi.runtime.test
+        def it_checks_the_unit_as_a_count(sut):
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].metric.stat, "count")
+
+        @pulumi.runtime.test
+        def it_pulls_the_metric_data_from_the_cluster(sut):
+            return assert_output_equals(
+                sut.unhealthy_host_metric_alarm.metric_queries[0].metric.dimensions["ClusterName"], sut.project_stack)
+
+        @pulumi.runtime.test
+        def it_pulls_the_metric_data_from_the_service(sut):
+            return assert_output_equals(
+                sut.unhealthy_host_metric_alarm.metric_queries[0].metric.dimensions["ServiceName"], sut.project_stack)
+
+        @pulumi.runtime.test
+        def it_belongs_to_the_ECS_namespace(sut):
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].metric.namespace,
+                                        "ECS/ContainerInsights")
+
+        @pulumi.runtime.test
+        def it_runs_every_minute(sut):
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].metric.period, 60)
+
+        @pulumi.runtime.test
+        def it_triggers_when_the_threshold_is_more_than_25percent_of_desired_count(sut):
+            desired_count = sut.desired_count
+            expected_threshold = desired_count * 0.25
+            actual_threshold = sut.unhealthy_host_metric_alarm.threshold
+            assert_output_equals(actual_threshold, expected_threshold)
