@@ -130,6 +130,9 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):
+            if args.token == "aws:index/getRegion:getRegion":
+                return {"name": "us-west-2"}
+
             if args.token == "aws:secretsmanager/getSecretVersion:getSecretVersion":
                 return {
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
