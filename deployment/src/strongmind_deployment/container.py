@@ -13,6 +13,7 @@ from pulumi_cloudflare import get_zone, Record
 from strongmind_deployment import alb
 from strongmind_deployment.autoscale import WorkerAutoscaleComponent
 from strongmind_deployment.util import create_ecs_cluster
+from strongmind_deployment import operations
 
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
@@ -65,10 +66,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.desired_count = kwargs.get('desired_count', 2)
         self.max_capacity = 100
         self.min_capacity = self.desired_count
-        self.sns_topic_arn = kwargs.get('sns_topic_arn', 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie')
+        self.sns_topic_arn = operations.get_opsgenie_sns_topic_arn() or 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
 
-        if stack.lower() == 'stage':
-            self.sns_topic_arn = 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie-Stage'
 
         project = pulumi.get_project()
         self.project_stack = f"{project}-{stack}"
