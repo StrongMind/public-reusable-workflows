@@ -473,6 +473,26 @@ class ContainerComponent(pulumi.ComponentResource):
             ],
         )
 
+        self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
+            "running_tasks_alarm",
+            name=f"{self.project_stack}-running-tasks-alarm",
+            comparison_operator="GreaterThanThreshold",
+            evaluation_periods=1,
+            metric_name="RunningTaskCount",
+            namespace="ECS/ContainerInsights",
+            dimensions={
+                "ClusterName": self.project_stack,
+                "ServiceName": self.project_stack
+            },
+            period=60,
+            statistic="Maximum",
+            threshold=25,
+            alarm_actions=[self.sns_topic_arn],
+            ok_actions=[self.sns_topic_arn],
+            alarm_description="Alarm when ECS service running tasks exceed 25",
+            tags=self.tags
+        )
+
     def setup_load_balancer(self, kwargs, project, project_stack, stack):
         self.certificate(project, stack)
 
