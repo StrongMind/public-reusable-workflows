@@ -22,7 +22,6 @@ from strongmind_deployment.util import create_ecs_cluster
 def sidekiq_present():  # pragma: no cover
     return os.path.exists('../Gemfile') and 'sidekiq' in open('../Gemfile').read()
 
-
 class RailsComponent(pulumi.ComponentResource):
 
     def __init__(self, name, opts=None, **kwargs):

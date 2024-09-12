@@ -1,9 +1,12 @@
 import pulumi
 import pytest
+from mockito import when
 from pytest_describe import behaves_like
 
 from tests.shared import assert_output_equals
 from tests.test_rails import a_pulumi_rails_app
+
+import rails
 
 
 @behaves_like(a_pulumi_rails_app)
@@ -13,6 +16,7 @@ def describe_a_pulumi_rails_app():
         def component_kwargs(component_kwargs):
             component_kwargs['need_worker'] = True
             return component_kwargs
+
 
         @pulumi.runtime.test
         def it_creates_a_worker_container_component(sut,
@@ -28,13 +32,18 @@ def describe_a_pulumi_rails_app():
                 sut.worker_container.memory
             ).apply(check_machine_specs)
 
-        @pulumi.runtime.test
-        def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
-            assert sut.worker_container.entry_point == worker_container_entry_point
+        def describe_with_sidekiq():
+            @pytest.fixture
+            def sidekiq_present():
+                return True
 
-        @pulumi.runtime.test
-        def it_uses_sidekiq_as_a_default_cmd(sut):
-            assert sut.worker_container.command == ["sh", "-c", "bundle exec sidekiq"]
+            @pulumi.runtime.test
+            def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
+                assert sut.worker_container.entry_point == worker_container_entry_point
+
+            @pulumi.runtime.test
+            def it_uses_sidekiq_as_a_default_cmd(sut):
+                assert sut.worker_container.command == ["sh", "-c", "bundle exec sidekiq"]
 
         def describe_with_a_custom_cmd():
             @pytest.fixture
@@ -45,7 +54,6 @@ def describe_a_pulumi_rails_app():
             @pulumi.runtime.test
             def it_uses_the_custom_command(sut):
                 assert sut.worker_container.command == ["sh", "-c", "/usr/src/worker.sh"]
-
 
         @pulumi.runtime.test
         def it_does_not_need_load_balancer(sut):

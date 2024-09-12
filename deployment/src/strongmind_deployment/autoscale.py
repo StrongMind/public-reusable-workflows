@@ -110,7 +110,6 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.threshold = kwargs.get('worker_autoscale_threshold', 3)
         self.worker_autoscaling()
 
-# scale out based on EnqueuedJobs metric
     def worker_autoscaling(self):
         self.worker_autoscaling_target = aws.appautoscaling.Target(
             "worker_autoscaling_target",
@@ -120,6 +119,13 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
         )
+        self.setup_worker_autoscaling_out_policy()
+        self.setup_worker_autoscaling_out_alarm()
+        self.setup_worker_autoscaling_in_policy()
+        self.setup_worker_autoscaling_in_alarm()
+        self.register_outputs({})
+
+    def setup_worker_autoscaling_out_policy(self):
         self.worker_autoscaling_out_policy = aws.appautoscaling.Policy(
             "worker_autoscaling_out_policy",
             name=f"{self.project_stack}-worker-autoscaling-out-policy",
@@ -144,6 +150,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
                 ],
             )
         )
+
+    def setup_worker_autoscaling_out_alarm(self):
         self.worker_autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "worker_autoscaling_out_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
@@ -151,17 +159,14 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             metric_name="EnqueuedJobs",
             unit="Count",
-# DIMENSIONS ARE COMMENTED HERE until we can update the sidekiqcloudwatchmetrcis gem to accept dimeensions
-#             dimensions={
-#                 "ClusterName": self.project_stack,
-#                 "ServiceName": self.project_stack
-#             },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
             threshold=self.threshold,
             alarm_actions=[self.worker_autoscaling_out_policy.arn]
         )
+
+    def setup_worker_autoscaling_in_policy(self):
         self.worker_autoscaling_in_policy = aws.appautoscaling.Policy(
             "worker_autoscaling_in_policy",
             name=f"{self.project_stack}-worker-autoscaling-in-policy",
@@ -181,6 +186,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
                 ],
             )
         )
+
+    def setup_worker_autoscaling_in_alarm(self):
         self.worker_autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             "worker_autoscaling_in_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-in-alarm",
@@ -188,15 +195,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=5,
             metric_name="EnqueuedJobs",
             unit="Count",
-# DIMENSIONS ARE COMMENTED HERE until we can update the sidekiqcloudwatchmetrcis gem to accept dimeensions
-#             dimensions={
-#                 "ClusterName": self.project_stack,
-#                 "ServiceName": self.project_stack
-#             },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
             threshold=2,
             alarm_actions=[self.worker_autoscaling_in_policy.arn]
         )
-        self.register_outputs({})
