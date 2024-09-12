@@ -67,6 +67,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = operations.get_opsgenie_sns_topic_arn() or 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
+        self.binary_sns_topic_arn = 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
 
 
         project = pulumi.get_project()
@@ -478,8 +479,8 @@ class ContainerComponent(pulumi.ComponentResource):
             name=f"{self.project_stack}-running-tasks-alarm",
             alarm_description="Alarm when ECS service running tasks exceed 25",
             actions_enabled=True,
-            ok_actions=[self.sns_topic_arn],
-            alarm_actions=[self.sns_topic_arn],
+            ok_actions=[self.sns_topic_arn, self.binary_sns_topic_arn],
+            alarm_actions=[self.sns_topic_arn, self.binary_sns_topic_arn],
             insufficient_data_actions=[],
             evaluation_periods=1,
             datapoints_to_alarm=1,
