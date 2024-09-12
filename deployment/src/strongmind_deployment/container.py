@@ -67,6 +67,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = operations.get_opsgenie_sns_topic_arn() or 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
+        self.binary_sns_topic_arn = 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
 
 
         project = pulumi.get_project()
@@ -474,23 +475,40 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
-            "running_tasks_alarm",
+            "running-tasks-alarm",
             name=f"{self.project_stack}-running-tasks-alarm",
-            comparison_operator="GreaterThanThreshold",
-            evaluation_periods=1,
-            metric_name="RunningTaskCount",
-            namespace="ECS/ContainerInsights",
-            dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
-            },
-            period=60,
-            statistic="Maximum",
-            threshold=25,
-            alarm_actions=[self.sns_topic_arn],
-            ok_actions=[self.sns_topic_arn],
             alarm_description="Alarm when ECS service running tasks exceed 25",
-            tags=self.tags
+            actions_enabled=True,
+            ok_actions=[self.sns_topic_arn, self.binary_sns_topic_arn],
+            alarm_actions=[self.sns_topic_arn, self.binary_sns_topic_arn],
+            insufficient_data_actions=[],
+            evaluation_periods=1,
+            datapoints_to_alarm=1,
+            threshold_metric_id="ad1",
+            comparison_operator="GreaterThanUpperThreshold",
+            treat_missing_data="missing",
+            metric_queries=[
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="m1",
+                    return_data=True,
+                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                        namespace="ECS/ContainerInsights",
+                        metric_name="RunningTaskCount",
+                        dimensions={
+                            "ServiceName": self.project_stack,
+                            "ClusterName": self.project_stack
+                        },
+                        period=900,
+                        stat="Average"
+                    ),
+                ),
+                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                    id="ad1",
+                    label="RunningTaskCount (expected)",
+                    return_data=True,
+                    expression="ANOMALY_DETECTION_BAND(m1, 50)"
+                )
+            ]
         )
 
     def setup_load_balancer(self, kwargs, project, project_stack, stack):
