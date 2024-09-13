@@ -46,7 +46,7 @@ def describe_autoscaling():
 
         def describe_running_tasks_alarm():
             @pulumi.runtime.test
-            def it_exists(sut):
+            def it_exits(sut):
                 assert sut.running_tasks_alarm
 
             @pulumi.runtime.test
@@ -54,61 +54,26 @@ def describe_autoscaling():
                 return assert_output_equals(sut.running_tasks_alarm.name, f"{app_name}-{stack}-running-tasks-alarm")
 
             @pulumi.runtime.test
-            def it_triggers_when_greater_than_upper_threshold(sut):
-                return assert_output_equals(sut.running_tasks_alarm.comparison_operator, "GreaterThanUpperThreshold")
+            def it_triggers_when_greater_than_threshold(sut):
+                return assert_output_equals(sut.running_tasks_alarm.comparison_operator, "GreaterThanThreshold")
 
             @pulumi.runtime.test
             def it_evaluates_for_one_period(sut):
                 return assert_output_equals(sut.running_tasks_alarm.evaluation_periods, 1)
 
             @pulumi.runtime.test
-            def it_has_anomaly_detection_band(sut):
-                def check_metric_queries(metric_queries):
-                    anomaly_detection_query = next((query for query in metric_queries if query.id == "ad1"), None)
-                    assert anomaly_detection_query is not None
-                    assert anomaly_detection_query.expression == "ANOMALY_DETECTION_BAND(m1, 50)"
-
-                sut.running_tasks_alarm.metric_queries.apply(check_metric_queries)
-
-            @pulumi.runtime.test
             def it_belongs_to_the_container_insights_namespace(sut):
-                def check_metric_queries(metric_queries):
-                    running_task_count_query = next((query for query in metric_queries if query.id == "m1"), None)
-                    assert running_task_count_query is not None
-                    assert running_task_count_query.metric.namespace == "ECS/ContainerInsights"
-                sut.running_tasks_alarm.metric_queries.apply(check_metric_queries)
+                return assert_output_equals(sut.running_tasks_alarm.namespace, "ECS/ContainerInsights")
 
             @pulumi.runtime.test
-            def it_uses_average_stat(sut):
-                def check_metric_queries(metric_queries):
-                    running_task_count_query = next((query for query in metric_queries if query.id == "m1"), None)
-                    assert running_task_count_query is not None
-                    assert running_task_count_query.metric.stat == "Average"
-                sut.running_tasks_alarm.metric_queries.apply(check_metric_queries)
+            def it_runs_every_minute(sut):
+                return assert_output_equals(sut.running_tasks_alarm.period, 60)
 
             @pulumi.runtime.test
-            def it_has_a_period_of_fifteen_minutes(sut):
-                def check_metric_queries(metric_queries):
-                    running_task_count_query = next((query for query in metric_queries if query.id == "m1"), None)
-                    assert running_task_count_query is not None
-                    assert running_task_count_query.metric.period == 900
-                sut.running_tasks_alarm.metric_queries.apply(check_metric_queries)
-
-            @pulumi.runtime.test
-            def it_has_a_threshold_metric_id(sut):
-                return assert_output_equals(sut.running_tasks_alarm.threshold_metric_id, "ad1")
-
-            @pulumi.runtime.test
-            def it_triggers_on_one_datapoint(sut):
-                return assert_output_equals(sut.running_tasks_alarm.datapoints_to_alarm, 1)
-
-            @pulumi.runtime.test
-            def it_treats_missing_data_as_missing(sut):
-                return assert_output_equals(sut.running_tasks_alarm.treat_missing_data, "missing")
-
-            @pulumi.runtime.test
-            def it_has_empty_insufficient_data_actions(sut):
-                return assert_output_equals(sut.running_tasks_alarm.insufficient_data_actions, [])
+            def it_triggers_when_the_threshold_is_more_than_the_desired_count(sut):
+                expected_threshold = 25
+                actual_threshold = sut.running_tasks_alarm.threshold
+                assert_output_equals(actual_threshold, expected_threshold)
 
         def describe_autoscaling_out_alarm():
             @pulumi.runtime.test
