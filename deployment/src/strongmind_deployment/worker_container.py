@@ -1,7 +1,7 @@
 import os
 
-from autoscale import WorkerAutoscaleComponent
-from container import ContainerComponent
+from strongmind_deployment.autoscale import WorkerAutoscaleComponent
+from strongmind_deployment.container import ContainerComponent
 
 
 def inst_jobs_present():  # pragma: no cover

@@ -1,12 +1,10 @@
 import pulumi
 import pytest
-from mockito import when
 from pytest_describe import behaves_like
 
 from tests.shared import assert_output_equals
 from tests.test_rails import a_pulumi_rails_app
 
-import rails
 
 
 @behaves_like(a_pulumi_rails_app)

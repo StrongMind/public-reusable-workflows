@@ -1,13 +1,11 @@
 import pulumi
 import pytest
-from mockito import when
 from pytest_describe import behaves_like
 
-import worker_container
-from autoscale import WorkerAutoscaleComponent
-from shared import assert_output_equals
-from test_container import a_pulumi_containerized_app
-from worker_container import WorkerContainerComponent
+from strongmind_deployment.autoscale import WorkerAutoscaleComponent
+from tests.shared import assert_output_equals
+from tests.test_container import a_pulumi_containerized_app
+from strongmind_deployment.worker_container import WorkerContainerComponent
 
 
 @behaves_like(a_pulumi_containerized_app)
