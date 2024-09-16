@@ -1,6 +1,6 @@
 import os
 
-from strongmind_deployment.autoscale import WorkerAutoscaleComponent
+from strongmind_deployment.autoscale import WorkerInstJobsAutoscaleComponent
 from strongmind_deployment.container import ContainerComponent
 
 
@@ -16,5 +16,7 @@ class WorkerContainerComponent(ContainerComponent):
     def setup_worker(self):
         if inst_jobs_present():
             self.command = ["sh", "-c", "/usr/src/worker.sh"]
-            self.worker_autoscaling = WorkerAutoscaleComponent("worker")
+            self.worker_autoscaling = WorkerInstJobsAutoscaleComponent("worker",
+                                                                       worker_autoscale_threshold=30)
+
 

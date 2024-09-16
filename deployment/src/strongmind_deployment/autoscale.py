@@ -1,6 +1,7 @@
 import pulumi
 import pulumi_aws as aws
 
+
 class AutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__('strongmind:global_build:commons:autoscale', name, None, opts)
@@ -8,8 +9,8 @@ class AutoscaleComponent(pulumi.ComponentResource):
         self.max_capacity = kwargs.get("max_capacity")
         self.desired_count = kwargs.get("desired_count")
         self.autoscaling()
-    def autoscaling(self):
 
+    def autoscaling(self):
         self.autoscaling_target = aws.appautoscaling.Target(
             "autoscaling_target",
             max_capacity=self.max_capacity,
@@ -96,6 +97,7 @@ class AutoscaleComponent(pulumi.ComponentResource):
             alarm_actions=[self.autoscaling_in_policy.arn]
         )
 
+
 class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
@@ -105,6 +107,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         """
         super().__init__('strongmind:global_build:commons:worker-autoscale', name, None, opts)
         self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
+        if name != 'container':
+            self.project_stack = f"{self.project_stack}-{name}"
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 1)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
         self.threshold = kwargs.get('worker_autoscale_threshold', 3)
@@ -200,4 +204,22 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             statistic="Maximum",
             threshold=2,
             alarm_actions=[self.worker_autoscaling_in_policy.arn]
+        )
+
+
+class WorkerInstJobsAutoscaleComponent(WorkerAutoscaleComponent):
+
+    def setup_worker_autoscaling_out_alarm(self):
+        self.worker_autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
+            "worker_autoscaling_out_alarm",
+            name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
+            comparison_operator="GreaterThanThreshold",
+            evaluation_periods=1,
+            metric_name="JobStaleness",
+            unit="Count",
+            namespace=self.project_stack,
+            period=60,
+            statistic="Average",
+            threshold=self.threshold,
+            alarm_actions=[self.worker_autoscaling_out_policy.arn]
         )
