@@ -67,6 +67,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = operations.get_opsgenie_sns_topic_arn() or 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
+        self.kwargs['sns_topic_arn'] = self.sns_topic_arn
 
 
         project = pulumi.get_project()
