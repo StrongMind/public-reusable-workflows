@@ -125,8 +125,6 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "name": f"loadbalancer-{faker.word()}",
                 }
 
-            print(args.typ)
-
             return [args.name + '_id', outputs]
 
         def call(self, args: pulumi.runtime.MockCallArgs):

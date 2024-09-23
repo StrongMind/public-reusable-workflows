@@ -11,7 +11,7 @@ def describe_worker_autoscaling():
     def describe_when_turned_on():
         @pytest.fixture
         def component_kwargs(component_kwargs):
-            component_kwargs["worker_autoscaling"] = True
+            component_kwargs["worker_autoscale"] = True
             component_kwargs["sns_topic_arn"] = "arn:aws:sns:us-east-1:123456789012:MyTopic"
             return component_kwargs
 
@@ -154,6 +154,13 @@ def describe_worker_autoscaling():
             def it_triggers_when_the_threshold_crosses_18000(sut, queue_latency_alarm):
                 return assert_output_equals(queue_latency_alarm.threshold, 18000)
 
+            @pulumi.runtime.test
+            def it_triggers_the_sns_topic(sut, queue_latency_alarm):
+                return assert_outputs_equal(queue_latency_alarm.alarm_actions, [sut.sns_topic_arn])
+
+            @pulumi.runtime.test
+            def it_triggers_the_sns_topic_on_ok(sut, queue_latency_alarm):
+                return assert_outputs_equal(queue_latency_alarm.ok_actions, [sut.sns_topic_arn])
 
         def describe_autoscaling_in_alarm():
             def it_exists(sut):
@@ -357,3 +364,13 @@ def describe_worker_autoscaling():
                 @pulumi.runtime.test
                 def it_scales_up_by_three_instances(step):
                     return assert_output_equals(step.scaling_adjustment, 10)
+
+    def describe_when_turned_off():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs["worker_autoscale"] = False
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_does_not_have_autoscaling(sut):
+            assert not sut.worker_autoscaling

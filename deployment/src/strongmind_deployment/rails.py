@@ -53,7 +53,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
-        :key worker_autoscale: Whether to autoscale the worker container. Defaults to False.
+        :key autoscale: Whether to autoscale the web container. Defaults to True.
+        :key worker_autoscale: Whether to autoscale the worker container. Defaults to True.
         :key db_engine_version: The version of the database engine. Defaults to 15.4.
         :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
@@ -88,7 +89,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
         self.autoscale = self.kwargs.get('autoscale', True)
-        self.worker_autoscale = self.kwargs.get('worker_autoscale', False)
+        self.worker_autoscale = self.kwargs.get('worker_autoscale', True)
         self.engine_version = self.kwargs.get('db_engine_version', '15.4')
         self.desired_web_count = self.kwargs.get('desired_web_count', 2)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
@@ -217,7 +218,9 @@ class RailsComponent(pulumi.ComponentResource):
             desired_count=0,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance]),
-            **self.kwargs
+            **self.kwargs,
+            autoscale=False,
+            worker_autoscale=False
         )
 
         subnets = self.kwargs.get(
@@ -249,8 +252,9 @@ class RailsComponent(pulumi.ComponentResource):
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
-                                                autoscaling=self.autoscale,
-                                                **self.kwargs
+                                                **self.kwargs,
+                                                autoscale=self.autoscale,
+                                                worker_autoscale=False
                                                 )
         self.need_worker = self.kwargs.get('need_worker', None)
         if self.need_worker is None:  # pragma: no cover
@@ -279,8 +283,9 @@ class RailsComponent(pulumi.ComponentResource):
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
-                                                   worker_autoscaling=self.worker_autoscale,
-                                                   **self.kwargs
+                                                   **self.kwargs,
+                                                   autoscale=False,
+                                                   worker_autoscale=self.worker_autoscale
                                                    )
         self.kwargs['log_metric_filters'] = []
 
