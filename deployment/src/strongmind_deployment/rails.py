@@ -212,15 +212,16 @@ class RailsComponent(pulumi.ComponentResource):
             self.setup_storage()
             self.kwargs['env_vars'].update(self.storage.s3_env_vars)
 
+        self.kwargs['autoscale'] = False
+        self.kwargs['worker_autoscale'] = False
+
         self.migration_container = ContainerComponent(
             "migration",
             need_load_balancer=False,
             desired_count=0,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance]),
-            **self.kwargs,
-            autoscale=False,
-            worker_autoscale=False
+            **self.kwargs
         )
 
         subnets = self.kwargs.get(
@@ -247,14 +248,14 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
         self.kwargs['desired_count'] = self.desired_web_count
+        self.kwargs['autoscale'] = self.autoscale
+        self.kwargs['worker_autoscale'] = False
 
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
-                                                **self.kwargs,
-                                                autoscale=self.autoscale,
-                                                worker_autoscale=False
+                                                **self.kwargs
                                                 )
         self.need_worker = self.kwargs.get('need_worker', None)
         if self.need_worker is None:  # pragma: no cover
@@ -278,14 +279,14 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['log_metric_filters'] = self.worker_log_metric_filters
         self.kwargs['desired_count'] = self.desired_worker_count
+        self.kwargs['autoscale'] = False
+        self.kwargs['worker_autoscale'] = self.worker_autoscale
 
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
-                                                   **self.kwargs,
-                                                   autoscale=False,
-                                                   worker_autoscale=self.worker_autoscale
+                                                   **self.kwargs
                                                    )
         self.kwargs['log_metric_filters'] = []
 

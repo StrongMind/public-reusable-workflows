@@ -845,3 +845,26 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_sends_the_bucket_name_to_the_ecs_environment(sut):
             return assert_outputs_equal(sut.env_vars["S3_BUCKET_NAME"], sut.storage.bucket.bucket)
+
+    def describe_with_autoscale_off():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['autoscale'] = False
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_does_not_create_autoscale(sut):
+            assert sut.web_container.autoscaling_target is None
+
+    def describe_with_worker_autoscale_off():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['need_worker'] = True
+            component_kwargs['worker_autoscale'] = False
+
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_does_not_create_worker_autoscale(sut):
+            assert sut.worker_container.worker_autoscaling is None
