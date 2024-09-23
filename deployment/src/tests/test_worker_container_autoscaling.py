@@ -12,6 +12,7 @@ def describe_worker_autoscaling():
         @pytest.fixture
         def component_kwargs(component_kwargs):
             component_kwargs["worker_autoscaling"] = True
+            component_kwargs["sns_topic_arn"] = "arn:aws:sns:us-east-1:123456789012:MyTopic"
             return component_kwargs
         @pulumi.runtime.test
         def it_has_autoscaling(sut):
