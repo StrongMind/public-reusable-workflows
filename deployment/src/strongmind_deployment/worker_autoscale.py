@@ -2,9 +2,6 @@ import pulumi
 import pulumi_aws as aws
 
 
-class AutoscaleComponent(pulumi.ComponentResource):
-    pass
-
 
 class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):

@@ -11,7 +11,7 @@ from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import get_zone, Record
 
 from strongmind_deployment import alb
-from strongmind_deployment.autoscale import WorkerAutoscaleComponent
+from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
 from strongmind_deployment.util import create_ecs_cluster
 from strongmind_deployment import operations
 
