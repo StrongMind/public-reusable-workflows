@@ -14,6 +14,7 @@ def describe_worker_autoscaling():
             component_kwargs["worker_autoscaling"] = True
             component_kwargs["sns_topic_arn"] = "arn:aws:sns:us-east-1:123456789012:MyTopic"
             return component_kwargs
+
         @pulumi.runtime.test
         def it_has_autoscaling(sut):
             assert sut.worker_autoscaling
@@ -57,12 +58,10 @@ def describe_worker_autoscaling():
             resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
             return assert_output_equals(autoscaling_target.resource_id, resource_id)
 
-
         def describe_autoscaling_out_alarm():
             @pulumi.runtime.test
             def it_exists(sut):
                 assert sut.worker_autoscaling.worker_autoscaling_out_alarm
-
 
             @pytest.fixture
             def autoscaling_out_alarm(sut):
@@ -70,7 +69,8 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_is_named_auto_scaling_out_alarm(autoscaling_out_alarm, app_name, stack):
-                return assert_output_equals(autoscaling_out_alarm.name, f"{app_name}-{stack}-worker-auto-scaling-out-alarm")
+                return assert_output_equals(autoscaling_out_alarm.name,
+                                            f"{app_name}-{stack}-worker-auto-scaling-out-alarm")
 
             @pulumi.runtime.test
             def it_triggers_when_greater_than_or_equal_to_threshold(autoscaling_out_alarm):
@@ -106,13 +106,10 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_triggers_the_autoscaling_policy(sut, autoscaling_out_alarm):
-                return assert_outputs_equal(autoscaling_out_alarm.alarm_actions, [sut.worker_autoscaling.worker_autoscaling_out_policy.arn])
-
-
+                return assert_outputs_equal(autoscaling_out_alarm.alarm_actions,
+                                            [sut.worker_autoscaling.worker_autoscaling_out_policy.arn])
 
         def describe_worker_queue_latency_alarm():
-
-
             @pulumi.runtime.test
             def it_exists(sut):
                 assert sut.worker_autoscaling.worker_queue_latency_alarm
@@ -164,6 +161,7 @@ def describe_worker_autoscaling():
             @pulumi.runtime.test
             def it_triggers_the_sns_topic_on_ok(sut, queue_latency_alarm):
                 return assert_outputs_equal(queue_latency_alarm.ok_actions, [sut.sns_topic_arn])
+
         def describe_autoscaling_in_alarm():
             def it_exists(sut):
                 assert sut.worker_autoscaling.worker_autoscaling_in_alarm
@@ -174,7 +172,8 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_is_named_auto_scaling_in_alarm(autoscaling_in_alarm, app_name, stack):
-                return assert_output_equals(autoscaling_in_alarm.name, f"{app_name}-{stack}-worker-auto-scaling-in-alarm")
+                return assert_output_equals(autoscaling_in_alarm.name,
+                                            f"{app_name}-{stack}-worker-auto-scaling-in-alarm")
 
             @pulumi.runtime.test
             def it_triggers_when_less_than_or_equal_to_threshold(autoscaling_in_alarm):
@@ -206,8 +205,8 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_triggers_the_autoscaling_in_policy(sut, autoscaling_in_alarm):
-                return assert_outputs_equal(autoscaling_in_alarm.alarm_actions, [sut.worker_autoscaling.worker_autoscaling_in_policy.arn])
-
+                return assert_outputs_equal(autoscaling_in_alarm.alarm_actions,
+                                            [sut.worker_autoscaling.worker_autoscaling_in_policy.arn])
 
         def describe_autoscaling_in_policy():
             def it_exists(sut):
@@ -219,7 +218,8 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_is_named_autoscaling_in_policy(autoscaling_in_policy, app_name, stack):
-                return assert_output_equals(autoscaling_in_policy.name, f"{app_name}-{stack}-worker-autoscaling-in-policy")
+                return assert_output_equals(autoscaling_in_policy.name,
+                                            f"{app_name}-{stack}-worker-autoscaling-in-policy")
 
             @pulumi.runtime.test
             def it_has_a_step_scaling_policy_type(autoscaling_in_policy):
@@ -349,7 +349,9 @@ def describe_worker_autoscaling():
             def describe_second_step():
                 @pytest.fixture
                 def step(sut):
-                    return sut.worker_autoscaling.worker_autoscaling_out_policy.step_scaling_policy_configuration.step_adjustments[1]
+                    return \
+                    sut.worker_autoscaling.worker_autoscaling_out_policy.step_scaling_policy_configuration.step_adjustments[
+                        1]
 
                 @pulumi.runtime.test
                 def it_triggers_when_it_exceeds_the_alarm_threshold_by_more_than_600(step):

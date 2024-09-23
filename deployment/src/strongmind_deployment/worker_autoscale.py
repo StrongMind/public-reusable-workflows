@@ -2,7 +2,6 @@ import pulumi
 import pulumi_aws as aws
 
 
-
 class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
@@ -11,6 +10,12 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         :key worker_autoscale_threshold: The threshold for the worker autoscaling policy. Default is 3.
         """
         super().__init__('strongmind:global_build:commons:worker-autoscale', name, None, opts)
+        self.worker_autoscaling_in_alarm = None
+        self.worker_autoscaling_in_policy = None
+        self.worker_queue_latency_alarm = None
+        self.worker_autoscaling_out_alarm = None
+        self.worker_autoscaling_out_policy = None
+        self.worker_autoscaling_target = None
         self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 100)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
@@ -19,7 +24,6 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
         self.worker_autoscaling()
 
-# scale out based on EnqueuedJobs metric
     def worker_autoscaling(self):
         self.worker_autoscaling_target = aws.appautoscaling.Target(
             "worker_autoscaling_target",
@@ -61,9 +65,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             metric_name="MaxQueueLatency",
             unit="Seconds",
-            dimensions= {
-               "QueueName": "AllQueues"
-             },
+            dimensions={
+                "QueueName": "AllQueues"
+            },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
@@ -78,9 +82,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             metric_name="MaxQueueLatency",
             unit="Seconds",
-            dimensions= {
-               "QueueName": "AllQueues"
-             },
+            dimensions={
+                "QueueName": "AllQueues"
+            },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
@@ -116,9 +120,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=5,
             metric_name="MaxQueueLatency",
             unit="Seconds",
-            dimensions= {
-               "QueueName": "AllQueues"
-             },
+            dimensions={
+                "QueueName": "AllQueues"
+            },
             namespace=self.project_stack,
             period=60,
             statistic="Maximum",
