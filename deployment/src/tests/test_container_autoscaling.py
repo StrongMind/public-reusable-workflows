@@ -11,7 +11,7 @@ def describe_autoscaling():
     def describe_when_turned_on():
         @pytest.fixture
         def component_kwargs(component_kwargs):
-            component_kwargs["autoscaling"] = True
+            component_kwargs["autoscale"] = True
             return component_kwargs
         @pulumi.runtime.test
         def it_has_an_autoscaling_target(sut):

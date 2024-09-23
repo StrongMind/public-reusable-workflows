@@ -8,9 +8,10 @@ from tests.test_container import a_pulumi_containerized_app
 
 @behaves_like(a_pulumi_containerized_app)
 def describe_worker_autoscaling():
-    def describe_when_turned_on_by_default():
+    def describe_when_turned_on():
         @pytest.fixture
         def component_kwargs(component_kwargs):
+            component_kwargs["worker_autoscale"] = True
             component_kwargs["sns_topic_arn"] = "arn:aws:sns:us-east-1:123456789012:MyTopic"
             return component_kwargs
 
@@ -367,7 +368,7 @@ def describe_worker_autoscaling():
     def describe_when_turned_off():
         @pytest.fixture
         def component_kwargs(component_kwargs):
-            component_kwargs["worker_autoscaling"] = False
+            component_kwargs["worker_autoscale"] = False
             return component_kwargs
 
         @pulumi.runtime.test
