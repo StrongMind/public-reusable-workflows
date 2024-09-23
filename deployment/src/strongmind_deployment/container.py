@@ -51,6 +51,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.cert = None
         self._security_group_name = None
         self.cname_record = None
+        self.worker_autoscaling = None
         self.need_load_balancer = kwargs.get('need_load_balancer', True)
         self.container_image = kwargs.get('container_image')
         self.container_port = kwargs.get('container_port', 3000)
@@ -308,8 +309,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         if self.kwargs.get('autoscaling'):
             self.autoscaling()
-        if self.kwargs.get('worker_autoscaling'):
-            pulumi.log.info("WORKER AUTOSCALING ENABLED")
+        if self.kwargs.get('worker_autoscaling', True):
             self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
                                                                opts=pulumi.ResourceOptions(
                                                                    parent=self,
