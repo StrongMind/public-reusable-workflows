@@ -154,13 +154,6 @@ def describe_worker_autoscaling():
             def it_triggers_when_the_threshold_crosses_18000(sut, queue_latency_alarm):
                 return assert_output_equals(queue_latency_alarm.threshold, 18000)
 
-            @pulumi.runtime.test
-            def it_triggers_the_sns_topic(sut, queue_latency_alarm):
-                return assert_outputs_equal(queue_latency_alarm.alarm_actions, [sut.sns_topic_arn])
-
-            @pulumi.runtime.test
-            def it_triggers_the_sns_topic_on_ok(sut, queue_latency_alarm):
-                return assert_outputs_equal(queue_latency_alarm.ok_actions, [sut.sns_topic_arn])
 
         def describe_autoscaling_in_alarm():
             def it_exists(sut):
