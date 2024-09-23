@@ -6,8 +6,8 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
-from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
+from strongmind_deployment import operations
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.execution import ExecutionComponent, ExecutionResourceInputs
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
@@ -15,8 +15,6 @@ from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
 from strongmind_deployment.util import create_ecs_cluster
-
-
 
 
 def sidekiq_present():  # pragma: no cover
@@ -96,6 +94,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
+        self.kwargs['sns_topic_arn'] = self.kwargs.get('sns_topic_arn',
+                                                       operations.get_opsgenie_sns_topic_arn())
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -260,7 +260,6 @@ class RailsComponent(pulumi.ComponentResource):
         if self.need_worker:
             self.setup_worker()
 
-
     def setup_worker(self):  # , execution):
         worker_cmd = self.kwargs.get('worker_cmd', ["sh", "-c", "bundle exec sidekiq"])
         worker_entry_point = self.kwargs.get('worker_entry_point')
@@ -375,10 +374,9 @@ class RailsComponent(pulumi.ComponentResource):
 
     def setup_dashboard(self, project_stack):
         self.dashboard = DashboardComponent(
-                             name="dashboard",
-                             project_stack=project_stack,
-                             web_container=self.web_container,
-                             ecs_cluster=self.ecs_cluster,
-                             rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
-                         )
-
+            name="dashboard",
+            project_stack=project_stack,
+            web_container=self.web_container,
+            ecs_cluster=self.ecs_cluster,
+            rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
+        )
