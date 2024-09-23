@@ -13,6 +13,7 @@ def describe_a_pulumi_rails_app():
         @pytest.fixture
         def component_kwargs(component_kwargs):
             component_kwargs['need_worker'] = True
+            component_kwargs['sns_topic_arn'] = "arn:aws:sns:us-east-1:123456789012:my-sns-topic"
             return component_kwargs
 
 

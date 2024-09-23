@@ -11,7 +11,7 @@ def describe_autoscaling():
     def describe_when_turned_on():
         @pytest.fixture
         def component_kwargs(component_kwargs):
-            component_kwargs["autoscaling"] = True
+            component_kwargs["autoscale"] = True
             return component_kwargs
         @pulumi.runtime.test
         def it_has_an_autoscaling_target(sut):
@@ -43,6 +43,37 @@ def describe_autoscaling():
         def it_uses_the_clusters_resource_id(sut):
             resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
             return assert_output_equals(sut.autoscaling_target.resource_id, resource_id)
+
+        def describe_running_tasks_alarm():
+            @pulumi.runtime.test
+            def it_exits(sut):
+                assert sut.running_tasks_alarm
+
+            @pulumi.runtime.test
+            def it_is_named_running_tasks_alarm(sut, app_name, stack):
+                return assert_output_equals(sut.running_tasks_alarm.name, f"{app_name}-{stack}-running-tasks-alarm")
+
+            @pulumi.runtime.test
+            def it_triggers_when_greater_than_threshold(sut):
+                return assert_output_equals(sut.running_tasks_alarm.comparison_operator, "GreaterThanThreshold")
+
+            @pulumi.runtime.test
+            def it_evaluates_for_one_period(sut):
+                return assert_output_equals(sut.running_tasks_alarm.evaluation_periods, 1)
+
+            @pulumi.runtime.test
+            def it_belongs_to_the_container_insights_namespace(sut):
+                return assert_output_equals(sut.running_tasks_alarm.namespace, "ECS/ContainerInsights")
+
+            @pulumi.runtime.test
+            def it_runs_every_minute(sut):
+                return assert_output_equals(sut.running_tasks_alarm.period, 60)
+
+            @pulumi.runtime.test
+            def it_triggers_when_the_threshold_is_more_than_the_desired_count(sut):
+                expected_threshold = 25
+                actual_threshold = sut.running_tasks_alarm.threshold
+                assert_output_equals(actual_threshold, expected_threshold)
 
         def describe_autoscaling_out_alarm():
             @pulumi.runtime.test

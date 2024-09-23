@@ -6,8 +6,8 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
-from pulumi_aws.ecs import get_task_execution_output, GetTaskExecutionNetworkConfigurationArgs
 
+from strongmind_deployment import operations
 from strongmind_deployment.container import ContainerComponent
 from strongmind_deployment.execution import ExecutionComponent, ExecutionResourceInputs
 from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheComponent
@@ -15,8 +15,6 @@ from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
 from strongmind_deployment.util import create_ecs_cluster
-
-
 
 
 def sidekiq_present():  # pragma: no cover
@@ -54,7 +52,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         :key db_name: The name of the database. Defaults to app.
         :key db_username: The username for connecting to the app database. Defaults to project name and environment.
-        :key worker_autoscale: Whether to autoscale the worker container. Defaults to False.
+        :key autoscale: Whether to autoscale the web container. Defaults to True.
+        :key worker_autoscale: Whether to autoscale the worker container. Defaults to True.
         :key db_engine_version: The version of the database engine. Defaults to 15.4.
         :key desired_web_count: The number of instances of the web container to run. Defaults to 1.
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
@@ -89,12 +88,14 @@ class RailsComponent(pulumi.ComponentResource):
         self.dynamo_tables = self.kwargs.get('dynamo_tables', [])
         self.env_vars = self.kwargs.get('env_vars', {})
         self.autoscale = self.kwargs.get('autoscale', True)
-        self.worker_autoscale = self.kwargs.get('worker_autoscale', False)
+        self.worker_autoscale = self.kwargs.get('worker_autoscale', True)
         self.engine_version = self.kwargs.get('db_engine_version', '15.4')
         self.desired_web_count = self.kwargs.get('desired_web_count', 2)
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 0.5)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
+        self.kwargs['sns_topic_arn'] = self.kwargs.get('sns_topic_arn',
+                                                       operations.get_opsgenie_sns_topic_arn())
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
@@ -210,6 +211,9 @@ class RailsComponent(pulumi.ComponentResource):
             self.setup_storage()
             self.kwargs['env_vars'].update(self.storage.s3_env_vars)
 
+        self.kwargs['autoscale'] = False
+        self.kwargs['worker_autoscale'] = False
+
         self.migration_container = ContainerComponent(
             "migration",
             need_load_balancer=False,
@@ -243,12 +247,13 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
         self.kwargs['desired_count'] = self.desired_web_count
+        self.kwargs['autoscale'] = self.autoscale
+        self.kwargs['worker_autoscale'] = False
 
         self.web_container = ContainerComponent("container",
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
-                                                autoscaling=self.autoscale,
                                                 **self.kwargs
                                                 )
         self.need_worker = self.kwargs.get('need_worker', None)
@@ -258,7 +263,6 @@ class RailsComponent(pulumi.ComponentResource):
 
         if self.need_worker:
             self.setup_worker()
-
 
     def setup_worker(self):  # , execution):
         worker_cmd = self.kwargs.get('worker_cmd', ["sh", "-c", "bundle exec sidekiq"])
@@ -274,12 +278,13 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['log_metric_filters'] = self.worker_log_metric_filters
         self.kwargs['desired_count'] = self.desired_worker_count
+        self.kwargs['autoscale'] = False
+        self.kwargs['worker_autoscale'] = self.worker_autoscale
 
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
-                                                   worker_autoscaling=self.worker_autoscale,
                                                    **self.kwargs
                                                    )
         self.kwargs['log_metric_filters'] = []
@@ -374,10 +379,9 @@ class RailsComponent(pulumi.ComponentResource):
 
     def setup_dashboard(self, project_stack):
         self.dashboard = DashboardComponent(
-                             name="dashboard",
-                             project_stack=project_stack,
-                             web_container=self.web_container,
-                             ecs_cluster=self.ecs_cluster,
-                             rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
-                         )
-
+            name="dashboard",
+            project_stack=project_stack,
+            web_container=self.web_container,
+            ecs_cluster=self.ecs_cluster,
+            rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
+        )

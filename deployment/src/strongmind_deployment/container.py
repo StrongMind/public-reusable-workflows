@@ -6,14 +6,15 @@ import subprocess
 import pulumi
 import pulumi_aws as aws
 import pulumi_awsx as awsx
-from pulumi import Config, export, Output
+from pulumi import Output
 from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
-from pulumi_cloudflare import get_zone, Record
+from pulumi_cloudflare import Record
 
 from strongmind_deployment import alb
-from strongmind_deployment.autoscale import WorkerAutoscaleComponent
-from strongmind_deployment.util import create_ecs_cluster
 from strongmind_deployment import operations
+from strongmind_deployment.util import create_ecs_cluster
+from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
+
 
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
@@ -50,6 +51,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.cert = None
         self._security_group_name = None
         self.cname_record = None
+        self.worker_autoscaling = None
         self.need_load_balancer = kwargs.get('need_load_balancer', True)
         self.container_image = kwargs.get('container_image')
         self.container_port = kwargs.get('container_port', 3000)
@@ -66,15 +68,13 @@ class ContainerComponent(pulumi.ComponentResource):
         self.desired_count = kwargs.get('desired_count', 2)
         self.max_capacity = 100
         self.min_capacity = self.desired_count
-        self.sns_topic_arn = operations.get_opsgenie_sns_topic_arn() or 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
-
+        self.sns_topic_arn = kwargs.get('sns_topic_arn')
 
         project = pulumi.get_project()
         self.project_stack = f"{project}-{stack}"
         if name != 'container':
             self.project_stack = f"{self.project_stack}-{name}"
 
-        # Execute the command and decode the byte string to a normal string
         path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
         file_path = f"{path}/CODEOWNERS"
         with open(file_path, 'r') as file:
@@ -255,13 +255,13 @@ class ContainerComponent(pulumi.ComponentResource):
                     }]
                 }),
                 tags=self.tags
-                )
+            )
 
             self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
                 f"{self.project_stack}-s3PolicyAttachment",
                 role=self.task_role.id,
                 policy_arn=self.s3_policy.arn,
-            )  
+            )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
@@ -307,18 +307,15 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        if self.kwargs.get('autoscaling'):
+        if self.kwargs.get('autoscale'):
             self.autoscaling()
-        if self.kwargs.get('worker_autoscaling'):
-            pulumi.log.info("WORKER AUTOSCALING ENABLED")
+        if self.kwargs.get('worker_autoscale'):
             self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
                                                                opts=pulumi.ResourceOptions(
                                                                    parent=self,
                                                                    depends_on=[self.fargate_service]
                                                                ),
                                                                **self.kwargs)
-
-
 
         self.register_outputs({})
 
@@ -473,6 +470,26 @@ class ContainerComponent(pulumi.ComponentResource):
             ],
         )
 
+        self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
+            "running_tasks_alarm",
+            name=f"{self.project_stack}-running-tasks-alarm",
+            comparison_operator="GreaterThanThreshold",
+            evaluation_periods=1,
+            metric_name="RunningTaskCount",
+            namespace="ECS/ContainerInsights",
+            dimensions={
+                "ClusterName": self.project_stack,
+                "ServiceName": self.project_stack
+            },
+            period=60,
+            statistic="Maximum",
+            threshold=25,
+            alarm_actions=[self.sns_topic_arn],
+            ok_actions=[self.sns_topic_arn],
+            alarm_description="Alarm when ECS service running tasks exceed 25",
+            tags=self.tags
+        )
+
     def setup_load_balancer(self, kwargs, project, project_stack, stack):
         self.certificate(project, stack)
 
@@ -529,7 +546,6 @@ class ContainerComponent(pulumi.ComponentResource):
             ],
         )
 
-
         load_balancer_dimension = self.load_balancer.arn.apply(
             lambda arn: arn.split("/")[-1]
         )
@@ -542,143 +558,149 @@ class ContainerComponent(pulumi.ComponentResource):
         load_balancer_name = self.load_balancer.name.apply(
             lambda name: name.split("/")[-1]
         )
-        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension, load_balancer_name, target_group_name).apply(lambda args:
-            aws.cloudwatch.MetricAlarm(
-                "healthy_host_metric_alarm",
-                name=f"{project_stack}-healthy-host-metric-alarm",
-                actions_enabled=True,
-                ok_actions=[self.sns_topic_arn],
-                alarm_actions=[self.sns_topic_arn],
-                insufficient_data_actions=[],
-                evaluation_periods=1,
-                datapoints_to_alarm=1,
-                threshold=self.desired_count,
-                comparison_operator="LessThanThreshold",
-                treat_missing_data="notBreaching",
-                metric_queries=[
-                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                        id="e1",
-                        label="Expression1",
-                        return_data=True,
-                        expression="SUM(METRICS())"
-                    ),
-                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                        id="m2",
-                        return_data=False,
-                        metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                            namespace="AWS/ApplicationELB",
-                            metric_name="HealthyHostCount",
-                            dimensions={
-                                "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
-                                "AvailabilityZone": "us-west-2b",
-                                "LoadBalancer": f"app/{args[2]}/{args[0]}"
-                            },
-                            period=60,
-                            stat="Maximum"
-                        ),
-                    ),
-                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                        id="m3",
-                        return_data=False,
-                        metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                            namespace="AWS/ApplicationELB",
-                            metric_name="HealthyHostCount",
-                            dimensions={
-                                "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
-                                "AvailabilityZone": "us-west-2c",
-                                "LoadBalancer": f"app/{args[2]}/{args[0]}"
-                            },
-                            period=60,
-                            stat="Maximum"
-                        ),
-                    ),
-                    aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                        id="m4",
-                        return_data=False,
-                        metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                            namespace="AWS/ApplicationELB",
-                            metric_name="HealthyHostCount",
-                            dimensions={
-                                "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
-                                "AvailabilityZone": "us-west-2a",
-                                "LoadBalancer": f"app/{args[2]}/{args[0]}"
-                            },
-                            period=60,
-                            stat="Maximum"
-                        ),
-                    ),
-                ]
-            )
-        )
+        self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension,
+                                                           load_balancer_name, target_group_name).apply(lambda args:
+                                                                                                        aws.cloudwatch.MetricAlarm(
+                                                                                                            "healthy_host_metric_alarm",
+                                                                                                            name=f"{project_stack}-healthy-host-metric-alarm",
+                                                                                                            actions_enabled=True,
+                                                                                                            ok_actions=[
+                                                                                                                self.sns_topic_arn],
+                                                                                                            alarm_actions=[
+                                                                                                                self.sns_topic_arn],
+                                                                                                            insufficient_data_actions=[],
+                                                                                                            evaluation_periods=1,
+                                                                                                            datapoints_to_alarm=1,
+                                                                                                            threshold=self.desired_count,
+                                                                                                            comparison_operator="LessThanThreshold",
+                                                                                                            treat_missing_data="notBreaching",
+                                                                                                            metric_queries=[
+                                                                                                                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                    id="e1",
+                                                                                                                    label="Expression1",
+                                                                                                                    return_data=True,
+                                                                                                                    expression="SUM(METRICS())"
+                                                                                                                ),
+                                                                                                                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                    id="m2",
+                                                                                                                    return_data=False,
+                                                                                                                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                                                                                                                        namespace="AWS/ApplicationELB",
+                                                                                                                        metric_name="HealthyHostCount",
+                                                                                                                        dimensions={
+                                                                                                                            "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                                                                                                            "AvailabilityZone": "us-west-2b",
+                                                                                                                            "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                                                                                                                        },
+                                                                                                                        period=60,
+                                                                                                                        stat="Maximum"
+                                                                                                                    ),
+                                                                                                                ),
+                                                                                                                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                    id="m3",
+                                                                                                                    return_data=False,
+                                                                                                                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                                                                                                                        namespace="AWS/ApplicationELB",
+                                                                                                                        metric_name="HealthyHostCount",
+                                                                                                                        dimensions={
+                                                                                                                            "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                                                                                                            "AvailabilityZone": "us-west-2c",
+                                                                                                                            "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                                                                                                                        },
+                                                                                                                        period=60,
+                                                                                                                        stat="Maximum"
+                                                                                                                    ),
+                                                                                                                ),
+                                                                                                                aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                    id="m4",
+                                                                                                                    return_data=False,
+                                                                                                                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                                                                                                                        namespace="AWS/ApplicationELB",
+                                                                                                                        metric_name="HealthyHostCount",
+                                                                                                                        dimensions={
+                                                                                                                            "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                                                                                                            "AvailabilityZone": "us-west-2a",
+                                                                                                                            "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                                                                                                                        },
+                                                                                                                        period=60,
+                                                                                                                        stat="Maximum"
+                                                                                                                    ),
+                                                                                                                ),
+                                                                                                            ]
+                                                                                                        )
+                                                                                                        )
 
-        self.unhealthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension, load_balancer_name, target_group_name).apply(lambda args:
-           aws.cloudwatch.MetricAlarm(
-               "unhealthy_host_metric_alarm",
-               name=f"{project_stack}-unhealthy-host-metric-alarm",
-               actions_enabled=True,
-               ok_actions=[self.sns_topic_arn],
-               alarm_actions=[self.sns_topic_arn],
-               insufficient_data_actions=[],
-               evaluation_periods=1,
-               datapoints_to_alarm=1,
-               threshold=self.desired_count * 0.25,
-               comparison_operator="GreaterThanThreshold",
-               treat_missing_data="notBreaching",
-               metric_queries=[
-                   aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                       id="e1",
-                       label="UnhealthyHostsExpression",
-                       return_data=True,
-                       expression="SUM(METRICS())"
-                   ),
-                   aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                       id="m2",
-                       return_data=False,
-                       metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                           namespace="AWS/ApplicationELB",
-                           metric_name="UnHealthyHostCount",
-                           dimensions={
-                               "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
-                               "AvailabilityZone": "us-west-2b",
-                               "LoadBalancer": f"app/{args[2]}/{args[0]}"
-                           },
-                           period=60,
-                           stat="Maximum"
-                       ),
-                   ),
-                   aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                       id="m3",
-                       return_data=False,
-                       metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                           namespace="AWS/ApplicationELB",
-                           metric_name="UnHealthyHostCount",
-                           dimensions={
-                               "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
-                               "AvailabilityZone": "us-west-2c",
-                               "LoadBalancer": f"app/{args[2]}/{args[0]}"
-                           },
-                           period=60,
-                           stat="Maximum"
-                       ),
-                   ),
-                   aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                       id="m4",
-                       return_data=False,
-                       metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                           namespace="AWS/ApplicationELB",
-                           metric_name="UnHealthyHostCount",
-                           dimensions={
-                               "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
-                               "AvailabilityZone": "us-west-2a",
-                               "LoadBalancer": f"app/{args[2]}/{args[0]}"
-                           },
-                           period=60,
-                           stat="Maximum"
-                       ),
-                   ),
-               ]
-           )
-        )
+        self.unhealthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension,
+                                                             load_balancer_name, target_group_name).apply(lambda args:
+                                                                                                          aws.cloudwatch.MetricAlarm(
+                                                                                                              "unhealthy_host_metric_alarm",
+                                                                                                              name=f"{project_stack}-unhealthy-host-metric-alarm",
+                                                                                                              actions_enabled=True,
+                                                                                                              ok_actions=[
+                                                                                                                  self.sns_topic_arn],
+                                                                                                              alarm_actions=[
+                                                                                                                  self.sns_topic_arn],
+                                                                                                              insufficient_data_actions=[],
+                                                                                                              evaluation_periods=1,
+                                                                                                              datapoints_to_alarm=1,
+                                                                                                              threshold=self.desired_count * 0.25,
+                                                                                                              comparison_operator="GreaterThanThreshold",
+                                                                                                              treat_missing_data="notBreaching",
+                                                                                                              metric_queries=[
+                                                                                                                  aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                      id="e1",
+                                                                                                                      label="UnhealthyHostsExpression",
+                                                                                                                      return_data=True,
+                                                                                                                      expression="SUM(METRICS())"
+                                                                                                                  ),
+                                                                                                                  aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                      id="m2",
+                                                                                                                      return_data=False,
+                                                                                                                      metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                                                                                                                          namespace="AWS/ApplicationELB",
+                                                                                                                          metric_name="UnHealthyHostCount",
+                                                                                                                          dimensions={
+                                                                                                                              "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                                                                                                              "AvailabilityZone": "us-west-2b",
+                                                                                                                              "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                                                                                                                          },
+                                                                                                                          period=60,
+                                                                                                                          stat="Maximum"
+                                                                                                                      ),
+                                                                                                                  ),
+                                                                                                                  aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                      id="m3",
+                                                                                                                      return_data=False,
+                                                                                                                      metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                                                                                                                          namespace="AWS/ApplicationELB",
+                                                                                                                          metric_name="UnHealthyHostCount",
+                                                                                                                          dimensions={
+                                                                                                                              "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                                                                                                              "AvailabilityZone": "us-west-2c",
+                                                                                                                              "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                                                                                                                          },
+                                                                                                                          period=60,
+                                                                                                                          stat="Maximum"
+                                                                                                                      ),
+                                                                                                                  ),
+                                                                                                                  aws.cloudwatch.MetricAlarmMetricQueryArgs(
+                                                                                                                      id="m4",
+                                                                                                                      return_data=False,
+                                                                                                                      metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
+                                                                                                                          namespace="AWS/ApplicationELB",
+                                                                                                                          metric_name="UnHealthyHostCount",
+                                                                                                                          dimensions={
+                                                                                                                              "TargetGroup": f"targetgroup/{args[3]}/{args[1]}",
+                                                                                                                              "AvailabilityZone": "us-west-2a",
+                                                                                                                              "LoadBalancer": f"app/{args[2]}/{args[0]}"
+                                                                                                                          },
+                                                                                                                          period=60,
+                                                                                                                          stat="Maximum"
+                                                                                                                      ),
+                                                                                                                  ),
+                                                                                                              ]
+                                                                                                          )
+                                                                                                          )
 
         self.dns(project, stack)
 
