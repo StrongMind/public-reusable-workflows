@@ -94,7 +94,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, autoscaling_out_alarm):
-                return assert_output_equals(autoscaling_out_alarm.namespace, sut.project_stack)
+                return assert_output_equals(autoscaling_out_alarm.namespace, f"{sut.project_stack}-worker")
 
             @pulumi.runtime.test
             def it_runs_every_minute(autoscaling_out_alarm):
@@ -144,7 +144,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, queue_latency_alarm):
-                return assert_output_equals(queue_latency_alarm.namespace, sut.project_stack)
+                return assert_output_equals(queue_latency_alarm.namespace, f"{sut.project_stack}-worker")
 
             @pulumi.runtime.test
             def it_runs_every_minute(queue_latency_alarm):
@@ -197,7 +197,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, autoscaling_in_alarm):
-                return assert_output_equals(autoscaling_in_alarm.namespace, sut.project_stack)
+                return assert_output_equals(autoscaling_in_alarm.namespace, f"{sut.project_stack}-worker")
 
             @pulumi.runtime.test
             def it_runs_every_minute(autoscaling_in_alarm):

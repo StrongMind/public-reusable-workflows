@@ -22,6 +22,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
         self.alert_threshold = kwargs.get('alert_threshold', 18000)
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
+        self.metric_name = "MaxQueueLatency"
+        self.dimensions = {
+                "QueueName": "AllQueues"
+            }
         self.worker_autoscaling()
 
     def worker_autoscaling(self):
@@ -63,12 +67,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
-            metric_name="MaxQueueLatency",
+            metric_name=self.metric_name,
             unit="Seconds",
-            dimensions={
-                "QueueName": "AllQueues"
-            },
-            namespace=self.project_stack,
+            dimensions=self.dimensions,
+            namespace=f"{self.project_stack}-worker",
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -80,12 +82,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             name=f"{self.project_stack}-worker-queue-latency-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
-            metric_name="MaxQueueLatency",
+            metric_name=self.metric_name,
             unit="Seconds",
-            dimensions={
-                "QueueName": "AllQueues"
-            },
-            namespace=self.project_stack,
+            dimensions=self.dimensions,
+            namespace=f"{self.project_stack}-worker",
             period=60,
             statistic="Maximum",
             threshold=self.alert_threshold,
@@ -118,12 +118,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             name=f"{self.project_stack}-worker-auto-scaling-in-alarm",
             comparison_operator="LessThanOrEqualToThreshold",
             evaluation_periods=5,
-            metric_name="MaxQueueLatency",
+            metric_name=self.metric_name,
             unit="Seconds",
-            dimensions={
-                "QueueName": "AllQueues"
-            },
-            namespace=self.project_stack,
+            dimensions=self.dimensions,
+            namespace=f"{self.project_stack}-worker",
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -131,3 +129,13 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         )
 
         self.register_outputs({})
+
+
+class WorkerInstJobsAutoscaleComponent(WorkerAutoscaleComponent):
+    def __init__(self, name, opts=None, **kwargs):
+        super().__init__(name, opts, **kwargs)
+
+    def worker_autoscaling(self):
+        self.metric_name = "JobStaleness"
+        self.dimensions = {}
+        super().worker_autoscaling()

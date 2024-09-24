@@ -4,8 +4,8 @@ from pulumi import Output
 from pytest_describe import behaves_like
 
 from strongmind_deployment import worker_container
-from strongmind_deployment.autoscale import WorkerAutoscaleComponent
-from tests.shared import assert_output_equals, assert_outputs_equal
+from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
+from tests.shared import assert_output_equals
 from tests.test_container import a_pulumi_containerized_app
 from strongmind_deployment.worker_container import WorkerContainerComponent
 
@@ -75,8 +75,8 @@ def describe_a_worker_container():
 
             @pulumi.runtime.test
             def it_sets_the_out_alarm_statistic(worker_autoscaling):
-                return assert_output_equals(worker_autoscaling.worker_autoscaling_out_alarm.statistic, "Average")
+                return assert_output_equals(worker_autoscaling.worker_autoscaling_out_alarm.statistic, "Maximum")
 
             @pulumi.runtime.test
             def it_sets_the_out_alarm_threshold(worker_autoscaling):
-                return assert_output_equals(worker_autoscaling.worker_autoscaling_out_alarm.threshold, 30)
+                return assert_output_equals(worker_autoscaling.worker_autoscaling_out_alarm.threshold, 60)

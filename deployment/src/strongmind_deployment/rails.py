@@ -15,10 +15,12 @@ from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
 from strongmind_deployment.util import create_ecs_cluster
+from strongmind_deployment.worker_container import WorkerContainerComponent
 
 
 def sidekiq_present():  # pragma: no cover
     return os.path.exists('../Gemfile') and 'sidekiq' in open('../Gemfile').read()
+
 
 class RailsComponent(pulumi.ComponentResource):
 
@@ -281,12 +283,12 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['autoscale'] = False
         self.kwargs['worker_autoscale'] = self.worker_autoscale
 
-        self.worker_container = ContainerComponent("worker",
-                                                   pulumi.ResourceOptions(parent=self,
-                                                                          depends_on=[self.execution]
-                                                                          ),
-                                                   **self.kwargs
-                                                   )
+        self.worker_container = WorkerContainerComponent("worker",
+                                                         pulumi.ResourceOptions(parent=self,
+                                                                                depends_on=[self.execution]
+                                                                                ),
+                                                         **self.kwargs
+                                                         )
         self.kwargs['log_metric_filters'] = []
 
     def secrets(self):

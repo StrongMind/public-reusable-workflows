@@ -307,6 +307,11 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
+        self.setup_autoscale()
+
+        self.register_outputs({})
+
+    def setup_autoscale(self):
         if self.kwargs.get('autoscale'):
             self.autoscaling()
         if self.kwargs.get('worker_autoscale'):
@@ -316,8 +321,6 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                    depends_on=[self.fargate_service]
                                                                ),
                                                                **self.kwargs)
-
-        self.register_outputs({})
 
     def autoscaling(self):
 
