@@ -26,6 +26,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.dimensions = {
                 "QueueName": "AllQueues"
             }
+        self.namespace = f"{self.project_stack}-worker"
         self.worker_autoscaling()
 
     def worker_autoscaling(self):
@@ -66,11 +67,12 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             "worker_autoscaling_out_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
             comparison_operator="GreaterThanThreshold",
+            treat_missing_data ="notBreaching",
             evaluation_periods=1,
             metric_name=self.metric_name,
             unit="Seconds",
             dimensions=self.dimensions,
-            namespace=f"{self.project_stack}-worker",
+            namespace=self.namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -81,11 +83,12 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             "worker_queue_latency_alarm",
             name=f"{self.project_stack}-worker-queue-latency-alarm",
             comparison_operator="GreaterThanThreshold",
+            treat_missing_data="notBreaching",
             evaluation_periods=1,
             metric_name=self.metric_name,
             unit="Seconds",
             dimensions=self.dimensions,
-            namespace=f"{self.project_stack}-worker",
+            namespace=self.namespace,
             period=60,
             statistic="Maximum",
             threshold=self.alert_threshold,
@@ -117,11 +120,12 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             "worker_autoscaling_in_alarm",
             name=f"{self.project_stack}-worker-auto-scaling-in-alarm",
             comparison_operator="LessThanOrEqualToThreshold",
+            treat_missing_data="notBreaching",
             evaluation_periods=5,
             metric_name=self.metric_name,
             unit="Seconds",
             dimensions=self.dimensions,
-            namespace=f"{self.project_stack}-worker",
+            namespace=self.namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -135,7 +139,18 @@ class WorkerInstJobsAutoscaleComponent(WorkerAutoscaleComponent):
     def __init__(self, name, opts=None, **kwargs):
         super().__init__(name, opts, **kwargs)
 
+    def domain(self):
+        stack = pulumi.get_stack()
+        project = pulumi.get_project()
+        if stack != "prod":
+            subdomain = f"{stack}-{project}"
+        else:
+            subdomain = project
+        domain = 'strongmind.com'
+        return f"{subdomain}.{domain}"
+
     def worker_autoscaling(self):
         self.metric_name = "JobStaleness"
-        self.dimensions = {}
+        self.dimensions = {'domain': self.domain()}
+        self.namespace = "Canvas"
         super().worker_autoscaling()
