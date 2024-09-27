@@ -77,6 +77,10 @@ def describe_worker_autoscaling():
                 return assert_output_equals(autoscaling_out_alarm.comparison_operator, "GreaterThanThreshold")
 
             @pulumi.runtime.test
+            def it_treats_missing_data_as_nonbreaching(autoscaling_out_alarm):
+                return assert_output_equals(autoscaling_out_alarm.treat_missing_data, "notBreaching")
+
+            @pulumi.runtime.test
             def it_evaluates_for_one_period(autoscaling_out_alarm):
                 return assert_output_equals(autoscaling_out_alarm.evaluation_periods, 1)
 
@@ -125,6 +129,10 @@ def describe_worker_autoscaling():
             @pulumi.runtime.test
             def it_triggers_when_greater_than_or_equal_to_threshold(queue_latency_alarm):
                 return assert_output_equals(queue_latency_alarm.comparison_operator, "GreaterThanThreshold")
+
+            @pulumi.runtime.test
+            def it_treats_missing_data_as_nonbreaching(queue_latency_alarm):
+                return assert_output_equals(queue_latency_alarm.treat_missing_data, "notBreaching")
 
             @pulumi.runtime.test
             def it_evaluates_for_one_period(queue_latency_alarm):
@@ -178,6 +186,10 @@ def describe_worker_autoscaling():
             @pulumi.runtime.test
             def it_triggers_when_less_than_or_equal_to_threshold(autoscaling_in_alarm):
                 return assert_output_equals(autoscaling_in_alarm.comparison_operator, "LessThanOrEqualToThreshold")
+
+            @pulumi.runtime.test
+            def it_treats_missing_data_as_nonbreaching(autoscaling_in_alarm):
+                return assert_output_equals(autoscaling_in_alarm.treat_missing_data, "notBreaching")
 
             @pulumi.runtime.test
             def it_evaluates_for_five_periods(autoscaling_in_alarm):
