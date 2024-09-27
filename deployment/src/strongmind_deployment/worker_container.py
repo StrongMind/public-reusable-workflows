@@ -7,8 +7,7 @@ from strongmind_deployment.container import ContainerComponent
 
 
 def inst_jobs_present():  # pragma: no cover
-    return os.path.exists('../Gemfile') and 'inst-jobs' in open('../Gemfile').read()
-
+    return os.path.exists('../canvas-lms/Gemfile.d')
 
 class WorkerContainerComponent(ContainerComponent):
     def __init__(self, name, opts=None, **kwargs):
