@@ -48,11 +48,11 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
                         metric_interval_upper_bound="600",
                         metric_interval_lower_bound="0",
-                        scaling_adjustment=5,
+                        scaling_adjustment=1,
                     ),
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
                         metric_interval_lower_bound="600",
-                        scaling_adjustment=10,
+                        scaling_adjustment=1,
                     )
                 ],
             )
@@ -102,7 +102,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             service_namespace=self.worker_autoscaling_target.service_namespace,
             step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
                 adjustment_type="ChangeInCapacity",
-                cooldown=900,
+                cooldown=60,
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
