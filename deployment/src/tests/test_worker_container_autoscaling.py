@@ -244,7 +244,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_has_a_default_cooldown(autoscaling_in_policy):
-                return assert_output_equals(autoscaling_in_policy.step_scaling_policy_configuration.cooldown, 900)
+                return assert_output_equals(autoscaling_in_policy.step_scaling_policy_configuration.cooldown, 60)
 
             @pulumi.runtime.test
             def it_changes_capacity(autoscaling_in_policy):
@@ -344,7 +344,7 @@ def describe_worker_autoscaling():
 
                 @pulumi.runtime.test
                 def it_scales_up_by_one_instance(step):
-                    return assert_output_equals(step.scaling_adjustment, 5)
+                    return assert_output_equals(step.scaling_adjustment, 1)
 
             def describe_second_step():
                 @pytest.fixture
@@ -362,8 +362,8 @@ def describe_worker_autoscaling():
                     return assert_output_equals(step.metric_interval_upper_bound, None)
 
                 @pulumi.runtime.test
-                def it_scales_up_by_three_instances(step):
-                    return assert_output_equals(step.scaling_adjustment, 10)
+                def It_step_scales_by_one_instance(step):
+                    return assert_output_equals(step.scaling_adjustment, 1)
 
     def describe_when_turned_off():
         @pytest.fixture
