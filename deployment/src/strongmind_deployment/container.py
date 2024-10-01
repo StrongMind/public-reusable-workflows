@@ -367,40 +367,7 @@ class ContainerComponent(pulumi.ComponentResource):
             threshold=50,
             treat_missing_data="missing",
             metric_queries=[
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="e1",
-                    label="Expression1",
-                    return_data=True,
-                    expression="100*(m1/m2)",
-                ),
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="m1",
-                    return_data=False,
-                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                        namespace="ECS/ContainerInsights",
-                        metric_name="CpuUtilized",
-                        dimensions={
-                            "ClusterName": self.project_stack,
-                            "ServiceName": self.project_stack
-                        },
-                        period=60,
-                        stat="p99",
-                    ),
-                ),
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="m2",
-                    return_data=False,
-                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                        namespace="ECS/ContainerInsights",
-                        metric_name="CpuReserved",
-                        dimensions={
-                            "ServiceName": self.project_stack,
-                            "ClusterName": self.project_stack,
-                        },
-                        period=60,
-                        stat="p99",
-                    ),
-                )
+
             ],
         )
         self.autoscaling_in_policy = aws.appautoscaling.Policy(

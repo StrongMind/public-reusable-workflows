@@ -92,21 +92,29 @@ def describe_autoscaling():
             def it_evaluates_for_one_period(sut):
                 return assert_output_equals(sut.autoscaling_out_alarm.evaluation_periods, 1)
 
+            # @pulumi.runtime.test
+            # def it_triggers_based_on_mathematical_expression(sut):
+            #     return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[0].expression, "100*(m1/m2)")
             @pulumi.runtime.test
-            def it_triggers_based_on_mathematical_expression(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[0].expression, "100*(m1/m2)")
+            def it_triggers_based_on_the_response_time(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[0].metric.name,
+                                            "TargetResponseTime")
 
             @pulumi.runtime.test
             def it_checks_the_unit_as_a_p99(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.stat, "p99")
+                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[0].metric.stat, "p99")
 
             @pulumi.runtime.test
-            def it_pulls_the_metric_data_from_the_cluster(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.dimensions["ClusterName"], sut.project_stack)
+            def it_pulls_the_metric_data_from_the_target_group(sut):
+                arn_segment = sut.target_group.arn.apply(lambda arn: arn.split(":")[-1])
+
+                return assert_outputs_equal(
+                    sut.autoscaling_out_alarm.dimensions["TargetGroup"], arn_segment)
 
             @pulumi.runtime.test
-            def it_pulls_the_metric_data_from_the_service(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.dimensions["ServiceName"], sut.project_stack)
+            def it_pulls_the_metric_data_from_the_loadbalancer(sut):
+                arn_segment = sut.load_balancer.arn.apply(lambda arn: arn.split(":")[-1])
+                return assert_outputs_equal(sut.autoscaling_out_alarm.dimensions["LoadBalancer"], arn_segment)
 
             @pulumi.runtime.test
             def it_belongs_to_the_ECS_namespace(sut):
