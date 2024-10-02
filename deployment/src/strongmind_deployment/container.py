@@ -362,14 +362,20 @@ class ContainerComponent(pulumi.ComponentResource):
             comparison_operator="GreaterThanOrEqualToThreshold",
             actions_enabled=True,
             alarm_actions=[self.autoscaling_out_policy.arn],
+            metric_name="TargetResponseTime",
+            namespace="AWS/ApplicationELB",
+            extended_statistic="p99",
+            dimensions={
+                "TargetGroup": f"{self.target_group.arn}",
+                "LoadBalancer": f"{self.load_balancer.arn}",
+            },
+            period=60,
             evaluation_periods=1,
             datapoints_to_alarm=1,
-            threshold=50,
-            treat_missing_data="missing",
-            metric_queries=[
-
-            ],
+            threshold=5,
+            treat_missing_data="missing"
         )
+
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
             "autoscaling_in_policy",
             name=f"{self.project_stack}-autoscaling-in-policy",
