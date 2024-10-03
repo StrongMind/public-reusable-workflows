@@ -379,7 +379,8 @@ class ContainerComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             datapoints_to_alarm=1,
             threshold=5,
-            treat_missing_data="missing"
+            treat_missing_data="missing",
+            tags=self.tags
         )
 
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
@@ -419,6 +420,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 "LoadBalancer": load_balancer_arn,
             },
             period=60,
+            tags=self.tags
         )
 
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(

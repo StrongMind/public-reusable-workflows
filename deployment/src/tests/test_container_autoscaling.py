@@ -147,6 +147,10 @@ def describe_autoscaling():
             def it_treats_missing_data_as_missing(sut):
                 return assert_output_equals(sut.autoscaling_out_alarm.treat_missing_data, "missing")
 
+            @pulumi.runtime.test
+            def it_has_tags(sut):
+                assert sut.autoscaling_out_alarm.tags
+
         def describe_autoscaling_in_alarm():
             @pulumi.runtime.test
             def it_exists(sut):
@@ -217,6 +221,10 @@ def describe_autoscaling():
             @pulumi.runtime.test
             def it_treats_missing_data_as_missing(sut):
                 return assert_output_equals(sut.autoscaling_in_alarm.treat_missing_data, "missing")
+
+            @pulumi.runtime.test
+            def it_has_tags(sut):
+                assert sut.autoscaling_in_alarm.tags
 
         def describe_autoscaling_in_policy():
             def it_exists(sut):
