@@ -356,53 +356,33 @@ class ContainerComponent(pulumi.ComponentResource):
                 ],
             )
         )
+        target_group_dimension = self.target_group.arn.apply(
+            lambda arn: arn.split(":")[-1]
+        )
+        load_balancer_arn = self.load_balancer.arn.apply(
+            lambda arn: arn.split("/", 1)[1]
+        )
         self.autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_alarm",
             name=f"{self.project_stack}-auto-scaling-out-alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
             actions_enabled=True,
             alarm_actions=[self.autoscaling_out_policy.arn],
+            metric_name="TargetResponseTime",
+            namespace="AWS/ApplicationELB",
+            extended_statistic="p99",
+            dimensions={
+                "TargetGroup": target_group_dimension,
+                "LoadBalancer": load_balancer_arn,
+            },
+            period=60,
             evaluation_periods=1,
             datapoints_to_alarm=1,
-            threshold=50,
+            threshold=5,
             treat_missing_data="missing",
-            metric_queries=[
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="e1",
-                    label="Expression1",
-                    return_data=True,
-                    expression="100*(m1/m2)",
-                ),
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="m1",
-                    return_data=False,
-                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                        namespace="ECS/ContainerInsights",
-                        metric_name="CpuUtilized",
-                        dimensions={
-                            "ClusterName": self.project_stack,
-                            "ServiceName": self.project_stack
-                        },
-                        period=60,
-                        stat="p99",
-                    ),
-                ),
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="m2",
-                    return_data=False,
-                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                        namespace="ECS/ContainerInsights",
-                        metric_name="CpuReserved",
-                        dimensions={
-                            "ServiceName": self.project_stack,
-                            "ClusterName": self.project_stack,
-                        },
-                        period=60,
-                        stat="p99",
-                    ),
-                )
-            ],
+            tags=self.tags
         )
+
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
             "autoscaling_in_policy",
             name=f"{self.project_stack}-autoscaling-in-policy",
@@ -412,7 +392,7 @@ class ContainerComponent(pulumi.ComponentResource):
             service_namespace=self.autoscaling_target.service_namespace,
             step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
                 adjustment_type="ChangeInCapacity",
-                cooldown=900,
+                cooldown=300,
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
@@ -425,49 +405,22 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_in_alarm",
             name=f"{self.project_stack}-auto-scaling-in-alarm",
-            comparison_operator="LessThanOrEqualToThreshold",
+            comparison_operator="LessThanThreshold",
             actions_enabled=True,
             alarm_actions=[self.autoscaling_in_policy.arn],
             evaluation_periods=5,
             datapoints_to_alarm=1,
-            threshold=35,
+            threshold=5,
             treat_missing_data="missing",
-            metric_queries=[
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="e1",
-                    label="Expression1",
-                    return_data=True,
-                    expression="100*(m1/m2)",
-                ),
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="m1",
-                    return_data=False,
-                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                        namespace="ECS/ContainerInsights",
-                        metric_name="CpuUtilized",
-                        dimensions={
-                            "ClusterName": self.project_stack,
-                            "ServiceName": self.project_stack
-                        },
-                        period=60,
-                        stat="p99",
-                    ),
-                ),
-                aws.cloudwatch.MetricAlarmMetricQueryArgs(
-                    id="m2",
-                    return_data=False,
-                    metric=aws.cloudwatch.MetricAlarmMetricQueryMetricArgs(
-                        namespace="ECS/ContainerInsights",
-                        metric_name="CpuReserved",
-                        dimensions={
-                            "ServiceName": self.project_stack,
-                            "ClusterName": self.project_stack,
-                        },
-                        period=60,
-                        stat="p99",
-                    ),
-                ),
-            ],
+            metric_name="TargetResponseTime",
+            namespace="AWS/ApplicationELB",
+            extended_statistic="p99",
+            dimensions={
+                "TargetGroup": target_group_dimension,
+                "LoadBalancer": load_balancer_arn,
+            },
+            period=60,
+            tags=self.tags
         )
 
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(

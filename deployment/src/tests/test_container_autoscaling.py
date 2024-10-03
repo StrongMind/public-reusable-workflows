@@ -13,6 +13,7 @@ def describe_autoscaling():
         def component_kwargs(component_kwargs):
             component_kwargs["autoscale"] = True
             return component_kwargs
+
         @pulumi.runtime.test
         def it_has_an_autoscaling_target(sut):
             assert sut.autoscaling_target
@@ -82,49 +83,76 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_is_named_auto_scaling_out_alarm(sut, app_name, stack):
-                return assert_output_equals(sut.autoscaling_out_alarm.name, f"{app_name}-{stack}-auto-scaling-out-alarm")
+                return assert_output_equals(sut.autoscaling_out_alarm.name,
+                                            f"{app_name}-{stack}-auto-scaling-out-alarm")
 
             @pulumi.runtime.test
             def it_triggers_when_greater_than_or_equal_to_threshold(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.comparison_operator, "GreaterThanOrEqualToThreshold")
+                return assert_output_equals(sut.autoscaling_out_alarm.comparison_operator,
+                                            "GreaterThanOrEqualToThreshold")
+
+            @pulumi.runtime.test
+            def it_triggers_the_autoscaling_policy(sut):
+                return assert_outputs_equal(sut.autoscaling_out_alarm.alarm_actions, [sut.autoscaling_out_policy.arn])
+
+            @pulumi.runtime.test
+            def it_triggers_based_on_the_response_time(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.metric_name,
+                                            "TargetResponseTime")
+
+            @pulumi.runtime.test
+            def it_belongs_to_the_AWS_namespace(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.namespace,
+                                            "AWS/ApplicationELB")
+
+            @pulumi.runtime.test
+            def it_checks_the_unit_as_a_p99(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.extended_statistic, "p99")
+
+            @pulumi.runtime.test
+            def it_pulls_the_metric_data_from_the_target_group(sut):
+                def check_target_group_dimension(args):
+                    target_group_arn, dimensions_target_group = args
+                    target_group_arn = target_group_arn.split(":")[-1]
+                    assert target_group_arn == dimensions_target_group
+
+                return pulumi.Output.all(sut.target_group.arn,
+                                         sut.autoscaling_out_alarm.dimensions['TargetGroup']).apply(
+                    check_target_group_dimension)
+
+            @pulumi.runtime.test
+            def it_pulls_the_metric_data_from_the_loadbalancer(sut):
+                def check_loadbalancer_dimension(args):
+                    loadbalancer_arn, dimensions_loadbalancer = args
+                    loadbalancer_arn = loadbalancer_arn.split("/", 1)[1]
+                    assert loadbalancer_arn == dimensions_loadbalancer
+
+                return pulumi.Output.all(sut.load_balancer.arn,
+                                         sut.autoscaling_out_alarm.dimensions['LoadBalancer']).apply(
+                    check_loadbalancer_dimension)
+
+            @pulumi.runtime.test
+            def it_runs_every_minute(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.period, 60)
 
             @pulumi.runtime.test
             def it_evaluates_for_one_period(sut):
                 return assert_output_equals(sut.autoscaling_out_alarm.evaluation_periods, 1)
 
             @pulumi.runtime.test
-            def it_triggers_based_on_mathematical_expression(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[0].expression, "100*(m1/m2)")
+            def it_triggers_when_the_threshold_crosses_5(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.threshold, 5)
 
             @pulumi.runtime.test
-            def it_checks_the_unit_as_a_p99(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.stat, "p99")
+            def it_treats_missing_data_as_missing(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.treat_missing_data, "missing")
 
             @pulumi.runtime.test
-            def it_pulls_the_metric_data_from_the_cluster(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.dimensions["ClusterName"], sut.project_stack)
-
-            @pulumi.runtime.test
-            def it_pulls_the_metric_data_from_the_service(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.dimensions["ServiceName"], sut.project_stack)
-
-            @pulumi.runtime.test
-            def it_belongs_to_the_ECS_namespace(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.namespace, "ECS/ContainerInsights")
-
-            @pulumi.runtime.test
-            def it_runs_every_minute(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.metric_queries[1].metric.period, 60)
-
-            @pulumi.runtime.test
-            def it_triggers_when_the_threshold_crosses_50(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.threshold, 50)
-
-            @pulumi.runtime.test
-            def it_triggers_the_autoscaling_policy(sut):
-                return assert_outputs_equal(sut.autoscaling_out_alarm.alarm_actions, [sut.autoscaling_out_policy.arn])
+            def it_has_tags(sut):
+                assert sut.autoscaling_out_alarm.tags
 
         def describe_autoscaling_in_alarm():
+            @pulumi.runtime.test
             def it_exists(sut):
                 assert sut.autoscaling_in_alarm
 
@@ -134,44 +162,69 @@ def describe_autoscaling():
                                             f"{app_name}-{stack}-auto-scaling-in-alarm")
 
             @pulumi.runtime.test
-            def it_triggers_when_less_than_or_equal_to_threshold(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.comparison_operator, "LessThanOrEqualToThreshold")
-
-            @pulumi.runtime.test
-            def it_evaluates_for_five_periods(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.evaluation_periods, 5)
-
-            @pulumi.runtime.test
-            def it_triggers_based_on_mathematical_expression(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.metric_queries[0].expression, "100*(m1/m2)")
-
-            @pulumi.runtime.test
-            def it_checks_the_unit_as_a_p99(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.metric_queries[1].metric.stat, "p99")
-
-            @pulumi.runtime.test
-            def it_pulls_the_metric_data_from_the_cluster(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.metric_queries[1].metric.dimensions["ClusterName"], sut.project_stack)
-
-            @pulumi.runtime.test
-            def it_pulls_the_metric_data_from_the_service(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.metric_queries[1].metric.dimensions["ServiceName"], sut.project_stack)
-
-            @pulumi.runtime.test
-            def it_belongs_to_the_ECS_namespace(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.metric_queries[1].metric.namespace, "ECS/ContainerInsights")
-
-            @pulumi.runtime.test
-            def it_runs_every_minute(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.metric_queries[1].metric.period, 60)
-
-            @pulumi.runtime.test
-            def it_triggers_when_the_threshold_fall_below_35(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.threshold, 35)
+            def it_triggers_when_greater_than_or_equal_to_threshold(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.comparison_operator,
+                                            "LessThanThreshold")
 
             @pulumi.runtime.test
             def it_triggers_the_autoscaling_policy(sut):
                 return assert_outputs_equal(sut.autoscaling_in_alarm.alarm_actions, [sut.autoscaling_in_policy.arn])
+
+            @pulumi.runtime.test
+            def it_triggers_based_on_the_response_time(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.metric_name,
+                                            "TargetResponseTime")
+
+            @pulumi.runtime.test
+            def it_belongs_to_the_AWS_namespace(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.namespace,
+                                            "AWS/ApplicationELB")
+
+            @pulumi.runtime.test
+            def it_checks_the_unit_as_a_p99(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.extended_statistic, "p99")
+
+            @pulumi.runtime.test
+            def it_pulls_the_metric_data_from_the_target_group(sut):
+                def check_target_group_dimension(args):
+                    target_group_arn, dimensions_target_group = args
+                    target_group_arn = target_group_arn.split(":")[-1]
+                    assert target_group_arn == dimensions_target_group
+
+                return pulumi.Output.all(sut.target_group.arn,
+                                         sut.autoscaling_in_alarm.dimensions['TargetGroup']).apply(
+                    check_target_group_dimension)
+
+            @pulumi.runtime.test
+            def it_pulls_the_metric_data_from_the_loadbalancer(sut):
+                def check_loadbalancer_dimension(args):
+                    loadbalancer_arn, dimensions_loadbalancer = args
+                    loadbalancer_arn = loadbalancer_arn.split("/", 1)[1]
+                    assert loadbalancer_arn == dimensions_loadbalancer
+
+                return pulumi.Output.all(sut.load_balancer.arn,
+                                         sut.autoscaling_in_alarm.dimensions['LoadBalancer']).apply(
+                    check_loadbalancer_dimension)
+
+            @pulumi.runtime.test
+            def it_runs_every_minute(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.period, 60)
+
+            @pulumi.runtime.test
+            def it_evaluates_for_5_periods(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.evaluation_periods, 5)
+
+            @pulumi.runtime.test
+            def it_triggers_when_the_threshold_crosses_5(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.threshold, 5)
+
+            @pulumi.runtime.test
+            def it_treats_missing_data_as_missing(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.treat_missing_data, "missing")
+
+            @pulumi.runtime.test
+            def it_has_tags(sut):
+                assert sut.autoscaling_in_alarm.tags
 
         def describe_autoscaling_in_policy():
             def it_exists(sut):
@@ -204,7 +257,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_has_a_default_cooldown(sut):
-                return assert_output_equals(sut.autoscaling_in_policy.step_scaling_policy_configuration.cooldown, 900)
+                return assert_output_equals(sut.autoscaling_in_policy.step_scaling_policy_configuration.cooldown, 300)
 
             @pulumi.runtime.test
             def it_changes_capacity(sut):
@@ -274,8 +327,9 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_changes_capacity(sut):
-                return assert_output_equals(sut.autoscaling_out_policy.step_scaling_policy_configuration.adjustment_type,
-                                            "ChangeInCapacity")
+                return assert_output_equals(
+                    sut.autoscaling_out_policy.step_scaling_policy_configuration.adjustment_type,
+                    "ChangeInCapacity")
 
             @pulumi.runtime.test
             def it_has_a_default_maximum_metric_aggregation_type(sut):
