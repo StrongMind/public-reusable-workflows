@@ -33,6 +33,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "propagate_tags": args.inputs.get("propagateTags"),
                     "enable_execute_command": args.inputs.get("enableExecuteCommand"),
                     "health_check_grace_period_seconds": args.inputs.get("healthCheckGracePeriodSeconds"),
+                    "deployment_maximum_percent": args.inputs.get("deploymentMaximumPercent"),
                 }
             if args.typ == "aws:rds/cluster:Cluster":
                 outputs = {

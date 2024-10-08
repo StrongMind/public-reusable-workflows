@@ -304,7 +304,7 @@ class ContainerComponent(pulumi.ComponentResource):
             propagate_tags="SERVICE",
             enable_execute_command=True,
             task_definition_args=self.task_definition_args,
-            deployment_maximum_percent=self.kwargs.get('deployment_maximum_percent', 200),
+            deployment_maximum_percent=self.deployment_maximum_percent,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
