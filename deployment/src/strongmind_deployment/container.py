@@ -69,6 +69,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
+        self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
 
         project = pulumi.get_project()
         self.project_stack = f"{project}-{stack}"
@@ -303,6 +304,7 @@ class ContainerComponent(pulumi.ComponentResource):
             propagate_tags="SERVICE",
             enable_execute_command=True,
             task_definition_args=self.task_definition_args,
+            deployment_maximum_percent=self.kwargs.get('deployment_maximum_percent', 200),
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
