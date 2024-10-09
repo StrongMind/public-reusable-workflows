@@ -66,7 +66,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
         self.desired_count = kwargs.get('desired_count', 2)
-        self.max_capacity = 100
+        self.max_capacity = 65
         self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
         self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
