@@ -19,7 +19,7 @@ class RedisComponent(pulumi.ComponentResource):
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}"
+        self.namespace = self.kwargs.get('namespace', f"{project}-{stack}")
 
         path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
         file_path = f"{path}/CODEOWNERS"
@@ -39,7 +39,7 @@ class RedisComponent(pulumi.ComponentResource):
 
         self.cluster = aws.elasticache.Cluster(
             name,
-            cluster_id=f'{project_stack}-{name}',
+            cluster_id=f'{self.namespace}-{name}',
             engine="redis",
             node_type=self.node_type,
             engine_version="7.0",
@@ -61,8 +61,8 @@ class QueueComponent(RedisComponent):
     def __init__(self, name, opts=None, **kwargs):
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}"
-        kwargs['parameter_group_name'] = f"{project_stack}-queue-redis7"
+        namespace = kwargs.get('namespace', f"{project}-{stack}")
+        kwargs['parameter_group_name'] = f"{namespace}-queue-redis7"
         self.parameter_group = aws.elasticache.ParameterGroup(
             f"{name}-parameter-group",
             name=kwargs['parameter_group_name'],
@@ -80,8 +80,8 @@ class CacheComponent(RedisComponent):
     def __init__(self, name, opts=None, **kwargs):
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}"
-        kwargs['parameter_group_name'] = f"{project_stack}-cache-redis7"
+        namespace = kwargs.get('namespace', f"{project}-{stack}")
+        kwargs['parameter_group_name'] = f"{namespace}-cache-redis7"
         self.parameter_group = aws.elasticache.ParameterGroup(
             f"{name}-parameter-group",
             name=kwargs['parameter_group_name'],
