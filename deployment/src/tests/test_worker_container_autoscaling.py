@@ -29,7 +29,7 @@ def describe_worker_autoscaling():
 
         @pulumi.runtime.test
         def it_has_a_default_max_capacity(autoscaling_target):
-            return assert_output_equals(autoscaling_target.max_capacity, 100)
+            return assert_output_equals(autoscaling_target.max_capacity, 65)
 
         def describe_autoscaling_overrides():
             @pytest.fixture

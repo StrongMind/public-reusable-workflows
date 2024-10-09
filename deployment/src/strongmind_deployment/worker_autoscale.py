@@ -17,7 +17,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_autoscaling_out_policy = None
         self.worker_autoscaling_target = None
         self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
-        self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 100)
+        self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 65)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
         self.alert_threshold = kwargs.get('alert_threshold', 18000)

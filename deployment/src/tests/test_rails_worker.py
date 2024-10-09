@@ -88,4 +88,4 @@ def describe_a_pulumi_rails_app():
         def describe_fargate_service_properties():
             @pulumi.runtime.test
             def it_sets_the_deployment_maximum_percent(sut):
-                return assert_output_equals(sut.worker_container.fargate_service.deployment_maximum_percent, 120)
+                return assert_output_equals(sut.worker_container.fargate_service.deployment_maximum_percent, 200)
