@@ -140,10 +140,14 @@ class RailsComponent(pulumi.ComponentResource):
             if 'queue_redis' not in self.kwargs:
                 self.kwargs['queue_redis'] = True
         if 'queue_redis' in self.kwargs:
+            queue_redis_kwargs = {}
+            if 'namespace' in self.kwargs:
+                queue_redis_kwargs['namespace'] = self.kwargs['namespace']
+
             if isinstance(self.kwargs['queue_redis'], RedisComponent):
                 self.queue_redis = self.kwargs['queue_redis']
             elif self.kwargs['queue_redis']:
-                self.queue_redis = QueueComponent("queue-redis")
+                self.queue_redis = QueueComponent("queue-redis", **queue_redis_kwargs)
 
             if self.queue_redis:
                 self.env_vars['QUEUE_REDIS_URL'] = self.queue_redis.url
@@ -151,7 +155,11 @@ class RailsComponent(pulumi.ComponentResource):
             if isinstance(self.kwargs['cache_redis'], RedisComponent):
                 self.cache_redis = self.kwargs['cache_redis']
             elif self.kwargs['cache_redis']:
-                self.cache_redis = CacheComponent("cache-redis")
+                cache_redis_kwargs = {}
+                if 'namespace' in self.kwargs:
+                    cache_redis_kwargs['namespace'] = self.kwargs['namespace']
+
+                self.cache_redis = CacheComponent("cache-redis", **cache_redis_kwargs)
 
             if self.cache_redis:
                 self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
