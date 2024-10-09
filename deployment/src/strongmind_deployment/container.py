@@ -69,6 +69,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
+        self.binary_sns_topic_arn = 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
         self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
 
         project = pulumi.get_project()
@@ -438,10 +439,10 @@ class ContainerComponent(pulumi.ComponentResource):
             },
             period=60,
             statistic="Maximum",
-            threshold=25,
-            alarm_actions=[self.sns_topic_arn],
-            ok_actions=[self.sns_topic_arn],
-            alarm_description="Alarm when ECS service running tasks exceed 25",
+            threshold=100,
+            alarm_actions=[self.sns_topic_arn, self.binary_sns_topic_arn],
+            ok_actions=[self.sns_topic_arn, self.binary_sns_topic_arn],
+            alarm_description="Alarm when ECS service running tasks are at Max of 100",
             tags=self.tags
         )
 

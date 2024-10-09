@@ -72,7 +72,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_triggers_when_the_threshold_is_more_than_the_desired_count(sut):
-                expected_threshold = 25
+                expected_threshold = 100
                 actual_threshold = sut.running_tasks_alarm.threshold
                 assert_output_equals(actual_threshold, expected_threshold)
 
