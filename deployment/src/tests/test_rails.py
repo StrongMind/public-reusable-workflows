@@ -953,3 +953,17 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_does_not_create_worker_autoscale(sut):
             assert sut.worker_container.worker_autoscaling is None
+
+    def describe_with_a_custom_namespace():
+        @pytest.fixture
+        def namespace(faker):
+            return f'{faker.word()}-{faker.word()}-namespace'
+
+        @pytest.fixture
+        def component_kwargs(component_kwargs, namespace):
+            component_kwargs['namespace'] = namespace
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_secrets_with_the_namespace(sut, namespace):
+            assert sut.secret.namespace == namespace
