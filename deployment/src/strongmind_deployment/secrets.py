@@ -22,7 +22,7 @@ class SecretsComponent(pulumi.ComponentResource):
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}"
+        self.namespace = kwargs.get('namespace', f"{project}-{stack}")
 
         path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
         file_path = f"{path}/CODEOWNERS"
@@ -38,14 +38,14 @@ class SecretsComponent(pulumi.ComponentResource):
         }
 
         self.sm_secret = aws.secretsmanager.Secret(
-            f"{project_stack}-secrets",
-            name=f"{project_stack}-secrets",
+            f"{self.namespace}-secrets",
+            name=f"{self.namespace}-secrets",
             tags=self.tags
         )
 
         # put initial dummy secret value
         self.sm_secret_version = aws.secretsmanager.SecretVersion(
-            f"{project_stack}-secrets-version",
+            f"{self.namespace}-secrets-version",
             secret_id=self.sm_secret.arn,
             secret_string=self.secret_string
         )

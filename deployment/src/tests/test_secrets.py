@@ -32,6 +32,10 @@ def describe_a_pulumi_secretsmanager_component():
         return faker.word()
 
     @pytest.fixture
+    def namespace(faker):
+        return f"{faker.word()}-namespace"
+
+    @pytest.fixture
     def component_arguments():
         return {}
 
@@ -74,6 +78,16 @@ def describe_a_pulumi_secretsmanager_component():
         @pulumi.runtime.test
         def it_has_a_sm_secret_name(sut, name, app_name, stack):
             return assert_output_equals(sut.sm_secret.name, f"{app_name}-{stack}-secrets")
+
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def component_arguments(component_arguments, namespace):
+                component_arguments["namespace"] = namespace
+                return component_arguments
+
+            @pulumi.runtime.test
+            def it_uses_the_namespace_in_the_secret_name(sut, namespace):
+                return assert_output_equals(sut.sm_secret.name, f"{namespace}-secrets")
 
         @pulumi.runtime.test
         def it_has_a_sm_secret_version_secret_string(sut):
