@@ -346,6 +346,30 @@ def describe_a_pulumi_rails_component():
         def it_sets_the_name_to_the_app_name(sut, stack, app_name):
             return assert_output_equals(sut.rds_serverless_cluster.cluster_identifier, f'{app_name}-{stack}')
 
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return f'{faker.word()}-{faker.word()}'
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs['namespace'] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_a_cluster_with_an_overridden_name(sut, namespace):
+                return assert_output_equals(sut.rds_serverless_cluster.cluster_identifier, namespace)
+
+            @pulumi.runtime.test
+            def it_sets_final_snapshot_identifier(sut, namespace):
+                return assert_output_equals(sut.rds_serverless_cluster.final_snapshot_identifier,
+                                            f"{namespace}-final-snapshot")
+
+            @pulumi.runtime.test
+            def it_sets_the_master_username(sut, namespace):
+                return assert_output_equals(sut.rds_serverless_cluster.master_username,
+                                            f'{namespace}'.replace('-', '_'))
+
         @pulumi.runtime.test
         def it_sets_the_master_username(sut, stack, app_name):
             return assert_output_equals(sut.rds_serverless_cluster.master_username,
@@ -594,9 +618,42 @@ def describe_a_pulumi_rails_component():
                 sut.rds_serverless_cluster_instance.identifier,
             ).apply(check_rds_cluster_instance_identifier)
 
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return f'{faker.word()}-{faker.word()}'
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs['namespace'] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_a_cluster_instance_with_an_overridden_namespace(sut, namespace):
+                return assert_output_equals(sut.rds_serverless_cluster_instance.identifier, namespace)
+
         @pulumi.runtime.test
         def it_is_publicly_accessible(sut, app_name):
             return assert_output_equals(sut.rds_serverless_cluster_instance.publicly_accessible, True)
+
+    def describe_an_ecs_cluster():
+        @pulumi.runtime.test
+        def it_creates_a_cluster(sut, app_name, stack):
+            return assert_output_equals(sut.ecs_cluster.name, f"{app_name}-{stack}")
+
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return f'{faker.word()}-{faker.word()}'
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs['namespace'] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_a_cluster_with_an_overridden_namespace(sut, namespace):
+                return assert_output_equals(sut.ecs_cluster.name, namespace)
 
     def describe_a_ecs_task():
         @pulumi.runtime.test

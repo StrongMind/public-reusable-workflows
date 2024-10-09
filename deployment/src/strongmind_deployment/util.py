@@ -27,9 +27,9 @@ def get_account_stack_name(force_stack: str = None) -> str:
     return f"organization/account/{account_stack}"
 
 
-def create_ecs_cluster(parent_component, project_stack):
+def create_ecs_cluster(parent_component, name):
     return aws.ecs.Cluster("cluster",
-                           name=project_stack,
+                           name=name,
                            tags=parent_component.tags,
                            settings=[{
                                "name": "containerInsights",

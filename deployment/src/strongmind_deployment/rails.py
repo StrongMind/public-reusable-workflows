@@ -30,6 +30,7 @@ class RailsComponent(pulumi.ComponentResource):
         :param name: The _unique_ name of the resource.
         :param opts: A bag of optional settings that control this resource's behavior.
         :key env_vars: A dictionary of environment variables to pass to the Rails application.
+        :key namespace: A name to override the default naming of resources and DNS names.
         :key queue_redis: Either True to create a default queue Redis instance or a RedisComponent to use. Defaults to True if sidekiq is in the Gemfile.
         :key cache_redis: Either True to create a default cache Redis instance or a RedisComponent to use.
         :key execution_cmd: The command for the pre-deployment execution container. Defaults to `["sh", "-c",
@@ -102,7 +103,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        project_stack = f"{project}-{stack}"
+        self.namespace = self.kwargs.get('namespace', f"{project}-{stack}")
         path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
         file_path = f"{path}/CODEOWNERS"
         with open(file_path, 'r') as file:
@@ -116,7 +117,7 @@ class RailsComponent(pulumi.ComponentResource):
             "owner": owning_team,
         }
 
-        self.rds(project_stack)
+        self.rds()
 
         self.setup_dynamo()
 
@@ -131,7 +132,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.register_outputs({})
 
         if self.env_name == "prod":
-            self.setup_dashboard(project_stack)
+            self.setup_dashboard(self.namespace)
 
     def setup_redis(self):
         if sidekiq_present():
@@ -171,10 +172,7 @@ class RailsComponent(pulumi.ComponentResource):
         )
 
     def ecs(self):
-        stack = pulumi.get_stack()
-        project = pulumi.get_project()
-        project_stack = f"{project}-{stack}"
-        self.ecs_cluster = create_ecs_cluster(self, project_stack)
+        self.ecs_cluster = create_ecs_cluster(self, self.namespace)
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
 
         container_image = os.environ['CONTAINER_IMAGE']
@@ -191,7 +189,7 @@ class RailsComponent(pulumi.ComponentResource):
             'DB_PORT': '5432',
             'DATABASE_URL': self.get_database_url(),
             'RAILS_ENV': 'production',
-            'NAMESPACE': project_stack
+            'NAMESPACE': self.namespace
         }
 
         self.env_vars.update(additional_env_vars)
@@ -301,8 +299,8 @@ class RailsComponent(pulumi.ComponentResource):
         hashed = hashlib.md5(string_to_hash.encode('utf-8')).hexdigest()
         return f'md5{hashed}'
 
-    def rds(self, project_stack):
-        self.db_username = self.kwargs.get("db_username", project_stack.replace('-', '_'))
+    def rds(self):
+        self.db_username = self.kwargs.get("db_username", self.namespace.replace('-', '_'))
         self.db_password = random.RandomPassword("password",
                                                  length=30,
                                                  special=False)
@@ -316,7 +314,7 @@ class RailsComponent(pulumi.ComponentResource):
 
         self.rds_serverless_cluster = aws.rds.Cluster(
             'rds_serverless_cluster',
-            cluster_identifier=project_stack,
+            cluster_identifier=self.namespace,
             engine='aurora-postgresql',
             engine_mode='provisioned',
             engine_version=self.engine_version,
@@ -326,7 +324,7 @@ class RailsComponent(pulumi.ComponentResource):
             apply_immediately=True,
             deletion_protection=True,
             skip_final_snapshot=False,
-            final_snapshot_identifier=f'{project_stack}-final-snapshot',
+            final_snapshot_identifier=f'{self.namespace}-final-snapshot',
             backup_retention_period=14,
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=self.rds_minimum_capacity,
@@ -341,7 +339,7 @@ class RailsComponent(pulumi.ComponentResource):
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             'rds_serverless_cluster_instance',
-            identifier=project_stack,
+            identifier=self.namespace,
             cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
             instance_class='db.serverless',
             engine=self.rds_serverless_cluster.engine,
@@ -378,10 +376,10 @@ class RailsComponent(pulumi.ComponentResource):
                                         )
         self.env_vars.update(self.storage.s3_env_vars)
 
-    def setup_dashboard(self, project_stack):
+    def setup_dashboard(self, namespace):
         self.dashboard = DashboardComponent(
             name="dashboard",
-            project_stack=project_stack,
+            project_stack=namespace,
             web_container=self.web_container,
             ecs_cluster=self.ecs_cluster,
             rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
