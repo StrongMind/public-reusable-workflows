@@ -387,7 +387,7 @@ class RailsComponent(pulumi.ComponentResource):
     def setup_dashboard(self, namespace):
         self.dashboard = DashboardComponent(
             name="dashboard",
-            project_stack=namespace,
+            namespace=self.namespace,
             web_container=self.web_container,
             ecs_cluster=self.ecs_cluster,
             rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
