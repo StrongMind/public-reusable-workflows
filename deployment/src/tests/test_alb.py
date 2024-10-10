@@ -3,7 +3,7 @@ import os
 import pulumi.runtime
 import pytest
 
-from alb import AlbPlacement
+from strongmind_deployment.alb import AlbPlacement
 from mocks import get_pulumi_mocks
 
 

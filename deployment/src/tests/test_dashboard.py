@@ -4,9 +4,8 @@ import pulumi.runtime
 import pytest
 import pulumi_aws as aws
 
-from container import ContainerComponent
+from strongmind_deployment.container import ContainerComponent
 from mocks import get_pulumi_mocks
-from util import create_ecs_cluster
 
 
 def describe_a_dashboard_component():
