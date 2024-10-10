@@ -55,7 +55,7 @@ def describe_worker_autoscaling():
 
         @pulumi.runtime.test
         def it_uses_the_clusters_resource_id(sut, autoscaling_target):
-            resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
+            resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
             return assert_output_equals(autoscaling_target.resource_id, resource_id)
 
         def describe_autoscaling_out_alarm():
@@ -94,7 +94,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, autoscaling_out_alarm):
-                return assert_output_equals(autoscaling_out_alarm.namespace, sut.project_stack)
+                return assert_output_equals(autoscaling_out_alarm.namespace, sut.namespace)
 
             @pulumi.runtime.test
             def it_runs_every_minute(autoscaling_out_alarm):
@@ -144,7 +144,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, queue_latency_alarm):
-                return assert_output_equals(queue_latency_alarm.namespace, sut.project_stack)
+                return assert_output_equals(queue_latency_alarm.namespace, sut.namespace)
 
             @pulumi.runtime.test
             def it_runs_every_minute(queue_latency_alarm):
@@ -197,7 +197,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, autoscaling_in_alarm):
-                return assert_output_equals(autoscaling_in_alarm.namespace, sut.project_stack)
+                return assert_output_equals(autoscaling_in_alarm.namespace, sut.namespace)
 
             @pulumi.runtime.test
             def it_runs_every_minute(autoscaling_in_alarm):
@@ -227,7 +227,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut, autoscaling_in_policy):
-                resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
+                resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
                 return assert_output_equals(autoscaling_in_policy.resource_id, resource_id)
 
             @pulumi.runtime.test
@@ -296,7 +296,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut, autoscaling_out_policy):
-                resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
+                resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
                 return assert_output_equals(autoscaling_out_policy.resource_id, resource_id)
 
             @pulumi.runtime.test

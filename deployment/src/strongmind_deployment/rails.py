@@ -238,7 +238,7 @@ class RailsComponent(pulumi.ComponentResource):
             self.migration_container.fargate_service.service.network_configuration.security_groups)  # pragma: no cover
         execution_inputs = ExecutionResourceInputs(
             cluster=self.ecs_cluster.arn,
-            family=self.migration_container.project_stack,
+            family=self.migration_container.namespace,
             subnets=subnets,
             security_groups=self.container_security_groups,
         )

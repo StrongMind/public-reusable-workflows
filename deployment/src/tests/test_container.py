@@ -23,6 +23,7 @@ def a_pulumi_containerized_app():
     def stack(environment):
         return environment
 
+
     @pytest.fixture
     def pulumi_mocks(faker):
         return get_pulumi_mocks(faker)
@@ -781,7 +782,7 @@ def describe_container():
             @pulumi.runtime.test
             def it_sets_the_workers_metric_name(sut):
                 return assert_output_equals(sut.log_metric_filters[0].metric_transformation.name,
-                                            sut.project_stack + "-waiting_workers")
+                                            sut.namespace + "-waiting_workers")
 
             @pulumi.runtime.test
             def it_sets_the_workers_values(sut, waiting_workers_metric_value):
@@ -800,7 +801,7 @@ def describe_container():
             @pulumi.runtime.test
             def it_sets_the_jobs_metric_name(sut):
                 return assert_output_equals(sut.log_metric_filters[1].metric_transformation.name,
-                                            sut.project_stack + "-waiting_jobs")
+                                            sut.namespace + "-waiting_jobs")
 
             @pulumi.runtime.test
             def it_sets_the_jobs_values(sut, waiting_jobs_metric_value):
@@ -894,3 +895,51 @@ def describe_container():
             expected_threshold = desired_count * 0.25
             actual_threshold = sut.unhealthy_host_metric_alarm.threshold
             assert_output_equals(actual_threshold, expected_threshold)
+
+    def it_sets_the_namespace_to_the_project_and_stack(sut, app_name, stack):
+        assert sut.namespace == f"{app_name}-{stack}"
+
+    def describe_with_a_non_container_default_name():
+        @pytest.fixture
+        def component_name(faker):
+            return faker.word()
+
+        @pytest.fixture
+        def sut(component_kwargs, component_name):
+            import strongmind_deployment.container
+            return strongmind_deployment.container.ContainerComponent(component_name,
+                                                                      **component_kwargs
+                                                                      )
+
+        def it_adds_the_component_name_to_the_namespace(sut, app_name, stack, component_name):
+            assert sut.namespace == f"{app_name}-{stack}-{component_name}"
+
+    def describe_with_a_custom_namespace():
+        @pytest.fixture
+        def namespace(faker):
+            return f"{faker.word()}-{faker.word()}-namespace"
+
+        @pytest.fixture
+        def component_kwargs(component_kwargs, namespace):
+            component_kwargs["namespace"] = namespace
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_has_a_namespace(sut, namespace):
+            assert sut.namespace == namespace
+
+
+        def describe_with_a_non_container_default_name():
+            @pytest.fixture
+            def component_name(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def sut(component_kwargs, component_name):
+                import strongmind_deployment.container
+                return strongmind_deployment.container.ContainerComponent(component_name,
+                                                                          **component_kwargs
+                                                                          )
+
+            def it_adds_the_component_name_to_the_namespace(sut, namespace, component_name):
+                assert sut.namespace == f"{namespace}-{component_name}"
