@@ -1,12 +1,16 @@
 import asyncio
 import os
 from concurrent.futures import ThreadPoolExecutor
+from random import randint
 
 import pulumi
 import pytest
 
 from tests.mocks import ImmediateExecutor
 
+@pytest.fixture(scope="session", autouse=True)
+def faker_seed():
+    return randint(0, 100000)
 
 @pytest.fixture
 def pulumi_set_mocks(pulumi_mocks, app_name, stack):
