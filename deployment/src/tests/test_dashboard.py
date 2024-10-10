@@ -83,7 +83,7 @@ def describe_a_dashboard_component():
                                        )
     @pytest.fixture
     def sut(name, web_container, ecs_cluster, rds_serverless_cluster_instance, pulumi_set_mocks):
-        from dashboard import DashboardComponent
+        from strongmind_deployment.dashboard import DashboardComponent
         return DashboardComponent(name,
                                   project_stack='project-stack',
                                   web_container=web_container,
