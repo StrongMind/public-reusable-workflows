@@ -444,7 +444,7 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags
         )
 
-    def setup_load_balancer(self, kwargs, project, project_stack, stack):
+    def setup_load_balancer(self, kwargs, project, namespace, stack):
         self.certificate(project, stack)
 
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
@@ -452,7 +452,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         self.target_group = aws.lb.TargetGroup(
             "target_group",
-            name=f"{project_stack}-tg",
+            name=f"{namespace}-tg",
             port=self.container_port,
             protocol="HTTP",
             target_type="ip",
@@ -516,7 +516,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                            load_balancer_name, target_group_name).apply(lambda args:
                                                                                                         aws.cloudwatch.MetricAlarm(
                                                                                                             "healthy_host_metric_alarm",
-                                                                                                            name=f"{project_stack}-healthy-host-metric-alarm",
+                                                                                                            name=f"{namespace}-healthy-host-metric-alarm",
                                                                                                             actions_enabled=True,
                                                                                                             ok_actions=[
                                                                                                                 self.sns_topic_arn],
@@ -588,7 +588,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                              load_balancer_name, target_group_name).apply(lambda args:
                                                                                                           aws.cloudwatch.MetricAlarm(
                                                                                                               "unhealthy_host_metric_alarm",
-                                                                                                              name=f"{project_stack}-unhealthy-host-metric-alarm",
+                                                                                                              name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
                                                                                                                   self.sns_topic_arn],
