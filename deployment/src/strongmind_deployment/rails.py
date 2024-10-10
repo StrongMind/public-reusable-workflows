@@ -287,6 +287,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['desired_count'] = self.desired_worker_count
         self.kwargs['autoscale'] = False
         self.kwargs['worker_autoscale'] = self.worker_autoscale
+        self.kwargs['deployment_maximum_percent'] = 200
 
         self.worker_container = ContainerComponent("worker",
                                                    pulumi.ResourceOptions(parent=self,

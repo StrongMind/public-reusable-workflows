@@ -601,6 +601,10 @@ def describe_container():
             def it_sets_the_task_role(sut):
                 return assert_outputs_equal(sut.fargate_service.task_definition_args["taskRole"]["roleArn"], sut.task_role.arn)
 
+            @pulumi.runtime.test
+            def it_sets_the_deployment_maximum_percent_to_200(sut):
+                return assert_output_equals(sut.fargate_service.deployment_maximum_percent, 200)
+
         def describe_with_custom_health_check_path():
             @pytest.fixture
             def custom_health_check_path(faker):

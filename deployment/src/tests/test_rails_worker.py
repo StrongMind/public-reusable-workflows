@@ -84,3 +84,8 @@ def describe_a_pulumi_rails_app():
             def it_passes_worker_log_metric_filter_value_to_worker_container(sut, worker_log_metric_filters):
                 return assert_output_equals(sut.worker_container.log_metric_filters[0].metric_transformation.value,
                                             "$BLAH")
+
+        def describe_fargate_service_properties():
+            @pulumi.runtime.test
+            def it_sets_the_deployment_maximum_percent(sut):
+                return assert_output_equals(sut.worker_container.fargate_service.deployment_maximum_percent, 200)
