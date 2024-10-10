@@ -16,7 +16,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_autoscaling_out_alarm = None
         self.worker_autoscaling_out_policy = None
         self.worker_autoscaling_target = None
-        self.project_stack = pulumi.get_project() + "-" + pulumi.get_stack()
+        self.namespace = kwargs.get("namespace", f"{pulumi.get_project()}-{pulumi.get_stack()}")
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 100)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
@@ -29,13 +29,13 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             "worker_autoscaling_target",
             max_capacity=self.worker_max_capacity,
             min_capacity=self.worker_min_capacity,
-            resource_id=f"service/{self.project_stack}/{self.project_stack}-worker",
+            resource_id=f"service/{self.namespace}/{self.namespace}-worker",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
         )
         self.worker_autoscaling_out_policy = aws.appautoscaling.Policy(
             "worker_autoscaling_out_policy",
-            name=f"{self.project_stack}-worker-autoscaling-out-policy",
+            name=f"{self.namespace}-worker-autoscaling-out-policy",
             policy_type="StepScaling",
             resource_id=self.worker_autoscaling_target.resource_id,
             scalable_dimension=self.worker_autoscaling_target.scalable_dimension,
@@ -60,7 +60,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
 
         self.worker_autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "worker_autoscaling_out_alarm",
-            name=f"{self.project_stack}-worker-auto-scaling-out-alarm",
+            name=f"{self.namespace}-worker-auto-scaling-out-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
             metric_name="MaxQueueLatency",
@@ -68,7 +68,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             dimensions={
                 "QueueName": "AllQueues"
             },
-            namespace=self.project_stack,
+            namespace=self.namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -77,7 +77,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
 
         self.worker_queue_latency_alarm = aws.cloudwatch.MetricAlarm(
             "worker_queue_latency_alarm",
-            name=f"{self.project_stack}-worker-queue-latency-alarm",
+            name=f"{self.namespace}-worker-queue-latency-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
             metric_name="MaxQueueLatency",
@@ -85,7 +85,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             dimensions={
                 "QueueName": "AllQueues"
             },
-            namespace=self.project_stack,
+            namespace=self.namespace,
             period=60,
             statistic="Maximum",
             threshold=self.alert_threshold,
@@ -95,7 +95,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
 
         self.worker_autoscaling_in_policy = aws.appautoscaling.Policy(
             "worker_autoscaling_in_policy",
-            name=f"{self.project_stack}-worker-autoscaling-in-policy",
+            name=f"{self.namespace}-worker-autoscaling-in-policy",
             policy_type="StepScaling",
             resource_id=self.worker_autoscaling_target.resource_id,
             scalable_dimension=self.worker_autoscaling_target.scalable_dimension,
@@ -115,7 +115,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
 
         self.worker_autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             "worker_autoscaling_in_alarm",
-            name=f"{self.project_stack}-worker-auto-scaling-in-alarm",
+            name=f"{self.namespace}-worker-auto-scaling-in-alarm",
             comparison_operator="LessThanOrEqualToThreshold",
             evaluation_periods=5,
             metric_name="MaxQueueLatency",
@@ -123,7 +123,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             dimensions={
                 "QueueName": "AllQueues"
             },
-            namespace=self.project_stack,
+            namespace=self.namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
