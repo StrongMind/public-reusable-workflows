@@ -4,7 +4,7 @@ import pulumi.runtime
 import pytest
 
 from strongmind_deployment.alb import AlbPlacement
-from mocks import get_pulumi_mocks
+from tests.mocks import get_pulumi_mocks
 
 
 def describe_a_application_load_balancer_component():

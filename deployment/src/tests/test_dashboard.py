@@ -5,7 +5,7 @@ import pytest
 import pulumi_aws as aws
 
 from strongmind_deployment.container import ContainerComponent
-from mocks import get_pulumi_mocks
+from tests.mocks import get_pulumi_mocks
 
 
 def describe_a_dashboard_component():
