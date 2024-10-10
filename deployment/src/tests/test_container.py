@@ -928,6 +928,9 @@ def describe_container():
         def it_has_a_namespace(sut, namespace):
             assert sut.namespace == namespace
 
+        @pulumi.runtime.test
+        def it_sets_the_alb_namespace(sut, namespace):
+            assert sut.alb.namespace == namespace
 
         def describe_with_a_non_container_default_name():
             @pytest.fixture
@@ -941,5 +944,6 @@ def describe_container():
                                                                           **component_kwargs
                                                                           )
 
+            @pulumi.runtime.test
             def it_adds_the_component_name_to_the_namespace(sut, namespace, component_name):
                 assert sut.namespace == f"{namespace}-{component_name}"

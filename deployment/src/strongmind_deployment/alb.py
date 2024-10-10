@@ -4,7 +4,6 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_aws.ec2 as ec2
 import pulumi_aws.lb as lb
-from strongmind_deployment.util import get_project_stack
 from strongmind_deployment import vpc
 
 
@@ -25,6 +24,7 @@ class AlbArgs:
     internal_ingress_cidrs: list[str] - a list of CIDR blocks that are allowed to access the ALB when the placement is internal.
     ingress_sg: ec2.SecurityGroup - a security group that is allowed to access the ALB.
     should_protect: bool - whether or not to enable deletion protection on the ALB.  Defaults to False.  You should set this for production stacks.
+    namespace: str - a custom namespace for the ALB.  Defaults to the project stack name.
     """
     def __init__(
         self,
@@ -36,6 +36,7 @@ class AlbArgs:
         ingress_sg: ec2.SecurityGroup = None,
         should_protect: bool = False,
         tags: dict = None,
+        namespace: str = None,
     ):
         self.vpc_id = vpc_id
         self.subnets = subnets
@@ -45,6 +46,7 @@ class AlbArgs:
         self.ingress_sg = ingress_sg
         self.should_protect = should_protect
         self.tags = tags
+        self.namespace = namespace
 
 
 class Alb(pulumi.ComponentResource):
@@ -70,7 +72,7 @@ class Alb(pulumi.ComponentResource):
             self.subnet_ids: Sequence[str] = vpc.VpcComponent.get_subnets(vpc_id=args.vpc_id, placement=args.placement)
         stack = pulumi.get_stack()
         project = pulumi.get_project()[:18]
-        self.project_stack = f"{project}-{stack}"
+        self.namespace = args.namespace or f"{project}-{stack}"
         self.tags = args.tags or {}
 
 
@@ -85,7 +87,7 @@ class Alb(pulumi.ComponentResource):
     def create_loadbalancer(self)-> lb.LoadBalancer:
 
         alb_security_group = ec2.SecurityGroup(
-            f"{self.project_stack}-alb_sg",
+            f"{self.namespace}-alb_sg",
             description=f"Load Balancer Security Group for {self.args.placement} ALB",
             vpc_id=self.args.vpc_id,
             tags={
@@ -112,7 +114,7 @@ class Alb(pulumi.ComponentResource):
         current = aws.get_caller_identity()
 
         alb = lb.LoadBalancer(
-            self.project_stack,
+            self.namespace,
             internal=self.is_internal,
             load_balancer_type="application",
             security_groups=[alb_security_group.id],
@@ -120,7 +122,7 @@ class Alb(pulumi.ComponentResource):
             enable_deletion_protection=self.args.should_protect,
             access_logs=lb.LoadBalancerAccessLogsArgs(
                 bucket=f"loadbalancer-logs-{current.account_id}",
-                prefix=self.project_stack,
+                prefix=self.namespace,
                 enabled=True,
             ),
             tags=self.tags,
@@ -134,7 +136,7 @@ class Alb(pulumi.ComponentResource):
         Use this listener to create additional listeners connected to their target groups.
         """
         https_listener = lb.Listener(
-            f"{self.project_stack}-https-listener",
+            f"{self.namespace}-https-listener",
             load_balancer_arn=self.alb.arn,
             port=443,
             certificate_arn=self.args.certificate_arn,
@@ -158,7 +160,7 @@ class Alb(pulumi.ComponentResource):
         Create a listener that redirects all requests on port 80 to the HTTPS listener.
         """
         port_80_redirect_listener = aws.alb.Listener(
-            f"{self.project_stack}-80-redirect-443",
+            f"{self.namespace}-80-redirect-443",
             load_balancer_arn=self.alb.arn,
             protocol="HTTP",
             port=80,

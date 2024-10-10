@@ -476,6 +476,7 @@ class ContainerComponent(pulumi.ComponentResource):
             placement=alb.AlbPlacement.EXTERNAL,
             certificate_arn=self.cert.arn,
             tags=self.tags,
+            namespace=namespace,
         )
         self.alb = alb.Alb("loadbalancer", alb_args)
         self.load_balancer = self.alb.alb
