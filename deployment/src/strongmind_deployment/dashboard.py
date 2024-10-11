@@ -4,20 +4,20 @@ import json
 
 
 class DashboardComponent(pulumi.ComponentResource):
-    def __init__(self, name, project_stack, web_container, ecs_cluster, rds_serverless_cluster_instance, **kwargs):
+    def __init__(self, name, **kwargs):
         super().__init__('strongmind:global_build:commons:dashboard', name)
-        self.project_stack = project_stack
-        self.web_container = web_container
-        self.ecs_cluster = ecs_cluster
-        self.rds_serverless_cluster_instance = rds_serverless_cluster_instance
+        self.namespace = kwargs.get("namespace", f"{pulumi.get_project()}-{pulumi.get_stack()}")
+        self.web_container = kwargs['web_container']
+        self.ecs_cluster = kwargs['ecs_cluster']
+        self.rds_serverless_cluster_instance = kwargs['rds_serverless_cluster_instance']
         self.autoscale = kwargs.get('autoscale', False)
         self.kwargs = kwargs
         self.log_metric_filter_definitions = []
         self.load_balancer_arn_name = ""
         self.target_group_arn = ""
-        self.setup_dashboard(project_stack, **kwargs)
+        self.setup_dashboard(**kwargs)
 
-    def setup_dashboard(self, project_stack, **kwargs):
+    def setup_dashboard(self, **kwargs):
         self.log_metric_filter_definitions = self.kwargs.get('log_metric_filters', [])
         load_balancer_arn = kwargs.get('load_balancer_arn', self.web_container.load_balancer.arn)
         self.load_balancer_arn_name = load_balancer_arn.apply(lambda arn: arn.split("loadbalancer/")[1])
@@ -37,7 +37,7 @@ class DashboardComponent(pulumi.ComponentResource):
                         [
                             log_metric_filter["metric_transformation"]["namespace"],
                             log_metric_filter["metric_transformation"]["name"],
-                            "LogGroupName", f"/aws/ecs/{project_stack}"
+                            "LogGroupName", f"/aws/ecs/{self.namespace}"
                         ]
                     ],
                     "period": 300,
@@ -260,6 +260,6 @@ class DashboardComponent(pulumi.ComponentResource):
 
         dashboard_body = pulumi.Output.all(*widgets).apply(lambda ws: json.dumps({"widgets": ws}))
 
-        dashboard = aws.cloudwatch.Dashboard(f"{project_stack}-dashboard",
+        dashboard = aws.cloudwatch.Dashboard(f"{self.namespace}-dashboard",
                                              dashboard_body=dashboard_body,
-                                             dashboard_name=f"{project_stack}")
+                                             dashboard_name=f"{self.namespace}")

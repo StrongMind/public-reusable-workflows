@@ -20,8 +20,16 @@ def describe_worker_autoscaling():
             assert sut.worker_autoscaling
 
         @pulumi.runtime.test
+        def it_has_a_default_namespace(sut, app_name, stack):
+            assert sut.worker_autoscaling.namespace == f"{app_name}-{stack}"
+
+        @pulumi.runtime.test
         def it_has_an_autoscaling_target(sut):
             assert sut.worker_autoscaling.worker_autoscaling_target
+
+        @pulumi.runtime.test
+        def it_no_longer_has_a_project_stack(sut):
+            assert not hasattr(sut.worker_autoscaling, "project_stack")
 
         @pytest.fixture
         def autoscaling_target(sut):
@@ -55,7 +63,7 @@ def describe_worker_autoscaling():
 
         @pulumi.runtime.test
         def it_uses_the_clusters_resource_id(sut, autoscaling_target):
-            resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
+            resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
             return assert_output_equals(autoscaling_target.resource_id, resource_id)
 
         def describe_autoscaling_out_alarm():
@@ -94,7 +102,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, autoscaling_out_alarm):
-                return assert_output_equals(autoscaling_out_alarm.namespace, sut.project_stack)
+                return assert_output_equals(autoscaling_out_alarm.namespace, sut.namespace)
 
             @pulumi.runtime.test
             def it_runs_every_minute(autoscaling_out_alarm):
@@ -144,7 +152,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, queue_latency_alarm):
-                return assert_output_equals(queue_latency_alarm.namespace, sut.project_stack)
+                return assert_output_equals(queue_latency_alarm.namespace, sut.namespace)
 
             @pulumi.runtime.test
             def it_runs_every_minute(queue_latency_alarm):
@@ -197,7 +205,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_belongs_to_the_project_stack_namespace(sut, autoscaling_in_alarm):
-                return assert_output_equals(autoscaling_in_alarm.namespace, sut.project_stack)
+                return assert_output_equals(autoscaling_in_alarm.namespace, sut.namespace)
 
             @pulumi.runtime.test
             def it_runs_every_minute(autoscaling_in_alarm):
@@ -227,7 +235,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut, autoscaling_in_policy):
-                resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
+                resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
                 return assert_output_equals(autoscaling_in_policy.resource_id, resource_id)
 
             @pulumi.runtime.test
@@ -296,7 +304,7 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut, autoscaling_out_policy):
-                resource_id = f"service/{sut.project_stack}/{sut.project_stack}-worker"
+                resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
                 return assert_output_equals(autoscaling_out_policy.resource_id, resource_id)
 
             @pulumi.runtime.test
@@ -364,6 +372,21 @@ def describe_worker_autoscaling():
                 @pulumi.runtime.test
                 def It_step_scales_by_one_instance(step):
                     return assert_output_equals(step.scaling_adjustment, 1)
+
+
+        def describe_when_given_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return faker.word() + "_namespace"
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs["namespace"] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_uses_the_custom_namespace(sut, namespace):
+                assert sut.worker_autoscaling.namespace == namespace
 
     def describe_when_turned_off():
         @pytest.fixture

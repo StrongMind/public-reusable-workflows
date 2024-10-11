@@ -3,6 +3,7 @@ import os
 import pulumi.runtime
 import pulumi_aws
 import pytest
+from faker.contrib.pytest.plugin import faker
 from pulumi import Output
 
 from tests.shared import assert_outputs_equal, assert_output_equals
@@ -82,6 +83,20 @@ def describe_a_pulumi_redis_component():
                                                       sut.cluster.cache_nodes[0].address,
                                                       ':6379'))
 
+        def describe_with_a_alternative_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return f'{faker.word()}-{faker.word()}-namespace'
+
+            @pytest.fixture
+            def component_arguments(component_arguments, namespace):
+                component_arguments['namespace'] = namespace
+                return component_arguments
+
+            @pulumi.runtime.test
+            def test_it_has_a_cluster_id(sut, namespace, name):
+                return assert_output_equals(sut.cluster.cluster_id, f"{namespace}-{name}")
+
         def describe_with_defaults():
             @pulumi.runtime.test
             def test_it_has_node_type(sut):
@@ -126,6 +141,25 @@ def describe_a_pulumi_redis_component():
             assert isinstance(sut.parameter_group, pulumi_aws.elasticache.ParameterGroup)
             return assert_output_equals(sut.parameter_group.name, f"{app_name}-{stack}-queue-redis7")
 
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return f'{faker.word()}-{faker.word()}-queue'
+
+            @pytest.fixture
+            def component_arguments(component_arguments, namespace):
+                component_arguments['namespace'] = namespace
+                return component_arguments
+
+            @pulumi.runtime.test
+            def it_uses_a_queue_parameter_group(sut, namespace):
+                return assert_output_equals(sut.cluster.parameter_group_name, f"{namespace}-queue-redis7")
+
+            @pulumi.runtime.test
+            def it_creates_its_parameter_group(sut, namespace):
+                assert isinstance(sut.parameter_group, pulumi_aws.elasticache.ParameterGroup)
+                return assert_output_equals(sut.parameter_group.name, f"{namespace}-queue-redis7")
+
         @pulumi.runtime.test
         def it_sets_the_parameter_group_family(sut):
             return assert_output_equals(sut.parameter_group.family, "redis7")
@@ -157,6 +191,25 @@ def describe_a_pulumi_redis_component():
         @pulumi.runtime.test
         def it_sets_the_parameter_group_family(sut):
             return assert_output_equals(sut.parameter_group.family, "redis7")
+
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return f'{faker.word()}-{faker.word()}-cache'
+
+            @pytest.fixture
+            def component_arguments(component_arguments, namespace):
+                component_arguments['namespace'] = namespace
+                return component_arguments
+
+            @pulumi.runtime.test
+            def it_uses_a_cache_parameter_group(sut, namespace):
+                return assert_output_equals(sut.cluster.parameter_group_name, f"{namespace}-cache-redis7")
+
+            @pulumi.runtime.test
+            def it_creates_its_parameter_group(sut, namespace):
+                assert isinstance(sut.parameter_group, pulumi_aws.elasticache.ParameterGroup)
+                return assert_output_equals(sut.parameter_group.name, f"{namespace}-cache-redis7")
 
         #@pulumi.runtime.test
         #def it_sets_the_cache_eviction_policy_to_volatile_lru(sut):

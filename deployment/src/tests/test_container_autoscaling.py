@@ -42,7 +42,7 @@ def describe_autoscaling():
 
         @pulumi.runtime.test
         def it_uses_the_clusters_resource_id(sut):
-            resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
+            resource_id = f"service/{sut.namespace}/{sut.namespace}"
             return assert_output_equals(sut.autoscaling_target.resource_id, resource_id)
 
         def describe_running_tasks_alarm():
@@ -240,7 +240,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut):
-                resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
+                resource_id = f"service/{sut.namespace}/{sut.namespace}"
                 return assert_output_equals(sut.autoscaling_in_policy.resource_id, resource_id)
 
             @pulumi.runtime.test
@@ -306,7 +306,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut):
-                resource_id = f"service/{sut.project_stack}/{sut.project_stack}"
+                resource_id = f"service/{sut.namespace}/{sut.namespace}"
                 return assert_output_equals(sut.autoscaling_out_policy.resource_id, resource_id)
 
             @pulumi.runtime.test

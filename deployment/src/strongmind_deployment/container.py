@@ -23,6 +23,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         :param name: The _unique_ name of the resource.
         :param opts: A bag of optional settings that control this resource's behavior.
+        :key namespace: A name to override the default naming of resources and DNS names.
         :key need_load_balancer: Whether to create a load balancer for the container. Defaults to True.
         :key container_image: The Docker image to use for the container. Required.
         :key container_port: The port to expose on the container. Defaults to 3000.
@@ -73,9 +74,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
 
         project = pulumi.get_project()
-        self.project_stack = f"{project}-{stack}"
+        self.namespace = kwargs.get('namespace', f"{project}-{stack}")
         if name != 'container':
-            self.project_stack = f"{self.project_stack}-{name}"
+            self.namespace = f"{self.namespace}-{name}"
 
         path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
         file_path = f"{path}/CODEOWNERS"
@@ -91,12 +92,12 @@ class ContainerComponent(pulumi.ComponentResource):
         }
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:
-            self.ecs_cluster = create_ecs_cluster(self, self.project_stack)
+            self.ecs_cluster = create_ecs_cluster(self, self.namespace)
 
             self.ecs_cluster_arn = self.ecs_cluster.arn
 
         if self.need_load_balancer:
-            self.setup_load_balancer(kwargs, project, self.project_stack, stack)
+            self.setup_load_balancer(kwargs, project, self.namespace, stack)
 
         log_name = 'log'
         if name != 'container':
@@ -104,7 +105,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.logs = aws.cloudwatch.LogGroup(
             log_name,
             retention_in_days=14,
-            name=f'/aws/ecs/{self.project_stack}',
+            name=f'/aws/ecs/{self.namespace}',
             tags=self.tags
         )
         self.log_metric_filter_definitions = kwargs.get('log_metric_filters', [])
@@ -112,11 +113,11 @@ class ContainerComponent(pulumi.ComponentResource):
             self.log_metric_filters.append(
                 aws.cloudwatch.LogMetricFilter(
                     log_metric_filter["metric_transformation"]["name"],
-                    name=self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
+                    name=self.namespace + "-" + log_metric_filter["metric_transformation"]["name"],
                     log_group_name=self.logs.name,
                     pattern=log_metric_filter["pattern"],
                     metric_transformation=aws.cloudwatch.LogMetricFilterMetricTransformationArgs(
-                        name=self.project_stack + "-" + log_metric_filter["metric_transformation"]["name"],
+                        name=self.namespace + "-" + log_metric_filter["metric_transformation"]["name"],
                         value=log_metric_filter["metric_transformation"]["value"],
                         namespace=log_metric_filter["metric_transformation"]["namespace"],
                         unit="Count"
@@ -133,8 +134,8 @@ class ContainerComponent(pulumi.ComponentResource):
             )]
 
         self.execution_role = aws.iam.Role(
-            f"{self.project_stack}-execution-role",
-            name=f"{self.project_stack}-execution-role",
+            f"{self.namespace}-execution-role",
+            name=f"{self.namespace}-execution-role",
             assume_role_policy=json.dumps(
                 {
                     "Version": "2008-10-17",
@@ -152,8 +153,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.execution_policy = aws.iam.RolePolicy(
-            f"{self.project_stack}-execution-policy",
-            name=f"{self.project_stack}-execution-policy",
+            f"{self.namespace}-execution-policy",
+            name=f"{self.namespace}-execution-policy",
             role=self.execution_role.id,
             policy=json.dumps(
                 {
@@ -187,8 +188,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.task_role = aws.iam.Role(
-            f"{self.project_stack}-task-role",
-            name=f"{self.project_stack}-task-role",
+            f"{self.namespace}-task-role",
+            name=f"{self.namespace}-task-role",
             assume_role_policy=json.dumps(
                 {
                     "Version": "2012-10-17",
@@ -208,8 +209,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
         self.task_policy = aws.iam.RolePolicy(
-            f"{self.project_stack}-task-policy",
-            name=f"{self.project_stack}-task-policy",
+            f"{self.namespace}-task-policy",
+            name=f"{self.namespace}-task-policy",
             role=self.task_role.id,
             policy=json.dumps(
                 {
@@ -242,8 +243,8 @@ class ContainerComponent(pulumi.ComponentResource):
 
         if self.kwargs.get('storage', False):
             self.s3_policy = aws.iam.Policy(
-                f"{self.project_stack}-s3-policy",
-                name=f"{self.project_stack}-s3Policy",
+                f"{self.namespace}-s3-policy",
+                name=f"{self.namespace}-s3Policy",
                 policy=json.dumps({
                     "Version": "2012-10-17",
                     "Statement": [{
@@ -260,7 +261,7 @@ class ContainerComponent(pulumi.ComponentResource):
             )
 
             self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
-                f"{self.project_stack}-s3PolicyAttachment",
+                f"{self.namespace}-s3PolicyAttachment",
                 role=self.task_role.id,
                 policy_arn=self.s3_policy.arn,
             )
@@ -269,9 +270,9 @@ class ContainerComponent(pulumi.ComponentResource):
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
             task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
             skip_destroy=True,
-            family=self.project_stack,
+            family=self.namespace,
             container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=self.project_stack,
+                name=self.namespace,
                 log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
                     log_driver="awslogs",
                     options={
@@ -296,7 +297,7 @@ class ContainerComponent(pulumi.ComponentResource):
             service_name = f'{name}-service'
         self.fargate_service = awsx.ecs.FargateService(
             service_name,
-            name=self.project_stack,
+            name=self.namespace,
             desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
@@ -328,7 +329,7 @@ class ContainerComponent(pulumi.ComponentResource):
             "autoscaling_target",
             max_capacity=self.max_capacity,
             min_capacity=self.desired_count,
-            resource_id=f"service/{self.project_stack}/{self.project_stack}",
+            resource_id=f"service/{self.namespace}/{self.namespace}",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
             opts=pulumi.ResourceOptions(
@@ -337,7 +338,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.autoscaling_out_policy = aws.appautoscaling.Policy(
             "autoscaling_out_policy",
-            name=f"{self.project_stack}-autoscaling-out-policy",
+            name=f"{self.namespace}-autoscaling-out-policy",
             policy_type="StepScaling",
             resource_id=self.autoscaling_target.resource_id,
             scalable_dimension=self.autoscaling_target.scalable_dimension,
@@ -367,7 +368,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_alarm",
-            name=f"{self.project_stack}-auto-scaling-out-alarm",
+            name=f"{self.namespace}-auto-scaling-out-alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
             actions_enabled=True,
             alarm_actions=[self.autoscaling_out_policy.arn],
@@ -388,7 +389,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
             "autoscaling_in_policy",
-            name=f"{self.project_stack}-autoscaling-in-policy",
+            name=f"{self.namespace}-autoscaling-in-policy",
             policy_type="StepScaling",
             resource_id=self.autoscaling_target.resource_id,
             scalable_dimension=self.autoscaling_target.scalable_dimension,
@@ -407,7 +408,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
         self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             "autoscaling_in_alarm",
-            name=f"{self.project_stack}-auto-scaling-in-alarm",
+            name=f"{self.namespace}-auto-scaling-in-alarm",
             comparison_operator="LessThanThreshold",
             actions_enabled=True,
             alarm_actions=[self.autoscaling_in_policy.arn],
@@ -428,14 +429,14 @@ class ContainerComponent(pulumi.ComponentResource):
 
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
             "running_tasks_alarm",
-            name=f"{self.project_stack}-running-tasks-alarm",
+            name=f"{self.namespace}-running-tasks-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
             metric_name="RunningTaskCount",
             namespace="ECS/ContainerInsights",
             dimensions={
-                "ClusterName": self.project_stack,
-                "ServiceName": self.project_stack
+                "ClusterName": self.namespace,
+                "ServiceName": self.namespace
             },
             period=60,
             statistic="Maximum",
@@ -446,7 +447,7 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags
         )
 
-    def setup_load_balancer(self, kwargs, project, project_stack, stack):
+    def setup_load_balancer(self, kwargs, project, namespace, stack):
         self.certificate(project, stack)
 
         default_vpc = awsx.ec2.DefaultVpc("default_vpc")
@@ -454,7 +455,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         self.target_group = aws.lb.TargetGroup(
             "target_group",
-            name=f"{project_stack}-tg",
+            name=f"{namespace}-tg",
             port=self.container_port,
             protocol="HTTP",
             target_type="ip",
@@ -478,6 +479,7 @@ class ContainerComponent(pulumi.ComponentResource):
             placement=alb.AlbPlacement.EXTERNAL,
             certificate_arn=self.cert.arn,
             tags=self.tags,
+            namespace=self.kwargs.get('namespace', None)
         )
         self.alb = alb.Alb("loadbalancer", alb_args)
         self.load_balancer = self.alb.alb
@@ -518,7 +520,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                            load_balancer_name, target_group_name).apply(lambda args:
                                                                                                         aws.cloudwatch.MetricAlarm(
                                                                                                             "healthy_host_metric_alarm",
-                                                                                                            name=f"{project_stack}-healthy-host-metric-alarm",
+                                                                                                            name=f"{namespace}-healthy-host-metric-alarm",
                                                                                                             actions_enabled=True,
                                                                                                             ok_actions=[
                                                                                                                 self.sns_topic_arn],
@@ -590,7 +592,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                              load_balancer_name, target_group_name).apply(lambda args:
                                                                                                           aws.cloudwatch.MetricAlarm(
                                                                                                               "unhealthy_host_metric_alarm",
-                                                                                                              name=f"{project_stack}-unhealthy-host-metric-alarm",
+                                                                                                              name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
                                                                                                                   self.sns_topic_arn],
