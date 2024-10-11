@@ -50,7 +50,7 @@ def describe_a_application_load_balancer_component():
 
     @pytest.fixture
     def sut(name, alb_args, pulumi_set_mocks):
-        from strongmind.alb import Alb
+        from strongmind_deployment.alb import Alb
         return Alb(name, alb_args)
 
     @pulumi.runtime.test
@@ -73,7 +73,7 @@ def describe_a_application_load_balancer_component():
 
         @pytest.fixture
         def alb_args(vpc_id, certificate_arn, namespace):
-            from strongmind.alb import AlbArgs
+            from strongmind_deployment.alb import AlbArgs
             return AlbArgs(
                 vpc_id=vpc_id,
                 subnets=['subnet-123456', 'subnet-654321'],
@@ -85,7 +85,7 @@ def describe_a_application_load_balancer_component():
 
         @pytest.fixture
         def sut(name, alb_args, pulumi_set_mocks):
-            from strongmind.alb import Alb
+            from strongmind_deployment.alb import Alb
             return Alb(name, alb_args)
 
         def it_has_a_custom_namespace(sut, namespace):
