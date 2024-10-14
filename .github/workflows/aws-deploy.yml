@@ -21,10 +21,6 @@ on:
         required: false
         type: string
         default: 'up'
-      pulumi-refresh:
-        required: false
-        type: string
-        default: 'true'
 
 jobs:
   deploy-auto:
@@ -36,7 +32,6 @@ jobs:
       web-container-image: ${{ inputs.web-repository-name }}:${{ github.event.workflow_run.head_sha }}
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.event.workflow_run.head_sha }}
       pulumi-command: ${{ inputs.pulumi-command }}
-      pulumi-refresh: ${{ inputs.pulumi-refresh }}
     secrets: inherit
 
   deploy-manual:
@@ -48,7 +43,6 @@ jobs:
       web-container-image: ${{ inputs.web-repository-name }}:${{ github.sha }}
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.sha }}
       pulumi-command: ${{ inputs.pulumi-command }}
-      pulumi-refresh: ${{ inputs.pulumi-refresh }}
     secrets: inherit
 
 
@@ -60,6 +54,4 @@ jobs:
       environment-name: ${{ inputs.environment-name }}
       web-container-image: ${{ inputs.web-repository-name }}:${{ inputs.commit-sha }}
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ inputs.commit-sha }}
-      pulumi-command: ${{ inputs.pulumi-command }}
-      pulumi-refresh: ${{ inputs.pulumi-refresh }}
     secrets: inherit
