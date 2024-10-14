@@ -28,10 +28,6 @@ on:
         required: false
         type: string
         default: "3.2.2"
-      pulumi-refresh:
-        required: false
-        type: string
-        default: 'true'
 
 env:
   AWS_REGION: us-west-2
@@ -40,23 +36,6 @@ permissions:
   contents: read
 
 jobs:
-  pulumi-refresh-prod:
-    name: pulumi refresh on prod
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
-    if: ${{ inputs.pulumi-refresh == 'true' }}
-    with:
-      environment-name: prod
-      pulumi-command: refresh
-    secrets: inherit
-
-  pulumi-refresh-stage:
-    name: pulumi refresh on stage
-    uses: strongmind/public-reusable-workflows/.github/workflows/aws-deploy.yml@main
-    if: ${{ inputs.pulumi-refresh == 'true' }}
-    with:
-      environment-name: stage
-      pulumi-command: refresh
-    secrets: inherit
 
   publish-commit:
     name: publish commit
