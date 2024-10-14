@@ -18,6 +18,10 @@ on:
         required: false
         type: string
         default: "up"
+      pulumi-refresh:
+        required: false
+        type: string
+        default: 'true'
 
 env:
   AWS_REGION: us-west-2
@@ -60,6 +64,22 @@ jobs:
         source venv/bin/activate
         pip install -r requirements.txt  
         cd ..
+
+    - name: Refresh Pulumi
+      if: ${{ inputs.pulumi-refresh == 'true' }}
+      env:
+        PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.web-container-image }}
+        WORKER_CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ inputs.worker-container-image }}
+        RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+        CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+        ENVIRONMENT_NAME: ${{ inputs.environment-name }}
+      run: |
+        cd ./infrastructure/
+        pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
+        pulumi stack init ${{ inputs.environment-name }} --non-interactive || true
+        pulumi stack select ${{ inputs.environment-name }}
+        pulumi refresh --yes -v=3    
 
     - name: Deploy with Pulumi
       env:
