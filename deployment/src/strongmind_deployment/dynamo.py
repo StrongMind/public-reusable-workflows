@@ -4,6 +4,8 @@ from pulumi import ResourceOptions
 
 
 class DynamoComponent(pulumi.ComponentResource):
+    namespace: str
+
     def __init__(self, name, opts=None, **kwargs):
         """
         Resource that creates a Dynamo Table.
@@ -17,6 +19,7 @@ class DynamoComponent(pulumi.ComponentResource):
         super().__init__('strongmind:global_build:commons:dynamo', name, None, opts)
         project = pulumi.get_project()
         stack = pulumi.get_stack()
+        self.namespace = kwargs.get("namespace", f"{project}-{stack}")
         table_opts = ResourceOptions(
             parent=self,
             ignore_changes=["read_capacity", "write_capacity"],
@@ -29,7 +32,7 @@ class DynamoComponent(pulumi.ComponentResource):
         for attribute_name, attribute_type in kwargs.get("attributes", {}).items():
             attributes.append(aws.dynamodb.TableAttributeArgs(name=attribute_name, type=attribute_type))
 
-        table_name = f"{project}-{stack}-{name}"
+        table_name = f"{self.namespace}-{name}"
         self.table = aws.dynamodb.Table(
             name,
             name=table_name,
