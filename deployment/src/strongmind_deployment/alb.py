@@ -5,6 +5,7 @@ import pulumi_aws as aws
 import pulumi_aws.ec2 as ec2
 import pulumi_aws.lb as lb
 from strongmind_deployment import vpc
+from strongmind_deployment.util import qualify_component_name
 
 
 class AlbPlacement(str, Enum):
@@ -58,7 +59,7 @@ class Alb(pulumi.ComponentResource):
     https_listener: lb.Listener
     security_group: ec2.SecurityGroup
 
-    def __init__(self, name: str, args: AlbArgs, opts=None):
+    def __init__(self, name: str, args: AlbArgs, opts=None, **kwargs):
         super().__init__("strongmind:global_build:commons:alb", name, {}, opts)
 
         self.http_ingress = None
@@ -74,7 +75,7 @@ class Alb(pulumi.ComponentResource):
         project = pulumi.get_project()[:18]
         self.namespace = args.namespace or f"{project}-{stack}"
         self.tags = args.tags or {}
-
+        self.kwargs = kwargs
 
         self.child_opts = pulumi.ResourceOptions(parent=self)
         self.create_resources()
@@ -100,7 +101,7 @@ class Alb(pulumi.ComponentResource):
         self.security_group = alb_security_group
 
         ec2.SecurityGroupRule(
-            "alb_default_egress_rule",
+            qualify_component_name("alb_default_egress_rule", self.kwargs),
             type="egress",
             from_port=0,
             to_port=0,
@@ -197,7 +198,7 @@ class Alb(pulumi.ComponentResource):
 
         if not self.is_internal:
             self.tls_ingress = ec2.SecurityGroupRule(
-                "tls_ingress",
+                qualify_component_name("tls_ingress", self.kwargs),
                 description="TLS internet",
                 type="ingress",
                 from_port=443,
@@ -209,7 +210,7 @@ class Alb(pulumi.ComponentResource):
                 security_group_id=security_group.id,
             )
             self.http_ingress = ec2.SecurityGroupRule(
-                "http_ingress",
+                qualify_component_name("http_ingress", self.kwargs),
                 description="Internet",
                 type="ingress",
                 from_port=80,

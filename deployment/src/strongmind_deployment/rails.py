@@ -14,7 +14,7 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
-from strongmind_deployment.util import create_ecs_cluster
+from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 
 
 def sidekiq_present():  # pragma: no cover
@@ -147,7 +147,8 @@ class RailsComponent(pulumi.ComponentResource):
             if isinstance(self.kwargs['queue_redis'], RedisComponent):
                 self.queue_redis = self.kwargs['queue_redis']
             elif self.kwargs['queue_redis']:
-                self.queue_redis = QueueComponent("queue-redis", **queue_redis_kwargs)
+                self.queue_redis = QueueComponent(qualify_component_name('queue-redis', self.kwargs),
+                                                  **queue_redis_kwargs)
 
             if self.queue_redis:
                 self.env_vars['QUEUE_REDIS_URL'] = self.queue_redis.url
@@ -158,8 +159,8 @@ class RailsComponent(pulumi.ComponentResource):
                 cache_redis_kwargs = {}
                 if 'namespace' in self.kwargs:
                     cache_redis_kwargs['namespace'] = self.kwargs['namespace']
-
-                self.cache_redis = CacheComponent("cache-redis", **cache_redis_kwargs)
+                self.cache_redis = CacheComponent(qualify_component_name('cache-redis', self.kwargs),
+                                                  **cache_redis_kwargs)
 
             if self.cache_redis:
                 self.env_vars['CACHE_REDIS_URL'] = self.cache_redis.url
@@ -180,7 +181,7 @@ class RailsComponent(pulumi.ComponentResource):
         )
 
     def ecs(self):
-        self.ecs_cluster = create_ecs_cluster(self, self.namespace)
+        self.ecs_cluster = create_ecs_cluster(self, self.namespace, self.kwargs)
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
 
         container_image = os.environ['CONTAINER_IMAGE']
@@ -222,7 +223,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['worker_autoscale'] = False
 
         self.migration_container = ContainerComponent(
-            "migration",
+            qualify_component_name("migration", self.kwargs),
             need_load_balancer=False,
             desired_count=0,
             opts=pulumi.ResourceOptions(parent=self,
@@ -298,7 +299,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['log_metric_filters'] = []
 
     def secrets(self):
-        self.secret = SecretsComponent("secrets",
+        self.secret = SecretsComponent(qualify_component_name("secrets", self.kwargs),
                                        pulumi.ResourceOptions(parent=self),
                                        **self.kwargs
                                        )
@@ -310,7 +311,7 @@ class RailsComponent(pulumi.ComponentResource):
 
     def rds(self):
         self.db_username = self.kwargs.get("db_username", self.namespace.replace('-', '_'))
-        self.db_password = random.RandomPassword("password",
+        self.db_password = random.RandomPassword(qualify_component_name("password", self.kwargs),
                                                  length=30,
                                                  special=False)
         self.db_name = self.kwargs.get("db_name", "app")
@@ -322,7 +323,7 @@ class RailsComponent(pulumi.ComponentResource):
             master_db_password = self.hashed_password
 
         self.rds_serverless_cluster = aws.rds.Cluster(
-            'rds_serverless_cluster',
+            qualify_component_name('rds_serverless_cluster', self.kwargs),
             cluster_identifier=self.namespace,
             engine='aurora-postgresql',
             engine_mode='provisioned',
@@ -347,7 +348,7 @@ class RailsComponent(pulumi.ComponentResource):
                                         protect=True)
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
-            'rds_serverless_cluster_instance',
+            qualify_component_name('rds_serverless_cluster_instance', self.kwargs),
             identifier=self.namespace,
             cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
             instance_class='db.serverless',

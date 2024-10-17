@@ -27,8 +27,8 @@ def get_account_stack_name(force_stack: str = None) -> str:
     return f"organization/account/{account_stack}"
 
 
-def create_ecs_cluster(parent_component, name):
-    return aws.ecs.Cluster("cluster",
+def create_ecs_cluster(parent_component, name, kwargs):
+    return aws.ecs.Cluster(qualify_component_name("cluster", kwargs),
                            name=name,
                            tags=parent_component.tags,
                            settings=[{
@@ -37,3 +37,8 @@ def create_ecs_cluster(parent_component, name):
                            }],
                            opts=pulumi.ResourceOptions(parent=parent_component),
                            )
+
+def qualify_component_name(name, kwargs):
+    if 'namespace' in kwargs:
+        return f"{kwargs['namespace']}-{name}"
+    return name

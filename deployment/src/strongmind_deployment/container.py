@@ -12,7 +12,7 @@ from pulumi_cloudflare import Record
 
 from strongmind_deployment import alb
 from strongmind_deployment import operations
-from strongmind_deployment.util import create_ecs_cluster
+from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
 
 
@@ -92,7 +92,7 @@ class ContainerComponent(pulumi.ComponentResource):
         }
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
         if self.ecs_cluster_arn is None:
-            self.ecs_cluster = create_ecs_cluster(self, self.namespace)
+            self.ecs_cluster = create_ecs_cluster(self, self.namespace, self.kwargs)
 
             self.ecs_cluster_arn = self.ecs_cluster.arn
 
@@ -103,7 +103,7 @@ class ContainerComponent(pulumi.ComponentResource):
         if name != 'container':
             log_name = f'{name}-log'
         self.logs = aws.cloudwatch.LogGroup(
-            log_name,
+            qualify_component_name(log_name, self.kwargs),
             retention_in_days=14,
             name=f'/aws/ecs/{self.namespace}',
             tags=self.tags
@@ -428,7 +428,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
-            "running_tasks_alarm",
+            qualify_component_name("running_tasks_alarm", self.kwargs),
             name=f"{self.namespace}-running-tasks-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
@@ -450,11 +450,11 @@ class ContainerComponent(pulumi.ComponentResource):
     def setup_load_balancer(self, kwargs, project, namespace, stack):
         self.certificate(project, stack)
 
-        default_vpc = awsx.ec2.DefaultVpc("default_vpc")
+        default_vpc = awsx.ec2.DefaultVpc(qualify_component_name("default_vpc", self.kwargs))
         health_check_path = kwargs.get('custom_health_check_path', '/up')
 
         self.target_group = aws.lb.TargetGroup(
-            "target_group",
+            qualify_component_name("target_group", self.kwargs),
             name=f"{namespace}-tg",
             port=self.container_port,
             protocol="HTTP",
@@ -481,7 +481,7 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             namespace=self.kwargs.get('namespace', None)
         )
-        self.alb = alb.Alb("loadbalancer", alb_args)
+        self.alb = alb.Alb(qualify_component_name("loadbalancer", self.kwargs), alb_args)
         self.load_balancer = self.alb.alb
         self.load_balancer_listener = self.alb.https_listener
         self.load_balancer_listener_redirect_http_to_https = self.alb.redirect_listener
@@ -678,6 +678,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def dns(self, name, stack):
         if stack != "prod":
             name = f"{stack}-{name}"
+        name = self.kwargs.get('namespace', name)
         domain = 'strongmind.com'
         full_name = f"{name}.{domain}"
         zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
