@@ -38,7 +38,10 @@ def create_ecs_cluster(parent_component, name, kwargs):
                            opts=pulumi.ResourceOptions(parent=parent_component),
                            )
 
-def qualify_component_name(name, kwargs):
+
+def qualify_component_name(name, kwargs, truncate=False):
     if 'namespace' in kwargs:
+        if len(f"{kwargs['namespace']}-{name}") > 32 and truncate:
+            return f"{kwargs['namespace']}-{name}"[:32]
         return f"{kwargs['namespace']}-{name}"
     return name

@@ -36,7 +36,7 @@ class RedisComponent(pulumi.ComponentResource):
         dependencies = []
         if hasattr(self, 'parameter_group'):
             dependencies.append(self.parameter_group)
-        if self.kwargs.get('namespace'):
+        if 'namespace' in self.kwargs:
             cluster_id = name
         else:
             cluster_id = f"{self.namespace}-{name}"

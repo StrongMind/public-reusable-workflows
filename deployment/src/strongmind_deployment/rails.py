@@ -168,7 +168,7 @@ class RailsComponent(pulumi.ComponentResource):
 
     def security(self):
         self.firewall_rule = aws.ec2.SecurityGroupRule(
-            'rds_security_group_rule',
+            qualify_component_name('rds_security_group_rule', self.kwargs),
             type='ingress',
             from_port=5432,
             to_port=5432,
@@ -243,7 +243,7 @@ class RailsComponent(pulumi.ComponentResource):
             subnets=subnets,
             security_groups=self.container_security_groups,
         )
-        self.execution = ExecutionComponent("execution",
+        self.execution = ExecutionComponent(qualify_component_name("execution", self.kwargs),
                                             execution_inputs,
                                             opts=pulumi.ResourceOptions(parent=self,
                                                                         depends_on=[self.migration_container]))
@@ -258,7 +258,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['autoscale'] = self.autoscale
         self.kwargs['worker_autoscale'] = False
 
-        self.web_container = ContainerComponent("container",
+        self.web_container = ContainerComponent(qualify_component_name("container", self.kwargs),
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
                                                                        ),
@@ -290,7 +290,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['worker_autoscale'] = self.worker_autoscale
         self.kwargs['deployment_maximum_percent'] = 200
 
-        self.worker_container = ContainerComponent("worker",
+        self.worker_container = ContainerComponent(qualify_component_name("worker", self.kwargs),
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
@@ -380,7 +380,7 @@ class RailsComponent(pulumi.ComponentResource):
             self.env_vars[env_var_name] = table_component.table.name
 
     def setup_storage(self):
-        self.storage = StorageComponent("storage",
+        self.storage = StorageComponent(qualify_component_name("storage", self.kwargs),
                                         pulumi.ResourceOptions(parent=self, protect=True),
                                         **self.kwargs
                                         )

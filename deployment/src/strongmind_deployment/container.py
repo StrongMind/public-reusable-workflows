@@ -296,7 +296,7 @@ class ContainerComponent(pulumi.ComponentResource):
         if name != 'container':
             service_name = f'{name}-service'
         self.fargate_service = awsx.ecs.FargateService(
-            service_name,
+            qualify_component_name(f'{service_name}', self.kwargs),
             name=self.namespace,
             desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
@@ -314,7 +314,7 @@ class ContainerComponent(pulumi.ComponentResource):
         if self.kwargs.get('autoscale'):
             self.autoscaling()
         if self.kwargs.get('worker_autoscale'):
-            self.worker_autoscaling = WorkerAutoscaleComponent("worker-autoscale",
+            self.worker_autoscaling = WorkerAutoscaleComponent(qualify_component_name("worker-autoscale", self.kwargs),
                                                                opts=pulumi.ResourceOptions(
                                                                    parent=self,
                                                                    depends_on=[self.fargate_service]
@@ -326,7 +326,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def autoscaling(self):
 
         self.autoscaling_target = aws.appautoscaling.Target(
-            "autoscaling_target",
+            qualify_component_name("autoscaling_target", self.kwargs),
             max_capacity=self.max_capacity,
             min_capacity=self.desired_count,
             resource_id=f"service/{self.namespace}/{self.namespace}",
@@ -337,7 +337,7 @@ class ContainerComponent(pulumi.ComponentResource):
             ),
         )
         self.autoscaling_out_policy = aws.appautoscaling.Policy(
-            "autoscaling_out_policy",
+            qualify_component_name("autoscaling_out_policy", self.kwargs),
             name=f"{self.namespace}-autoscaling-out-policy",
             policy_type="StepScaling",
             resource_id=self.autoscaling_target.resource_id,
@@ -367,7 +367,7 @@ class ContainerComponent(pulumi.ComponentResource):
             lambda arn: arn.split("/", 1)[1]
         )
         self.autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
-            "autoscaling_alarm",
+            qualify_component_name("autoscaling_alarm", self.kwargs),
             name=f"{self.namespace}-auto-scaling-out-alarm",
             comparison_operator="GreaterThanOrEqualToThreshold",
             actions_enabled=True,
@@ -388,7 +388,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
-            "autoscaling_in_policy",
+            qualify_component_name("autoscaling_in_policy", self.kwargs),
             name=f"{self.namespace}-autoscaling-in-policy",
             policy_type="StepScaling",
             resource_id=self.autoscaling_target.resource_id,
@@ -407,7 +407,7 @@ class ContainerComponent(pulumi.ComponentResource):
             )
         )
         self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
-            "autoscaling_in_alarm",
+            qualify_component_name("autoscaling_in_alarm", self.kwargs),
             name=f"{self.namespace}-auto-scaling-in-alarm",
             comparison_operator="LessThanThreshold",
             actions_enabled=True,
@@ -454,8 +454,8 @@ class ContainerComponent(pulumi.ComponentResource):
         health_check_path = kwargs.get('custom_health_check_path', '/up')
 
         self.target_group = aws.lb.TargetGroup(
-            qualify_component_name("target_group", self.kwargs),
-            name=f"{namespace}-tg",
+            qualify_component_name("target_group", self.kwargs, truncate=True),
+            name=f"{namespace}-tg"[:32],
             port=self.container_port,
             protocol="HTTP",
             target_type="ip",
@@ -472,7 +472,6 @@ class ContainerComponent(pulumi.ComponentResource):
                 unhealthy_threshold=2,
             ),
         )
-
         alb_args = alb.AlbArgs(
             vpc_id=default_vpc.vpc_id,
             subnets=default_vpc.public_subnet_ids,
@@ -481,13 +480,13 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             namespace=self.kwargs.get('namespace', None)
         )
-        self.alb = alb.Alb(qualify_component_name("loadbalancer", self.kwargs), alb_args)
+        self.alb = alb.Alb(qualify_component_name("loadbalancer", self.kwargs), alb_args, **self.kwargs)
         self.load_balancer = self.alb.alb
         self.load_balancer_listener = self.alb.https_listener
         self.load_balancer_listener_redirect_http_to_https = self.alb.redirect_listener
 
         self.listener_rule = aws.lb.ListenerRule(
-            "service_listener_rule",
+            qualify_component_name("service_listener_rule", self.kwargs),
             listener_arn=self.alb.https_listener.arn,
             priority=1000,
             actions=[
@@ -519,7 +518,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension,
                                                            load_balancer_name, target_group_name).apply(lambda args:
                                                                                                         aws.cloudwatch.MetricAlarm(
-                                                                                                            "healthy_host_metric_alarm",
+                                                                                                            qualify_component_name("healthy_host_metric_alarm", self.kwargs),
                                                                                                             name=f"{namespace}-healthy-host-metric-alarm",
                                                                                                             actions_enabled=True,
                                                                                                             ok_actions=[
@@ -591,7 +590,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.unhealthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension,
                                                              load_balancer_name, target_group_name).apply(lambda args:
                                                                                                           aws.cloudwatch.MetricAlarm(
-                                                                                                              "unhealthy_host_metric_alarm",
+                                                                                                              qualify_component_name("unhealthy_host_metric_alarm", self.kwargs),
                                                                                                               name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
@@ -668,7 +667,7 @@ class ContainerComponent(pulumi.ComponentResource):
         domain = 'strongmind.com'
         full_name = f"{name}.{domain}"
         self.cert = aws.acm.Certificate(
-            "cert",
+            qualify_component_name("cert", self.kwargs),
             domain_name=full_name,
             validation_method="DNS",
             tags=self.tags,
@@ -686,7 +685,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                       self.load_balancer.dns_name)  # pragma: no cover
         if self.kwargs.get('cname', True):
             self.cname_record = Record(
-                'cname_record',
+                qualify_component_name('cname_record', self.kwargs),
                 name=name,
                 type='CNAME',
                 allow_overwrite=True,
@@ -709,7 +708,7 @@ class ContainerComponent(pulumi.ComponentResource):
             resource_record_value = resource_record_value.apply(remove_trailing_period)
 
         self.cert_validation_record = Record(
-            'cert_validation_record',
+            qualify_component_name('cert_validation_record', self.kwargs),
             name=domain_validation_options[0].resource_record_name,
             type=domain_validation_options[0].resource_record_type,
             zone_id=zone_id,
@@ -719,7 +718,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         self.cert_validation_cert = aws.acm.CertificateValidation(
-            "cert_validation",
+            qualify_component_name("cert_validation", self.kwargs),
             certificate_arn=self.cert.arn,
             validation_record_fqdns=[self.cert_validation_record.hostname],
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
