@@ -82,7 +82,7 @@ jobs:
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
         ENVIRONMENT_NAME: ${{ inputs.environment-name }}
-        ID_MAPPER_SECRET: ${{ secrets.ID_MAPPER_SECRET }}
+        ID_MAPPER_TOKEN: ${{ secrets.ID_MAPPER_TOKEN }}
         ID_MAPPER_DOMAIN: ${{ secrets.ID_MAPPER_DOMAIN }}
       run: |
         cd ./infrastructure/
