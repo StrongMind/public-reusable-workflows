@@ -24,6 +24,10 @@ def describe_a_dynamo_component():
         return faker.word()
 
     @pytest.fixture
+    def namespace(app_name, environment):
+        return f"{app_name}-{environment}"
+
+    @pytest.fixture
     def pulumi_mocks(faker):
         return get_pulumi_mocks(faker)
 
@@ -40,6 +44,29 @@ def describe_a_dynamo_component():
     def it_is_a_component_resource(sut):
         assert isinstance(sut, pulumi.ComponentResource)
 
+    @pulumi.runtime.test
+    def it_has_a_default_namespace_based_on_project_stack(sut, app_name, stack):
+        assert sut.namespace == f"{app_name}-{stack}"
+
+    @pulumi.runtime.test
+    def it_no_longer_has_a_project_stack(sut):
+        assert not hasattr(sut, 'project_stack')
+
+    def describe_with_a_custom_namespace():
+        @pytest.fixture
+        def namespace(faker):
+            return faker.word()
+
+        @pytest.fixture
+        def sut(name, namespace, pulumi_set_mocks):
+            import strongmind_deployment.dynamo
+            return strongmind_deployment.dynamo.DynamoComponent(name, hash_key="id", attributes={"id": "N"}, namespace=namespace)
+
+        @pulumi.runtime.test
+        def it_has_a_custom_namespace(sut, namespace):
+            assert sut.namespace == namespace
+
+
     def describe_a_table():
         @pulumi.runtime.test
         def it_exists(sut):
@@ -54,8 +81,8 @@ def describe_a_dynamo_component():
             assert sut._type == "strongmind:global_build:commons:dynamo"
 
         @pulumi.runtime.test
-        def it_has_a_table_name(sut, name, app_name, stack):
-            return assert_output_equals(sut.table.name, f"{app_name}-{stack}-{name}")
+        def it_has_a_table_name(sut, name, namespace):
+            return assert_output_equals(sut.table.name, f"{namespace}-{name}")
 
         def describe_with_attributes():
             @pytest.fixture
