@@ -36,10 +36,13 @@ class RedisComponent(pulumi.ComponentResource):
         dependencies = []
         if hasattr(self, 'parameter_group'):
             dependencies.append(self.parameter_group)
-
+        if 'namespace' in self.kwargs:
+            cluster_id = name
+        else:
+            cluster_id = f"{self.namespace}-{name}"
         self.cluster = aws.elasticache.Cluster(
             name,
-            cluster_id=f'{self.namespace}-{name}',
+            cluster_id=cluster_id,
             engine="redis",
             node_type=self.node_type,
             engine_version="7.0",

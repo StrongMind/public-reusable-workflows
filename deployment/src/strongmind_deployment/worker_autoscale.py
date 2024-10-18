@@ -1,6 +1,8 @@
 import pulumi
 import pulumi_aws as aws
 
+from strongmind_deployment.util import qualify_component_name
+
 
 class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
@@ -16,6 +18,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_autoscaling_out_alarm = None
         self.worker_autoscaling_out_policy = None
         self.worker_autoscaling_target = None
+        self.kwargs = kwargs
         self.namespace = kwargs.get("namespace", f"{pulumi.get_project()}-{pulumi.get_stack()}")
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 65)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
@@ -26,7 +29,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
 
     def worker_autoscaling(self):
         self.worker_autoscaling_target = aws.appautoscaling.Target(
-            "worker_autoscaling_target",
+            qualify_component_name("worker_autoscaling_target", self.kwargs),
             max_capacity=self.worker_max_capacity,
             min_capacity=self.worker_min_capacity,
             resource_id=f"service/{self.namespace}/{self.namespace}-worker",
@@ -34,7 +37,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             service_namespace="ecs",
         )
         self.worker_autoscaling_out_policy = aws.appautoscaling.Policy(
-            "worker_autoscaling_out_policy",
+            qualify_component_name("worker_autoscaling_out_policy", self.kwargs),
             name=f"{self.namespace}-worker-autoscaling-out-policy",
             policy_type="StepScaling",
             resource_id=self.worker_autoscaling_target.resource_id,
@@ -59,7 +62,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         )
 
         self.worker_autoscaling_out_alarm = aws.cloudwatch.MetricAlarm(
-            "worker_autoscaling_out_alarm",
+            qualify_component_name("worker_autoscaling_out_alarm", self.kwargs),
             name=f"{self.namespace}-worker-auto-scaling-out-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
@@ -76,7 +79,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         )
 
         self.worker_queue_latency_alarm = aws.cloudwatch.MetricAlarm(
-            "worker_queue_latency_alarm",
+            qualify_component_name("worker_queue_latency_alarm", self.kwargs),
             name=f"{self.namespace}-worker-queue-latency-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
@@ -94,7 +97,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         )
 
         self.worker_autoscaling_in_policy = aws.appautoscaling.Policy(
-            "worker_autoscaling_in_policy",
+            qualify_component_name("worker_autoscaling_in_policy", self.kwargs),
             name=f"{self.namespace}-worker-autoscaling-in-policy",
             policy_type="StepScaling",
             resource_id=self.worker_autoscaling_target.resource_id,
@@ -114,7 +117,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         )
 
         self.worker_autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
-            "worker_autoscaling_in_alarm",
+            qualify_component_name("worker_autoscaling_in_alarm", self.kwargs),
             name=f"{self.namespace}-worker-auto-scaling-in-alarm",
             comparison_operator="LessThanOrEqualToThreshold",
             evaluation_periods=5,

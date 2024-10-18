@@ -94,8 +94,8 @@ def describe_a_pulumi_redis_component():
                 return component_arguments
 
             @pulumi.runtime.test
-            def test_it_has_a_cluster_id(sut, namespace, name):
-                return assert_output_equals(sut.cluster.cluster_id, f"{namespace}-{name}")
+            def test_it_has_a_cluster_id(sut, name):
+                return assert_output_equals(sut.cluster.cluster_id, name)
 
         def describe_with_defaults():
             @pulumi.runtime.test
