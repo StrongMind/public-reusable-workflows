@@ -18,6 +18,10 @@ on:
         required: false
         type: string
         default: "up"
+      pulumi-bucket:
+        required: false
+        type: string
+        default: "pulumi-state-sm"
 
 env:
   AWS_REGION: us-west-2
@@ -36,10 +40,19 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Configure AWS credentials
+      if: inputs.pulumi-bucket == 'pulumi-state-sm'
       uses: aws-actions/configure-aws-credentials@v4
       with:
         aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Configure AWS credentials
+      if: inputs.pulumi-bucket == 'pulumi-state-sm-tesla'
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.CANVAS_AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.CANVAS_AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
@@ -69,9 +82,11 @@ jobs:
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
         ENVIRONMENT_NAME: ${{ inputs.environment-name }}
+        ID_MAPPER_TOKEN: ${{ secrets.ID_MAPPER_TOKEN }}
+        ID_MAPPER_DOMAIN: ${{ secrets.ID_MAPPER_DOMAIN }}
       run: |
         cd ./infrastructure/
-        pulumi login s3://pulumi-state-sm/${{ github.event.repository.name }}
+        pulumi login s3://${{ inputs.pulumi-bucket }}/${{ github.event.repository.name }}
         pulumi stack init ${{ inputs.environment-name }} --non-interactive || true
         pulumi stack select ${{ inputs.environment-name }}
         pulumi ${{ inputs.pulumi-command }} --yes -v=3
