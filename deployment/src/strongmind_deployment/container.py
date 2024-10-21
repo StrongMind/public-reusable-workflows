@@ -665,7 +665,8 @@ class ContainerComponent(pulumi.ComponentResource):
         if stack != "prod":
             name = f"{stack}-{name}"
         domain = 'strongmind.com'
-        full_name = f"{name}.{domain}"
+        subdomain = self.kwargs.get('subdomain', name)
+        full_name = f"{subdomain}.{domain}"
         self.cert = aws.acm.Certificate(
             qualify_component_name("cert", self.kwargs),
             domain_name=full_name,
@@ -677,16 +678,14 @@ class ContainerComponent(pulumi.ComponentResource):
     def dns(self, name, stack):
         if stack != "prod":
             name = f"{stack}-{name}"
-        name = self.kwargs.get('namespace', name)
-        domain = 'strongmind.com'
-        full_name = f"{name}.{domain}"
+        subdomain = self.kwargs.get('subdomain', name)
         zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
         lb_dns_name = self.kwargs.get('load_balancer_dns_name',
                                       self.load_balancer.dns_name)  # pragma: no cover
         if self.kwargs.get('cname', True):
             self.cname_record = Record(
                 qualify_component_name('cname_record', self.kwargs),
-                name=name,
+                name=subdomain,
                 type='CNAME',
                 allow_overwrite=True,
                 zone_id=zone_id,
@@ -694,7 +693,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 ttl=1,
                 opts=pulumi.ResourceOptions(parent=self),
             )
-        pulumi.export("url", Output.concat("https://", full_name))
+        pulumi.export("url", Output.concat("https://", subdomain, ".strongmind.com"))
 
         domain_validation_options = self.kwargs.get('domain_validation_options',
                                                     self.cert.domain_validation_options)  # pragma: no cover

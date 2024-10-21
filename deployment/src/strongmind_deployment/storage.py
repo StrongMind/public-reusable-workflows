@@ -15,7 +15,8 @@ class StorageComponent(pulumi.ComponentResource):
 
         project = pulumi.get_project()
         stack = pulumi.get_stack()
-        bucket_name = f"strongmind-{project}-{stack}"
+        namespace = kwargs.get('namespace', f"{project}-{stack}")
+        bucket_name = f"strongmind-{namespace}"
         path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
         file_path = f"{path}/CODEOWNERS"
         with open(file_path, 'r') as file:
