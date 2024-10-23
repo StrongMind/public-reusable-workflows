@@ -17,7 +17,7 @@ class LambdaArgs:
     def __init__(
             self,
             handler: str,
-            runtime: str = "python3.10",
+            runtime: str = "python3.11",
             timeout: int = 60,
             memory_size: int = 1024,
             layers: Optional[List[str]] = None
@@ -90,7 +90,7 @@ class LambdaComponent(pulumi.ComponentResource):
         self.name = name
         self.namespace = kwargs.get('namespace', f"{project}-{stack}")
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
-        self.lambda_args = lambda_args
+        self.lambda_args = lambda_args or LambdaArgs()
         self.owning_team = get_code_owner_team_name()
         self.tags = {
             "product": project,
@@ -99,11 +99,9 @@ class LambdaComponent(pulumi.ComponentResource):
             "environment": self.env_name,
             "owner": self.owning_team,
         }
-        if not lambda_args or not lambda_env_variables:
-            raise ValueError(
-                "lambda_args and lambda_env_variables must be provided when creating a new Lambda function")
+
         self.lambda_args = lambda_args
-        self.lambda_env_variables = lambda_env_variables
+        self.lambda_env_variables = lambda_env_variables or LambdaEnvVariables()
         self.timeout = self.lambda_args.timeout
         self.runtime = self.lambda_args.runtime
         self.memory_size = self.lambda_args.memory_size
@@ -134,15 +132,15 @@ class LambdaComponent(pulumi.ComponentResource):
         )
 
         self.lambda_layer = aws.lambda_.LayerVersion(
-            f"{self.name}-lambda-layer",
-            layer_name=f"{self.name}-lambda-layer",
+            f"{self.name}-layer",
+            layer_name=f"{self.name}-layer",
             code=pulumi.FileArchive("../lambda_layer.zip"),
             compatible_runtimes=[self.lambda_args.runtime],
         )
 
         self.lambda_function = aws.lambda_.Function(
-            f"{self.name}-lambda-function",
-            name=f"{self.name}-lambda-function",
+            f"{self.name}",
+            name=f"{self.name}",
             code=pulumi.FileArchive("../lambda.zip"),
             role=self.lambda_role.arn,
             handler=self.lambda_args.handler,
@@ -156,4 +154,3 @@ class LambdaComponent(pulumi.ComponentResource):
             tags=self.tags
         )
 
-        pass
