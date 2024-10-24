@@ -75,7 +75,7 @@ def describe_lambda_args():
 def describe_lambda_environment():
     @pytest.fixture
     def variables(faker):
-        return {}
+        return {faker.word(): faker.word()}
 
     @pytest.fixture
     def sut(variables):
@@ -89,6 +89,9 @@ def describe_lambda_environment():
     def it_has_a_dict_of_variables(sut):
         assert isinstance(sut.variables, dict)
 
+    @pulumi.runtime.test
+    def it_has_lambda_env_variables(sut, variables):
+        assert sut.variables == variables
 
 def describe_a_lambda_component():
     @pytest.fixture
