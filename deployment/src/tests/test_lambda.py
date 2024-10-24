@@ -227,7 +227,7 @@ def describe_a_lambda_component():
 
         @pulumi.runtime.test
         def it_has_a_name(sut):
-            return assert_outputs_equal(sut.lambda_layer.layer_name, f"{sut.name}-lambda-layer")
+            return assert_outputs_equal(sut.lambda_layer.layer_name, f"{sut.name}-layer")
 
         @pulumi.runtime.test
         def it_has_a_code_file(sut):
