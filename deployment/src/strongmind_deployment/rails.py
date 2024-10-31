@@ -312,8 +312,12 @@ class RailsComponent(pulumi.ComponentResource):
     def rds(self):
         self.db_username = self.kwargs.get("db_username", self.namespace.replace('-', '_'))
         self.db_password = random.RandomPassword(qualify_component_name("password", self.kwargs),
-                                                 length=30,
-                                                 special=False)
+                                                                 length=30,
+                                                                 special=False,
+                                                                 opts=pulumi.ResourceOptions(parent=self,
+                                                                                             ignore_changes=['length',
+                                                                                                             'special'])
+                                                                 )
         self.db_name = self.kwargs.get("db_name", "app")
 
         self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)
@@ -345,7 +349,18 @@ class RailsComponent(pulumi.ComponentResource):
             storage_encrypted=bool(self.kms_key_id),
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
-                                        protect=True)
+                                        protect=True,
+                                        ignore_changes=['applyImmediately',
+                                                        'finalSnapshotIdentifier',
+                                                        'masterPassword',
+                                                        'snapshotIdentifier',
+                                                        'backupRetentionPeriod',
+                                                        'clusterIdentifier',
+                                                        'engineVersion',
+                                                        'serverlessv2ScalingConfiguration',
+                                                        'skipFinalSnapshot',
+                                                        'tags',
+                                                        'masterUsername'])
         )
         self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
             qualify_component_name('rds_serverless_cluster_instance', self.kwargs),
@@ -359,14 +374,23 @@ class RailsComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster],
-                                        protect=True),
+                                        protect=True,
+                                        ignore_changes=[
+                                            'finalSnapshotIdentifier',
+                                            'masterPassword',
+                                            'snapshotIdentifier',
+                                            'clusterIdentifier',
+                                            'autoMinorVersionUpgrade',
+                                            'identifier',
+                                            'promotionTier',
+                                            'tags']),
         )
 
         export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
 
     def get_database_url(self):
         return Output.concat('postgres://',
-                             self.rds_serverless_cluster.master_username,
+                             self.db_username,
                              ':',
                              self.db_password.result,
                              '@',

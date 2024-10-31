@@ -707,19 +707,20 @@ class ContainerComponent(pulumi.ComponentResource):
         if type(resource_record_value) != str:
             resource_record_value = resource_record_value.apply(remove_trailing_period)
 
-        self.cert_validation_record = Record(
-            qualify_component_name('cert_validation_record', self.kwargs),
-            name=domain_validation_options[0].resource_record_name,
-            type=domain_validation_options[0].resource_record_type,
-            zone_id=zone_id,
-            content=resource_record_value,
-            ttl=1,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
-        )
+        if self.kwargs.get('cname', True):
+            self.cert_validation_record = Record(
+                qualify_component_name('cert_validation_record', self.kwargs),
+                name=domain_validation_options[0].resource_record_name,
+                type=domain_validation_options[0].resource_record_type,
+                zone_id=zone_id,
+                content=resource_record_value,
+                ttl=1,
+                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
+            )
 
-        self.cert_validation_cert = aws.acm.CertificateValidation(
-            qualify_component_name("cert_validation", self.kwargs),
-            certificate_arn=self.cert.arn,
-            validation_record_fqdns=[self.cert_validation_record.hostname],
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
-        )
+            self.cert_validation_cert = aws.acm.CertificateValidation(
+                qualify_component_name("cert_validation", self.kwargs),
+                certificate_arn=self.cert.arn,
+                validation_record_fqdns=[self.cert_validation_record.hostname],
+                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
+            )
