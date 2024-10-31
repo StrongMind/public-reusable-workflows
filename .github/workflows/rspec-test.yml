@@ -13,6 +13,11 @@ on:
         required: false
         default: bundle exec rails db:prepare db:migrate assets:precompile
         type: string
+      run-parallel:
+        description: "Run parallel tests"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   run-tests:
@@ -67,14 +72,21 @@ jobs:
               npm run test
           fi
 
+
+      - name: Test in parallel
+        if: ${{ inputs.run-parallel == true }}
+        run: |
+          rails parallel:setup
+          RAILS_ENV=test rails parallel:spec
+
       - name: Test
-        if: ${{ steps.secret-check.outputs.available != 'true' }}
+        if: ${{ steps.secret-check.outputs.available != 'true' && inputs.run-parallel == false }}
         run: |
           bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
-        if: ${{ steps.secret-check.outputs.available == 'true' }}
+        if: ${{ steps.secret-check.outputs.available == 'true' && inputs.run-parallel == false }}
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
