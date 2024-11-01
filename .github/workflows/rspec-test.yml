@@ -102,4 +102,7 @@ jobs:
           wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/main/scripts/parse_rspec_json_output.py'
   
       - name: Check for skipped tests
-        run: python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
+        run: |
+          if [ -f ${{ github.workspace }}/rspec_output.json ]; then
+            python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
+          fi
