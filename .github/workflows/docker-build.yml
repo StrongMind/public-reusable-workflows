@@ -28,8 +28,8 @@ on:
         required: false
         type: string
         default: "3.2.2"
-      run-parallel-tests:
-        description: Run parallel tests with parallel_tests gem
+      publish-coverage:
+        description: Publish code coverage
         required: false
         type: boolean
         default: false
@@ -142,5 +142,5 @@ jobs:
     with:
       bundle-no-assets: ${{ inputs.bundle-no-assets }}
       ruby-version: ${{ inputs.ruby-version }}
-      run-parallel: ${{ inputs.run-parallel-tests }}
+      publish-coverage: ${{ inputs.publish-coverage }}
     secrets: inherit

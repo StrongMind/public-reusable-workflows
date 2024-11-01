@@ -13,8 +13,8 @@ on:
         required: false
         default: bundle exec rails db:prepare db:migrate assets:precompile
         type: string
-      run-parallel:
-        description: "Run parallel tests"
+      publish-coverage:
+        description: "Publish coverage"
         required: false
         default: false
         type: boolean
@@ -72,22 +72,30 @@ jobs:
               npm run test
           fi
 
+      - name: Check for parallel_tests in Gemfile
+        id: parallel-check
+        run: |
+          if [ -e Gemfile ] && grep -q "parallel_tests" Gemfile; then
+            echo "run-parallel=true" >> $GITHUB_OUTPUT;
+          else
+            echo "run-parallel=false" >> $GITHUB_OUTPUT;
+          fi
 
       - name: Test in parallel
-        if: ${{ inputs.run-parallel == true }}
+        if: ${{ steps.parallel-check.outputs.run-parallel == 'true' && inputs.publish-coverage == false }}
         run: |
           rails parallel:create
           rails parallel:migrate
           RAILS_ENV=test rails parallel:spec
 
       - name: Test
-        if: ${{ steps.secret-check.outputs.available != 'true' && inputs.run-parallel == false }}
+        if: ${{ steps.secret-check.outputs.available != 'true' && steps.parallel-check.outputs.run-parallel != 'true' }}
         run: |
           bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
-        if: ${{ steps.secret-check.outputs.available == 'true' && inputs.run-parallel == false }}
+        if: ${{ steps.secret-check.outputs.available == 'true' && inputs.publish-coverage == true }}
         env:
           CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
