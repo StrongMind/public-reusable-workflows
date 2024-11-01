@@ -21,7 +21,7 @@ on:
 
 jobs:
   run-tests:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     services:
       postgres:
         image: postgres:latest
