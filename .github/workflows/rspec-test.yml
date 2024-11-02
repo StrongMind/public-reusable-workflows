@@ -28,7 +28,7 @@ jobs:
   list-folders:
     name: List folders
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.run-job-per-folder == true }}
+    if: ${{ inputs.run-job-per-folder == true }}
     outputs:
       matrix: ${{ steps.get-folders.outputs.matrix }}
     steps:
@@ -44,7 +44,7 @@ jobs:
     name: Run tests in folder
     runs-on: ubuntu-latest
     needs: list-folders
-    if: ${{ github.event.inputs.run-job-per-folder == true }}
+    if: ${{ inputs.run-job-per-folder == true }}
     strategy:
       matrix:
         folder: ${{fromJson(needs.list-folders.outputs.matrix)}}
@@ -96,7 +96,7 @@ jobs:
   run-tests:
     name: Run tests
     runs-on: ubuntu-latest
-    if: ${{ github.event.inputs.run-job-per-folder == false }}
+    if: ${{ inputs.run-job-per-folder == false }}
     services:
       postgres:
         image: postgres:latest
