@@ -18,10 +18,85 @@ on:
         required: false
         default: false
         type: boolean
+      run-job-per-folder:
+        description: "Run tests in separate jobs per folder"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
-  run-tests:
+  list-folders:
+    name: List folders
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run-job-per-folder == true }}
+    outputs:
+      matrix: ${{ steps.get-folders.outputs.matrix }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: List folders in spec folder
+        id: get-folders
+        run: |
+          echo "::set-output name=matrix::$(find ./spec -maxdepth 1 -type d ! -path ./spec | jq -R -s -c 'split("\n")[:-1]')"
+
+  run-tests-in-folder:
+    name: Run tests in folder
+    runs-on: ubuntu-latest
+    needs: list-folders
+    if: ${{ github.event.inputs.run-job-per-folder == true }}
+    strategy:
+      matrix:
+        folder: ${{fromJson(needs.list-folders.outputs.matrix)}}
+    services:
+      postgres:
+        image: postgres:latest
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Start Postgres
+        run: sudo systemctl start postgresql.service
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+
+      - run: |
+          bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
+          bundle install
+          ${{ inputs.bundle-no-assets }}
+        env:
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          RAILS_ENV: test
+
+      - name: Test
+        run: |
+          RAILS_ENV=test bundle exec rspec ${{ matrix.folder }} --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
+
+      - name: Download the parsing script
+        run: |
+          wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/main/scripts/parse_rspec_json_output.py'
+
+      - name: Check for skipped tests
+        run: |
+          if [ -f ${{ github.workspace }}/rspec_output.json ]; then
+            python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
+          fi
+
+  run-tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run-job-per-folder == false }}
     services:
       postgres:
         image: postgres:latest
