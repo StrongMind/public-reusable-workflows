@@ -33,6 +33,11 @@ on:
         required: false
         type: boolean
         default: false
+      run-job-per-folder:
+        description: "Run tests in separate jobs per folder"
+        required: false
+        default: false
+        type: boolean
 
 env:
   AWS_REGION: us-west-2
@@ -143,4 +148,5 @@ jobs:
       bundle-no-assets: ${{ inputs.bundle-no-assets }}
       ruby-version: ${{ inputs.ruby-version }}
       run-parallel: ${{ inputs.run-parallel-tests }}
+      run-job-per-folder: ${{ inputs.run-job-per-folder }}
     secrets: inherit
