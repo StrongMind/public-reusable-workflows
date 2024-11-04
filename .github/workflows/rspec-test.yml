@@ -63,15 +63,29 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Check for specs
+        id: spec-check
+        run: |
+          cd ${{ matrix.folder }}
+          if find . -name '*_spec.rb' | grep -q .; then
+            echo "specs-found=true" >> $GITHUB_OUTPUT;
+          else
+            echo "specs-found=false" >> $GITHUB_OUTPUT;
+          fi
+
       - name: Start Postgres
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: sudo systemctl start postgresql.service
 
       - name: Set up Ruby
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ inputs.ruby-version }}
 
-      - run: |
+      - name: Bundle
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
+        run: |
           bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           bundle install
           ${{ inputs.bundle-no-assets }}
@@ -80,14 +94,17 @@ jobs:
           RAILS_ENV: test
 
       - name: Test
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
           RAILS_ENV=test bundle exec rspec ${{ matrix.folder }} --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Download the parsing script
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
           wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/main/scripts/parse_rspec_json_output.py'
 
       - name: Check for skipped tests
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
           if [ -f ${{ github.workspace }}/rspec_output.json ]; then
             python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
