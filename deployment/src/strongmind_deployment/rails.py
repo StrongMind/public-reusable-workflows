@@ -313,11 +313,9 @@ class RailsComponent(pulumi.ComponentResource):
         self.db_username = self.kwargs.get("db_username", self.namespace.replace('-', '_'))
         self.db_password = random.RandomPassword(qualify_component_name("password", self.kwargs),
                                                                  length=30,
-                                                                 special=False,
-                                                                 opts=pulumi.ResourceOptions(parent=self,
-                                                                                             ignore_changes=['length',
-                                                                                                             'special'])
-                                                                 )
+                                                                 special=False,)
+                                                                 # opts=pulumi.ResourceOptions(parent=self)
+                                                                 # )
         self.db_name = self.kwargs.get("db_name", "app")
 
         self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)

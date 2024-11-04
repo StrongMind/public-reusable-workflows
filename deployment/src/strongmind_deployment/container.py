@@ -241,30 +241,29 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        if self.kwargs.get('storage', False):
-            self.s3_policy = aws.iam.Policy(
-                f"{self.namespace}-s3-policy",
-                name=f"{self.namespace}-s3Policy",
-                policy=json.dumps({
-                    "Version": "2012-10-17",
-                    "Statement": [{
-                        "Effect": "Allow",
-                        "Action": [
-                            "s3:GetObject",
-                            "s3:PutObject",
-                            "s3:DeleteObject"
-                        ],
-                        "Resource": "*"
-                    }]
-                }),
-                tags=self.tags
-            )
+        self.s3_policy = aws.iam.Policy(
+            f"{self.namespace}-s3-policy",
+            name=f"{self.namespace}-s3Policy",
+            policy=json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:DeleteObject"
+                    ],
+                    "Resource": "*"
+                }]
+            }),
+            tags=self.tags
+        )
 
-            self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
-                f"{self.namespace}-s3PolicyAttachment",
-                role=self.task_role.id,
-                policy_arn=self.s3_policy.arn,
-            )
+        self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
+            f"{self.namespace}-s3PolicyAttachment",
+            role=self.task_role.id,
+            policy_arn=self.s3_policy.arn,
+        )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
