@@ -714,7 +714,7 @@ class ContainerComponent(pulumi.ComponentResource):
             zone_id=zone_id,
             content=resource_record_value,
             ttl=1,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert], ignore_changes=['content', 'name' ]),
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
         )
 
         self.cert_validation_cert = aws.acm.CertificateValidation(
