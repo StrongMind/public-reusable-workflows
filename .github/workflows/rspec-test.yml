@@ -37,10 +37,12 @@ jobs:
 
       - name: Distribute files under specs/models into four separate folders (models1, models2, models3, models4)
         run: |
+          set -xeuo pipefail
           mkdir -p ./spec/models1 ./spec/models2 ./spec/models3 ./spec/models4
           files=($(ls ./spec/models))
           total_files=${#files[@]}
           quarter_size=$((total_files / 4))
+          counter=0
           for file in "${files[@]}"; do
             if (( counter < quarter_size )); then
               mv "./spec/models/$file" ./spec/models1/
@@ -51,7 +53,7 @@ jobs:
             else
               mv "./spec/models/$file" ./spec/models4/
             fi
-            ((counter++))
+            counter=$((counter + 1))
           done
 
       - name: List folders in spec folder
