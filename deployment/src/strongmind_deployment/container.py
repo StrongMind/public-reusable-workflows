@@ -241,30 +241,29 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        if self.kwargs.get('storage', False):
-            self.s3_policy = aws.iam.Policy(
-                f"{self.namespace}-s3-policy",
-                name=f"{self.namespace}-s3Policy",
-                policy=json.dumps({
-                    "Version": "2012-10-17",
-                    "Statement": [{
-                        "Effect": "Allow",
-                        "Action": [
-                            "s3:GetObject",
-                            "s3:PutObject",
-                            "s3:DeleteObject"
-                        ],
-                        "Resource": "*"
-                    }]
-                }),
-                tags=self.tags
-            )
+        self.s3_policy = aws.iam.Policy(
+            f"{self.namespace}-s3-policy",
+            name=f"{self.namespace}-s3Policy",
+            policy=json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": [
+                        "s3:GetObject",
+                        "s3:PutObject",
+                        "s3:DeleteObject"
+                    ],
+                    "Resource": "*"
+                }]
+            }),
+            tags=self.tags
+        )
 
-            self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
-                f"{self.namespace}-s3PolicyAttachment",
-                role=self.task_role.id,
-                policy_arn=self.s3_policy.arn,
-            )
+        self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
+            f"{self.namespace}-s3PolicyAttachment",
+            role=self.task_role.id,
+            policy_arn=self.s3_policy.arn,
+        )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
@@ -664,6 +663,7 @@ class ContainerComponent(pulumi.ComponentResource):
     def certificate(self, name, stack):
         if stack != "prod":
             name = f"{stack}-{name}"
+        name = self.kwargs.get('namespace', name)
         domain = 'strongmind.com'
         full_name = f"{name}.{domain}"
         self.cert = aws.acm.Certificate(
@@ -707,20 +707,19 @@ class ContainerComponent(pulumi.ComponentResource):
         if type(resource_record_value) != str:
             resource_record_value = resource_record_value.apply(remove_trailing_period)
 
-        if self.kwargs.get('cname', True):
-            self.cert_validation_record = Record(
-                qualify_component_name('cert_validation_record', self.kwargs),
-                name=domain_validation_options[0].resource_record_name,
-                type=domain_validation_options[0].resource_record_type,
-                zone_id=zone_id,
-                content=resource_record_value,
-                ttl=1,
-                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
-            )
+        self.cert_validation_record = Record(
+            qualify_component_name('cert_validation_record', self.kwargs),
+            name=domain_validation_options[0].resource_record_name,
+            type=domain_validation_options[0].resource_record_type,
+            zone_id=zone_id,
+            content=resource_record_value,
+            ttl=1,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
+        )
 
-            self.cert_validation_cert = aws.acm.CertificateValidation(
-                qualify_component_name("cert_validation", self.kwargs),
-                certificate_arn=self.cert.arn,
-                validation_record_fqdns=[self.cert_validation_record.hostname],
-                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
-            )
+        self.cert_validation_cert = aws.acm.CertificateValidation(
+            qualify_component_name("cert_validation", self.kwargs),
+            certificate_arn=self.cert.arn,
+            validation_record_fqdns=[self.cert_validation_record.hostname],
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
+        )

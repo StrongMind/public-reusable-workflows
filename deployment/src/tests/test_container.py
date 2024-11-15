@@ -700,6 +700,24 @@ def describe_container():
             return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
                                         [sut.cert_validation_record.hostname])
 
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs["namespace"] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_has_a_custom_namespace(sut, namespace):
+                return assert_outputs_equal(sut.namespace, namespace)
+
+            @pulumi.runtime.test
+            def it_has_fqdn(sut, namespace):
+                return assert_output_equals(sut.cert.domain_name, f"{namespace}.strongmind.com")
+
     def describe_with_existing_cluster():
         @pytest.fixture
         def existing_cluster_arn(faker):
