@@ -240,12 +240,7 @@ def describe_container():
                 }))
 
         @pulumi.runtime.test
-        def it_creates_an_s3_policy_with_storage_enabled(sut):
-            @pytest.fixture
-            def component_kwargs(component_kwargs):
-                component_kwargs['storage'] = True
-
-                return component_kwargs
+        def it_creates_an_s3_policy(sut):
             
             @pulumi.runtime.test
             def it_has_an_s3_policy_named(sut, stack, app_name):
