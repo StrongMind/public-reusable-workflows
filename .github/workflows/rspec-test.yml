@@ -140,7 +140,9 @@ jobs:
         run: |
           rails parallel:create
           rails parallel:migrate
-          RAILS_ENV=test rails "parallel:spec[^${{ matrix.folder }}]"
+          FOLDER=${{ matrix.folder }}
+          FOLDER=${FOLDER#./} # Strip the leading ./
+          RAILS_ENV=test rails "parallel:spec[^$FOLDER]"
 
       - name: Download the parsing script
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
