@@ -240,12 +240,7 @@ def describe_container():
                 }))
 
         @pulumi.runtime.test
-        def it_creates_an_s3_policy_with_storage_enabled(sut):
-            @pytest.fixture
-            def component_kwargs(component_kwargs):
-                component_kwargs['storage'] = True
-
-                return component_kwargs
+        def it_creates_an_s3_policy(sut):
             
             @pulumi.runtime.test
             def it_has_an_s3_policy_named(sut, stack, app_name):
@@ -699,6 +694,24 @@ def describe_container():
         def it_adds_validation_cert_with_fqdns(sut):
             return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
                                         [sut.cert_validation_record.hostname])
+
+        def describe_with_a_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs["namespace"] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_has_a_custom_namespace(sut, namespace):
+                return assert_outputs_equal(sut.namespace, namespace)
+
+            @pulumi.runtime.test
+            def it_has_fqdn(sut, namespace):
+                return assert_output_equals(sut.cert.domain_name, f"{namespace}.strongmind.com")
 
     def describe_with_existing_cluster():
         @pytest.fixture
