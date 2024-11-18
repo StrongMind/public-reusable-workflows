@@ -1,3 +1,4 @@
+import os
 import time
 from typing import Optional
 
@@ -12,13 +13,15 @@ class ExecutionResourceInputs:
     subnets: pulumi.Input[str]
     security_groups: pulumi.Input[str]
     ecs_client: pulumi.Input[boto3.client]
+    diff_test_command: pulumi.Input[str]
 
-    def __init__(self, cluster, family, subnets, security_groups, ecs_client=None):
+    def __init__(self, cluster, family, subnets, security_groups, diff_test_command=None, ecs_client=None):
         self.cluster = cluster
         self.family = family
         self.subnets = subnets
         self.security_groups = security_groups
         self.ecs_client = ecs_client
+        self.diff_test_command = diff_test_command
 
 
 class _ExecutionResourceProviderInputs:
@@ -53,8 +56,8 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
         # Show that this has "changed" so that it runs every time
         return pulumi.dynamic.DiffResult(changes=True)
 
-    #
     def run_task(self, inputs):
+        outputs = {}
         response = self.ecs_client.run_task(
             taskDefinition=inputs['family'],
             cluster=inputs['cluster'],
@@ -97,8 +100,10 @@ class ExecutionResourceProvider(pulumi.dynamic.ResourceProvider):
                 print(each['message'])
 
             raise Exception(f"Task exited with code {exit_code}")
-        return True
-
+        if inputs.get('diff_test_command'):
+            outputs['diff_test_output'] = os.popen(
+                inputs.get('diff_test_command')).read()
+        return outputs
 
 class ExecutionComponent(pulumi.dynamic.Resource):
     def __init__(self, name: str, props: ExecutionResourceInputs, opts: Optional[ResourceOptions] = None):
