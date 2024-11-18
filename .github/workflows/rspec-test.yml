@@ -138,11 +138,7 @@ jobs:
       - name: Test
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
-          rails parallel:create
-          rails parallel:migrate
-          FOLDER=${{ matrix.folder }}
-          FOLDER=${FOLDER#./} # Strip the leading ./
-          RAILS_ENV=test rails "parallel:spec[^$FOLDER]"
+          RAILS_ENV=test bundle exec rspec ${{ matrix.folder }} --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Download the parsing script
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
