@@ -126,7 +126,9 @@ jobs:
         run: |
           bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           bundle install
-          ${{ inputs.bundle-no-assets }}
+          bundle exec rails assets:precompile
+          rails parallel:create
+          rails parallel:migrate
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
@@ -134,7 +136,9 @@ jobs:
       - name: Test
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
-          RAILS_ENV=test bundle exec rspec ${{ matrix.folder }} --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
+          rails "parallel:spec[^${{ matrix.folder }}]"
+        env:
+          RAILS_ENV: test
 
       - name: Download the parsing script
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
