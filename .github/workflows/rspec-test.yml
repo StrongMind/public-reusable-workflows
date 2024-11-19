@@ -126,7 +126,7 @@ jobs:
         run: |
           bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           bundle install
-          bundle exec rails assets:precompile
+          rails assets:precompile
           rails parallel:create
           rails parallel:migrate
         env:
