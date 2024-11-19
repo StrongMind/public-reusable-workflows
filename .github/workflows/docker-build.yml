@@ -97,7 +97,6 @@ jobs:
         with:
           repository: ${{ github.event.repository.name }}
 
-
       - name: Test docker and upload to ECR
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
@@ -111,6 +110,7 @@ jobs:
           tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          build-args: BUNDLE_GEMS__CONTRIBSYS__COM=${{ BUNDLE_GEMS__CONTRIBSYS__COM }}
 
   rspec-test:
     name: Rspec test to code coverage
