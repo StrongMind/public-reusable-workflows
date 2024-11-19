@@ -115,10 +115,6 @@ jobs:
             echo "specs-found=false" >> $GITHUB_OUTPUT;
           fi
 
-      - name: Start Postgres
-        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
-        run: sudo systemctl start postgresql.service
-
       - name: Set up Ruby
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         uses: ruby/setup-ruby@v1
