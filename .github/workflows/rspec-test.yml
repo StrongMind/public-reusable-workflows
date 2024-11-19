@@ -137,7 +137,7 @@ jobs:
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
           FOLDER=${{ matrix.folder }}
-          FOLDER=${FOLDER#./} # Strip the leading ./
+          FOLDER=${FOLDER#./}
           RAILS_ENV=test rails "parallel:spec[^$FOLDER]"
         env:
           RAILS_ENV: test
