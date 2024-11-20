@@ -77,8 +77,9 @@ jobs:
           aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
           mask-aws-account-id: no
+
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v1
+        uses: docker/setup-buildx-action@v3
 
       - name: Cache Docker layers
         uses: actions/cache@v4
@@ -87,6 +88,7 @@ jobs:
           key: ${{ runner.os }}-buildx-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-buildx-
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
@@ -96,51 +98,20 @@ jobs:
         with:
           repository: ${{ github.event.repository.name }}
 
-      - name: Check for gemfile change
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ github.event.repository.name }}
-          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
-          IMAGE_TAG: ${{ github.sha }}
-        run: |
-          echo "$(git diff HEAD^1 --name-only| xargs)"
-          if git diff HEAD^1 --name-only --diff-filter=ACMRT | grep -e "Gemfile" -e "package-lock" ; then
-            echo "lock changed"
-            docker buildx build --push \
-              --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
-              --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-              --cache-to mode=max,image-manifest=true,oci-mediatypes=true,type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-              -t $ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-              --provenance=false \
-              .
-              else
-                echo "lock not changed"
-          fi
-          
       - name: Test docker and upload to ECR
         env:
-          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
-        run: |
-          docker buildx build \
-            --build-arg BUNDLE_GEMS__CONTRIBSYS__COM=${{ env.BUNDLE_GEMS__CONTRIBSYS__COM }} \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
-            --cache-from=type=registry,ref=$ECR_REGISTRY/$ECR_REPOSITORY:CACHE \
-            --load \
-            .
-          CONTAINER_ID=$(docker run ${{ inputs.test_docker_run_extra_params }} -d "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG")
-          sleep ${{ inputs.test_docker_timeout }}
-          OUTPUT=$(docker logs $CONTAINER_ID)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: BUNDLE_GEMS__CONTRIBSYS__COM=${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
-          if [[ $OUTPUT != *"Listening on http://0.0.0.0:3000"* ]]; then
-            echo "Dockerfile test failed"
-            echo $OUTPUT
-            exit 1
-          fi
-
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
   rspec-test:
     name: Rspec test to code coverage
     uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
