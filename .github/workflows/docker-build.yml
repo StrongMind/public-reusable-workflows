@@ -114,7 +114,7 @@ jobs:
 
   rspec-test:
     name: Rspec test to code coverage
-    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
+    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@BEL-4481-try-caching-ruby-bundles-for-tests
     with:
       bundle-no-assets: ${{ inputs.bundle-no-assets }}
       ruby-version: ${{ inputs.ruby-version }}
