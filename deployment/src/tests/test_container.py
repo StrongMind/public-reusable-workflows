@@ -149,6 +149,26 @@ def a_pulumi_containerized_app():
     def it_exists(sut):
         assert sut
 
+    def describe_with_no_memory_or_cpu_passed_to_kwargs():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs.pop('memory')
+            component_kwargs.pop('cpu')
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_defaults_cpu_and_memory(sut, container_port, cpu, memory, entry_point, command, stack, app_name,
+                                   secrets):
+            def check_task_definition(args):
+                task_definition_dict = args[0]
+                container = task_definition_dict["container"]
+                assert container["memory"] == 4096
+                assert container["cpu"] == 2048
+
+            return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_task_definition)
+
+
+
 @behaves_like(a_pulumi_containerized_app)
 def describe_container():
     def describe_a_container_component():
