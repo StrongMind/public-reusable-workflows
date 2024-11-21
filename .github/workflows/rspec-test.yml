@@ -127,9 +127,9 @@ jobs:
       - name: Assets and DB setup
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
-          rails assets:precompile
-          rails parallel:create
-          rails parallel:migrate
+          bundle exec rails assets:precompile
+          bundle exec rails parallel:create
+          bundle exec rails parallel:migrate
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
@@ -214,8 +214,8 @@ jobs:
       - name: Test in parallel
         if: ${{ inputs.run-parallel == true }}
         run: |
-          rails parallel:create
-          rails parallel:migrate
+          bundle exec rails parallel:create
+          bundle exec rails parallel:migrate
           RAILS_ENV=test rails parallel:spec
 
       - name: Test
