@@ -366,7 +366,7 @@ def describe_container():
 
                 @pulumi.runtime.test
                 def it_sets_the_target_group_health_check_healthy_threshold(sut):
-                    return assert_output_equals(sut.target_group.health_check.healthy_threshold, 5)
+                    return assert_output_equals(sut.target_group.health_check.healthy_threshold, 2)
 
                 @pulumi.runtime.test
                 def it_sets_the_target_group_health_check_unhealthy_threshold(sut):
