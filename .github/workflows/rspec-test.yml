@@ -139,7 +139,7 @@ jobs:
         run: |
           FOLDER=${{ matrix.folder }}
           FOLDER=${FOLDER#./}
-          RAILS_ENV=test rails "parallel:spec[^$FOLDER]"
+          RAILS_ENV=test bundle exec rails "parallel:spec[^$FOLDER]"
         env:
           RAILS_ENV: test
 
@@ -216,7 +216,7 @@ jobs:
         run: |
           bundle exec rails parallel:create
           bundle exec rails parallel:migrate
-          RAILS_ENV=test rails parallel:spec
+          RAILS_ENV=test bundle exec rails parallel:spec
 
       - name: Test
         if: ${{ steps.secret-check.outputs.available != 'true' && inputs.run-parallel == false }}
