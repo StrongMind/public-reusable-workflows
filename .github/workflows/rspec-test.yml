@@ -120,15 +120,16 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: 'true'
+        env:
+          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
-      - name: Bundle
+      - name: Assets and DB setup
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
-          bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
-          bundle install
-          rails assets:precompile
-          rails parallel:create
-          rails parallel:migrate
+          bundle exec rails assets:precompile
+          bundle exec rails parallel:create
+          bundle exec rails parallel:migrate
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
@@ -138,7 +139,7 @@ jobs:
         run: |
           FOLDER=${{ matrix.folder }}
           FOLDER=${FOLDER#./}
-          RAILS_ENV=test rails "parallel:spec[^$FOLDER]"
+          RAILS_ENV=test bundle exec rails "parallel:spec[^$FOLDER]"
         env:
           RAILS_ENV: test
 
@@ -180,10 +181,11 @@ jobs:
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: 'true'
+        env:
+          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
       - run: |
-          bundle config gems.contribsys.com ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
-          bundle install
           ${{ inputs.bundle-no-assets }}
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
@@ -212,9 +214,9 @@ jobs:
       - name: Test in parallel
         if: ${{ inputs.run-parallel == true }}
         run: |
-          rails parallel:create
-          rails parallel:migrate
-          RAILS_ENV=test rails parallel:spec
+          bundle exec rails parallel:create
+          bundle exec rails parallel:migrate
+          RAILS_ENV=test bundle exec rails parallel:spec
 
       - name: Test
         if: ${{ steps.secret-check.outputs.available != 'true' && inputs.run-parallel == false }}
