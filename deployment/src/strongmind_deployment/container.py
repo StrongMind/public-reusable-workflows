@@ -530,6 +530,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                             threshold=self.desired_count,
                                                                                                             comparison_operator="LessThanThreshold",
                                                                                                             treat_missing_data="notBreaching",
+                                                                                                            tags=self.tags,
                                                                                                             metric_queries=[
                                                                                                                 aws.cloudwatch.MetricAlarmMetricQueryArgs(
                                                                                                                     id="e1",
@@ -602,6 +603,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                               threshold=self.desired_count * 0.25,
                                                                                                               comparison_operator="GreaterThanThreshold",
                                                                                                               treat_missing_data="notBreaching",
+                                                                                                              tags=self.tags,
                                                                                                               metric_queries=[
                                                                                                                   aws.cloudwatch.MetricAlarmMetricQueryArgs(
                                                                                                                       id="e1",
