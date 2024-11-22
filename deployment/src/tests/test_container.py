@@ -891,6 +891,10 @@ def describe_container():
             actual_threshold = sut.healthy_host_metric_alarm.threshold
             assert_output_equals(actual_threshold, expected_threshold)
 
+        @pulumi.runtime.test
+        def it_has_tags(sut):
+            assert sut.healthy_host_metric_alarm.tags
+
     def describe_unhealthy_host_metric_alarm():
         @pulumi.runtime.test
         def it_exits(sut):
@@ -932,6 +936,10 @@ def describe_container():
             expected_threshold = desired_count * 0.25
             actual_threshold = sut.unhealthy_host_metric_alarm.threshold
             assert_output_equals(actual_threshold, expected_threshold)
+
+        @pulumi.runtime.test
+        def it_has_tags(sut):
+            assert sut.unhealthy_host_metric_alarm.tags
 
     def it_sets_the_namespace_to_the_project_and_stack(sut, app_name, stack):
         assert sut.namespace == f"{app_name}-{stack}"
