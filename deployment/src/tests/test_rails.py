@@ -228,6 +228,37 @@ def a_pulumi_rails_app():
     def it_asks_the_web_container_to_automatically_scale(sut):
         assert sut.web_container.autoscaling
 
+    def describe_with_no_memory_or_cpu_passed_to_kwargs():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs.pop('memory')
+            component_kwargs.pop('cpu')
+            component_kwargs.pop('worker_memory')
+            component_kwargs.pop('worker_cpu')
+            component_kwargs['need_worker'] = True
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_defaults_cpu_and_memory_for_the_web(sut):
+            def check_task_definition(args):
+                task_definition_dict = args[0]
+                container = task_definition_dict["container"]
+                assert container["memory"] == 4096
+                assert container["cpu"] == 2048
+
+            return pulumi.Output.all(sut.web_container.fargate_service.task_definition_args).apply(check_task_definition)
+
+        @pulumi.runtime.test
+        def it_defaults_cpu_and_memory_for_the_worker(sut):
+            def check_task_definition(args):
+                task_definition_dict = args[0]
+                container = task_definition_dict["container"]
+                assert container["memory"] == 4096
+                assert container["cpu"] == 2048
+
+            return pulumi.Output.all(sut.worker_container.fargate_service.task_definition_args).apply(check_task_definition)
+
+
 
 @behaves_like(a_pulumi_rails_app)
 def describe_a_pulumi_rails_component():

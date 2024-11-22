@@ -157,8 +157,7 @@ def a_pulumi_containerized_app():
             return component_kwargs
 
         @pulumi.runtime.test
-        def it_defaults_cpu_and_memory(sut, container_port, cpu, memory, entry_point, command, stack, app_name,
-                                   secrets):
+        def it_defaults_cpu_and_memory(sut):
             def check_task_definition(args):
                 task_definition_dict = args[0]
                 container = task_definition_dict["container"]

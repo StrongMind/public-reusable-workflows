@@ -37,13 +37,13 @@ class RailsComponent(pulumi.ComponentResource):
                                       "bundle exec rails db:prepare db:migrate db:seed assets:precompile && echo 'Migrations complete'"]`.
         :key web_entry_point: The entry point for the web container. Defaults to the ENTRYPOINT in the Dockerfile.
         :key web_cmd: The command for the web container. Defaults to `["sh", "-c", "rails assets:precompile && rails server -b 0.0.0.0"]`.
-        :key cpu: The number of CPU units to reserve for the web container. Defaults to 256.
-        :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 512.
+        :key cpu: The number of CPU units to reserve for the web container. Defaults to 2048.
+        :key memory: The amount of memory (in MiB) to allow the web container to use. Defaults to 4096.
         :key need_worker: Whether to create a worker container. Defaults to True if sidekiq is in the Gemfile.
         :key worker_entry_point: The entry point for the worker container. Defaults to the ENTRYPOINT in the Dockerfile. Requires need_worker to be True.
         :key worker_cmd: The command for the worker container. Defaults to `["sh", "-c", "bundle exec sidekiq"]`. Requires need_worker to be True.
-        :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 256.
-        :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 512.
+        :key worker_cpu: The number of CPU units to reserve for the worker container. Defaults to 2048.
+        :key worker_memory: The amount of memory (in MiB) to allow the worker container to use. Defaults to 4096.
         :key worker_log_metric_filters: A list of log metric filters to create for the worker container. Defaults to `[]`.
         :key dynamo_tables: A list of DynamoDB tables to create. Defaults to `[]`. Each table is a DynamoComponent.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
@@ -279,8 +279,10 @@ class RailsComponent(pulumi.ComponentResource):
             self.kwargs['container_image'] = os.environ["WORKER_CONTAINER_IMAGE"]
         self.kwargs['entry_point'] = worker_entry_point
         self.kwargs['command'] = worker_cmd
-        self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
-        self.kwargs['memory'] = self.kwargs.get('worker_memory')
+        if self.kwargs.get('worker_cpu'):
+            self.kwargs['cpu'] = self.kwargs.get('worker_cpu')
+        if self.kwargs.get('worker_memory'):
+            self.kwargs['memory'] = self.kwargs.get('worker_memory')
         self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
         self.kwargs['need_load_balancer'] = False
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
