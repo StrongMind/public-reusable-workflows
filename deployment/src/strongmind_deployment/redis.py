@@ -89,5 +89,10 @@ class CacheComponent(RedisComponent):
             f"{name}-parameter-group",
             name=kwargs['parameter_group_name'],
             family="redis7",
+            parameters=[
+                aws.elasticache.ParameterGroupParameterArgs(
+                    name="maxmemory-policy",
+                    value="allkeys-lru")
+            ]
         )
         super().__init__(name, opts, **kwargs)

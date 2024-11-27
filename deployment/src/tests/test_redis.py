@@ -211,7 +211,7 @@ def describe_a_pulumi_redis_component():
                 assert isinstance(sut.parameter_group, pulumi_aws.elasticache.ParameterGroup)
                 return assert_output_equals(sut.parameter_group.name, f"{namespace}-cache-redis7")
 
-        #@pulumi.runtime.test
-        #def it_sets_the_cache_eviction_policy_to_volatile_lru(sut):
-        #    assert_output_equals(sut.parameter_group.parameters[0].name, "maxmemory-policy")
-        #    assert_output_equals(sut.parameter_group.parameters[0].value, "volatile-lru")
+        @pulumi.runtime.test
+        def it_sets_the_cache_eviction_policy_to_allkeys_lru(sut):
+           assert_output_equals(sut.parameter_group.parameters[0].name, "maxmemory-policy")
+           assert_output_equals(sut.parameter_group.parameters[0].value, "allkeys-lru")
