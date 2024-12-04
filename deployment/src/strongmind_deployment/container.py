@@ -307,7 +307,7 @@ class ContainerComponent(pulumi.ComponentResource):
             task_definition_args=self.task_definition_args,
             deployment_maximum_percent=self.deployment_maximum_percent,
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"]),
+            opts=pulumi.ResourceOptions(parent=self),
         )
 
         if self.kwargs.get('autoscale'):
@@ -332,6 +332,7 @@ class ContainerComponent(pulumi.ComponentResource):
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
             opts=pulumi.ResourceOptions(
+                parent=self,
                 depends_on=[self.fargate_service]
             ),
         )
@@ -357,6 +358,10 @@ class ContainerComponent(pulumi.ComponentResource):
                         scaling_adjustment=3,
                     )
                 ],
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.fargate_service]
             )
         )
         target_group_dimension = self.target_group.arn.apply(
@@ -383,7 +388,11 @@ class ContainerComponent(pulumi.ComponentResource):
             datapoints_to_alarm=1,
             threshold=5,
             treat_missing_data="missing",
-            tags=self.tags
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.fargate_service]
+            )
         )
 
         self.autoscaling_in_policy = aws.appautoscaling.Policy(
@@ -403,6 +412,10 @@ class ContainerComponent(pulumi.ComponentResource):
                         scaling_adjustment=-1,
                     )
                 ],
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.fargate_service]
             )
         )
         self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
@@ -423,7 +436,11 @@ class ContainerComponent(pulumi.ComponentResource):
                 "LoadBalancer": load_balancer_arn,
             },
             period=60,
-            tags=self.tags
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.fargate_service]
+            )
         )
 
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
@@ -517,7 +534,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.healthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension,
                                                            load_balancer_name, target_group_name).apply(lambda args:
                                                                                                         aws.cloudwatch.MetricAlarm(
-                                                                                                            qualify_component_name("healthy_host_metric_alarm", self.kwargs),
+                                                                                                            qualify_component_name(
+                                                                                                                "healthy_host_metric_alarm",
+                                                                                                                self.kwargs),
                                                                                                             name=f"{namespace}-healthy-host-metric-alarm",
                                                                                                             actions_enabled=True,
                                                                                                             ok_actions=[
@@ -590,7 +609,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.unhealthy_host_metric_alarm = pulumi.Output.all(load_balancer_dimension, target_group_dimension,
                                                              load_balancer_name, target_group_name).apply(lambda args:
                                                                                                           aws.cloudwatch.MetricAlarm(
-                                                                                                              qualify_component_name("unhealthy_host_metric_alarm", self.kwargs),
+                                                                                                              qualify_component_name(
+                                                                                                                  "unhealthy_host_metric_alarm",
+                                                                                                                  self.kwargs),
                                                                                                               name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
