@@ -35,6 +35,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             resource_id=f"service/{self.namespace}/{self.namespace}-worker",
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
+            opts=pulumi.ResourceOptions(
+                parent=self,
+            )
         )
         self.worker_autoscaling_out_policy = aws.appautoscaling.Policy(
             qualify_component_name("worker_autoscaling_out_policy", self.kwargs),
@@ -58,6 +61,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
                         scaling_adjustment=1,
                     )
                 ],
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
             )
         )
 
@@ -75,7 +81,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
-            alarm_actions=[self.worker_autoscaling_out_policy.arn]
+            alarm_actions=[self.worker_autoscaling_out_policy.arn],
+            opts=pulumi.ResourceOptions(
+                parent=self,
+            )
         )
 
         self.worker_queue_latency_alarm = aws.cloudwatch.MetricAlarm(
@@ -93,7 +102,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             statistic="Maximum",
             threshold=self.alert_threshold,
             alarm_actions=[self.sns_topic_arn],
-            ok_actions=[self.sns_topic_arn]
+            ok_actions=[self.sns_topic_arn],
+            opts=pulumi.ResourceOptions(
+                parent=self,
+            )
         )
 
         self.worker_autoscaling_in_policy = aws.appautoscaling.Policy(
@@ -113,6 +125,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
                         scaling_adjustment=-1,
                     )
                 ],
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
             )
         )
 
@@ -130,7 +145,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
-            alarm_actions=[self.worker_autoscaling_in_policy.arn]
+            alarm_actions=[self.worker_autoscaling_in_policy.arn],
+            opts=pulumi.ResourceOptions(
+                parent=self,
+            )
         )
 
         self.register_outputs({})
