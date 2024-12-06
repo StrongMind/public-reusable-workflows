@@ -1,9 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
-from unittest.mock import Mock
+
 import pulumi
 import pulumi_aws as aws
-import pulumi_aws.ecs
-from pulumi_aws.ecs import ServiceNetworkConfigurationArgs
 
 
 def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
@@ -25,6 +23,11 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     __slots__ = {
 
                     }
+
+
+                service_name = args.inputs["name"]
+                ecs_service_mock = aws.ecs.Service(service_name)
+
                 outputs = {
                     **args.inputs,
                     "desired_count": args.inputs["desiredCount"],
@@ -34,6 +37,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "enable_execute_command": args.inputs.get("enableExecuteCommand"),
                     "health_check_grace_period_seconds": args.inputs.get("healthCheckGracePeriodSeconds"),
                     "deployment_maximum_percent": args.inputs.get("deploymentMaximumPercent"),
+                    "service": ecs_service_mock
                 }
             if args.typ == "aws:rds/cluster:Cluster":
                 outputs = {
@@ -125,6 +129,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:elasticloadbalancing:us-west-2:123456789012:loadbalancer/app/{faker.word()}",
                     "name": f"loadbalancer-{faker.word()}",
                 }
+            if args.typ == "aws:ecs/service:Service":
+                arn = f"arn:aws:ecs:us-west-2:123456789012:service/{args.name}/{args.name}"
+                outputs = {
+                    **args.inputs
+                }
+                return [arn, outputs]
 
             return [args.name + '_id', outputs]
 
