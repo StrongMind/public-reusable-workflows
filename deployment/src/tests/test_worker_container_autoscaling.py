@@ -92,6 +92,16 @@ def describe_worker_autoscaling():
             def it_has_the_metric_name_of_max_queue_latency(autoscaling_out_alarm):
                 return assert_output_equals(autoscaling_out_alarm.metric_name, "MaxQueueLatency")
 
+            def describe_when_canvas_is_true():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["namespace"] = "new_canvas"
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_has_the_metric_name_of_job_staleness(autoscaling_out_alarm):
+                    return assert_output_equals(autoscaling_out_alarm.metric_name, "JobStaleness")
+
             @pulumi.runtime.test
             def it_has_the_unit_of_seconds(autoscaling_out_alarm):
                 return assert_output_equals(autoscaling_out_alarm.unit, "Seconds")
@@ -141,6 +151,16 @@ def describe_worker_autoscaling():
             @pulumi.runtime.test
             def it_has_the_metric_name_of_max_queue_latency(queue_latency_alarm):
                 return assert_output_equals(queue_latency_alarm.metric_name, "MaxQueueLatency")
+
+            def describe_when_canvas_is_true():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["namespace"] = "new_canvas"
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_has_the_metric_name_of_job_staleness(queue_latency_alarm):
+                    return assert_output_equals(queue_latency_alarm.metric_name, "JobStaleness")
 
             @pulumi.runtime.test
             def it_has_the_unit_of_seconds(queue_latency_alarm):
@@ -194,6 +214,16 @@ def describe_worker_autoscaling():
             @pulumi.runtime.test
             def it_has_the_metric_name_of_max_queue_latency(autoscaling_in_alarm):
                 return assert_output_equals(autoscaling_in_alarm.metric_name, "MaxQueueLatency")
+
+            def describe_when_canvas_is_true():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["namespace"] = "new_canvas"
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_has_the_metric_name_of_job_staleness(autoscaling_in_alarm):
+                    return assert_output_equals(autoscaling_in_alarm.metric_name, "JobStaleness")
 
             @pulumi.runtime.test
             def it_has_the_unit_of_seconds(autoscaling_in_alarm):

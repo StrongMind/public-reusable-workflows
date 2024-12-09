@@ -25,7 +25,10 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
         self.alert_threshold = kwargs.get('alert_threshold', 18000)
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
+        self.canvas = kwargs.get("namespace", False)
+        self.metric_name = "JobStaleness" if self.canvas else "MaxQueueLatency"
         self.worker_autoscaling()
+
 
     def worker_autoscaling(self):
         self.worker_autoscaling_target = aws.appautoscaling.Target(
@@ -72,7 +75,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             name=f"{self.namespace}-worker-auto-scaling-out-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
-            metric_name="MaxQueueLatency",
+            metric_name=self.metric_name,
             unit="Seconds",
             dimensions={
                 "QueueName": "AllQueues"
@@ -92,7 +95,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             name=f"{self.namespace}-worker-queue-latency-alarm",
             comparison_operator="GreaterThanThreshold",
             evaluation_periods=1,
-            metric_name="MaxQueueLatency",
+            metric_name=self.metric_name,
             unit="Seconds",
             dimensions={
                 "QueueName": "AllQueues"
@@ -136,7 +139,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             name=f"{self.namespace}-worker-auto-scaling-in-alarm",
             comparison_operator="LessThanOrEqualToThreshold",
             evaluation_periods=5,
-            metric_name="MaxQueueLatency",
+            metric_name=self.metric_name,
             unit="Seconds",
             dimensions={
                 "QueueName": "AllQueues"
