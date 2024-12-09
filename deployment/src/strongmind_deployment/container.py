@@ -36,6 +36,7 @@ class ContainerComponent(pulumi.ComponentResource):
         - name: The name of the secret.
         - value_from: The ARN of the secret.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
+        :key autoscale_threshold The amount of allowable TargetResponseTime before we scale .
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -66,6 +67,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
+        self.autoscale_threshold = kwargs.get('autoscale_threshold', 5)
         self.desired_count = kwargs.get('desired_count', 2)
         self.max_capacity = 100
         self.min_capacity = self.desired_count
@@ -389,7 +391,7 @@ class ContainerComponent(pulumi.ComponentResource):
             period=60,
             evaluation_periods=1,
             datapoints_to_alarm=1,
-            threshold=5,
+            threshold=self.autoscale_threshold,
             treat_missing_data="missing",
             tags=self.tags,
             opts=pulumi.ResourceOptions(
@@ -421,6 +423,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 depends_on=[self.fargate_service]
             )
         )
+
         self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             qualify_component_name("autoscaling_in_alarm", self.kwargs),
             name=f"{self.namespace}-auto-scaling-in-alarm",
@@ -429,7 +432,7 @@ class ContainerComponent(pulumi.ComponentResource):
             alarm_actions=[self.autoscaling_in_policy.arn],
             evaluation_periods=5,
             datapoints_to_alarm=1,
-            threshold=5,
+            threshold=self.autoscale_threshold,
             treat_missing_data="missing",
             metric_name="TargetResponseTime",
             namespace="AWS/ApplicationELB",
