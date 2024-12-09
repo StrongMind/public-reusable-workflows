@@ -1,9 +1,11 @@
+import random
+
 import pulumi
 import pytest
 from pytest_describe import behaves_like
 
 from tests.shared import assert_output_equals, assert_outputs_equal
-from tests.test_container import a_pulumi_containerized_app
+from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
 
 
 @behaves_like(a_pulumi_containerized_app)
@@ -42,8 +44,8 @@ def describe_autoscaling():
 
         @pulumi.runtime.test
         def it_uses_the_clusters_resource_id(sut):
-            resource_id = f"service/{sut.namespace}/{sut.namespace}"
-            return assert_output_equals(sut.autoscaling_target.resource_id, resource_id)
+            service_id = sut.fargate_service.service.id.apply(lambda x: x.split(":")[-1])
+            return assert_outputs_equal(sut.autoscaling_target.resource_id, service_id)
 
         def describe_running_tasks_alarm():
             @pulumi.runtime.test
@@ -143,6 +145,21 @@ def describe_autoscaling():
             def it_triggers_when_the_threshold_crosses_5(sut):
                 return assert_output_equals(sut.autoscaling_out_alarm.threshold, 5)
 
+            def describe_when_using_a_custom_threshold():
+                @pytest.fixture
+                def autoscale_threshold():
+                    return random.randint(6, 15)
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, autoscale_threshold):
+                    component_kwargs["autoscale_threshold"] = autoscale_threshold
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_triggers_when_the_threshold_crosses_the_custom_value(sut, autoscale_threshold):
+                    return assert_output_equals(sut.autoscaling_out_alarm.threshold, autoscale_threshold)
+
+
             @pulumi.runtime.test
             def it_treats_missing_data_as_missing(sut):
                 return assert_output_equals(sut.autoscaling_out_alarm.treat_missing_data, "missing")
@@ -217,6 +234,20 @@ def describe_autoscaling():
             @pulumi.runtime.test
             def it_triggers_when_the_threshold_crosses_5(sut):
                 return assert_output_equals(sut.autoscaling_in_alarm.threshold, 5)
+
+            def describe_when_using_a_custom_threshold():
+                @pytest.fixture
+                def autoscale_threshold():
+                    return random.randint(6, 15)
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, autoscale_threshold):
+                    component_kwargs["autoscale_threshold"] = autoscale_threshold
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_triggers_when_the_threshold_crosses_the_custom_value(sut, autoscale_threshold):
+                    return assert_output_equals(sut.autoscaling_in_alarm.threshold, autoscale_threshold)
 
             @pulumi.runtime.test
             def it_treats_missing_data_as_missing(sut):

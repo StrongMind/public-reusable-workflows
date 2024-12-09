@@ -5,172 +5,30 @@ import pulumi.runtime
 import pytest
 from pytest_describe import behaves_like
 
-from tests.mocks import get_pulumi_mocks
+from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
 from tests.shared import assert_output_equals, assert_outputs_equal
-
-
-def a_pulumi_containerized_app():
-    @pytest.fixture
-    def app_name(faker):
-        return faker.word()
-
-    @pytest.fixture
-    def environment(faker):
-        os.environ["ENVIRONMENT_NAME"] = faker.word()
-        return os.environ["ENVIRONMENT_NAME"]
-
-    @pytest.fixture
-    def stack(environment):
-        return environment
-
-
-    @pytest.fixture
-    def pulumi_mocks(faker):
-        return get_pulumi_mocks(faker)
-
-    @pytest.fixture
-    def app_path(faker):
-        return f'./{faker.word()}'
-
-    @pytest.fixture
-    def container_port(faker):
-        return faker.random_int()
-
-    @pytest.fixture
-    def cpu(faker):
-        return faker.random_int()
-
-    @pytest.fixture
-    def memory(faker):
-        return faker.random_int()
-
-    @pytest.fixture
-    def entry_point(faker):
-        return f'./{faker.word()}'
-
-    @pytest.fixture
-    def command(faker):
-        return f'./{faker.word()}'
-
-    @pytest.fixture
-    def aws_account_id(faker):
-        return faker.random_int()
-
-    @pytest.fixture
-    def container_image(aws_account_id, app_name):
-        return f"{aws_account_id}.dkr.ecr.us-west-2.amazonaws.com/{app_name}:latest"
-
-    @pytest.fixture
-    def env_vars(faker, environment):
-        return {
-            "ENVIRONMENT_NAME": environment,
-        }
-
-    @pytest.fixture
-    def secrets(faker):
-        return [{
-            faker.word(): faker.password(),
-        }]
-
-    @pytest.fixture
-    def zone_id(faker):
-        return faker.word()
-
-    @pytest.fixture
-    def load_balancer_dns_name(faker):
-        return f"{faker.word()}.{faker.word()}.{faker.word()}"
-
-    @pytest.fixture
-    def resource_record_name(faker):
-        return f"{faker.word()}.{faker.word()}.{faker.word()}"
-
-    @pytest.fixture
-    def resource_record_value(faker):
-        return f"{faker.word()}.{faker.word()}.{faker.word()}"
-
-    @pytest.fixture
-    def resource_record_type(faker):
-        return faker.word()
-
-    @pytest.fixture
-    def domain_validation_options(faker, resource_record_name, resource_record_value, resource_record_type):
-        class FakeValidationOption:
-            def __init__(self, name, value, type):
-                self.resource_record_name = name
-                self.resource_record_value = value
-                self.resource_record_type = type
-
-            pass
-
-        return [FakeValidationOption(resource_record_name, resource_record_value, resource_record_type)]
-
-    @pytest.fixture
-    def need_load_balancer():
-        return True
-
-    @pytest.fixture
-    def component_kwargs(pulumi_set_mocks,
-                         app_name,
-                         app_path,
-                         container_port,
-                         cpu,
-                         memory,
-                         entry_point,
-                         command,
-                         container_image,
-                         env_vars,
-                         secrets,
-                         zone_id,
-                         load_balancer_dns_name,
-                         domain_validation_options,
-                         ):
-        return {
-            "app_path": app_path,
-            "container_port": container_port,
-            "cpu": cpu,
-            "memory": memory,
-            "entry_point": entry_point,
-            "command": command,
-            "container_image": container_image,
-            "env_vars": env_vars,
-            "secrets": secrets,
-            "zone_id": zone_id,
-            "load_balancer_dns_name": load_balancer_dns_name,
-            "domain_validation_options": domain_validation_options
-        }
-
-    @pytest.fixture
-    def sut(component_kwargs):
-        import strongmind_deployment.container
-        return strongmind_deployment.container.ContainerComponent("container",
-                                                                  **component_kwargs
-                                                                  )
-
-    def it_exists(sut):
-        assert sut
-
-    def describe_with_no_memory_or_cpu_passed_to_kwargs():
-        @pytest.fixture
-        def component_kwargs(component_kwargs):
-            component_kwargs.pop('memory')
-            component_kwargs.pop('cpu')
-            return component_kwargs
-
-        @pulumi.runtime.test
-        def it_defaults_cpu_and_memory(sut):
-            def check_task_definition(args):
-                task_definition_dict = args[0]
-                container = task_definition_dict["container"]
-                assert container["memory"] == 4096
-                assert container["cpu"] == 2048
-
-            return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_task_definition)
-
 
 
 @behaves_like(a_pulumi_containerized_app)
 def describe_container():
     def describe_a_container_component():
+        def describe_with_no_memory_or_cpu_passed_to_kwargs():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs.pop('memory')
+                component_kwargs.pop('cpu')
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_defaults_cpu_and_memory(sut):
+                def check_task_definition(args):
+                    task_definition_dict = args[0]
+                    container = task_definition_dict["container"]
+                    assert container["memory"] == 4096
+                    assert container["cpu"] == 2048
+
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_task_definition)
+
         @pulumi.runtime.test
         def it_creates_an_ecs_cluster(sut):
             assert sut.ecs_cluster
@@ -260,11 +118,11 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_creates_an_s3_policy(sut):
-            
+
             @pulumi.runtime.test
             def it_has_an_s3_policy_named(sut, stack, app_name):
                 return assert_output_equals(sut.s3_policy.name, f"{app_name}-{stack}-s3-policy")
-                     
+
             @pulumi.runtime.test
             def it_has_an_s3_policy_with_storage_access(sut):
                 return assert_output_equals(sut.s3_policy.policy, json.dumps({
@@ -281,7 +139,7 @@ def describe_container():
                 }),
                 tags=tags
                 )
-            
+
             @pulumi.runtime.test
             def test_s3_policy_attachment():
                 def check_s3_policy_attachment(args):
@@ -290,7 +148,7 @@ def describe_container():
                     assert_output_equals(sut.s3_policy_attachment.policy_arn, expected_policy_arn)
 
                 return pulumi.Output.all(sut, sut.task_role.id, sut.s3_policy.arn).apply(check_s3_policy_attachment)
-            
+
         @pulumi.runtime.test
         def it_enables_enable_execute_command(sut):
             return assert_output_equals(sut.fargate_service.enable_execute_command, True)
@@ -306,17 +164,15 @@ def describe_container():
 
         def describe_with_no_load_balancer():
             @pytest.fixture
-            def need_load_balancer():
-                return False
-
-            @pytest.fixture
-            def sut(need_load_balancer):
+            def sut(component_kwargs):
+                component_kwargs["need_load_balancer"] = False
                 import strongmind_deployment.container
                 return strongmind_deployment.container.ContainerComponent("container",
-                                                                          need_load_balancer=need_load_balancer)
+                                                                          **component_kwargs
+                                                                          )
 
             @pulumi.runtime.test
-            def test_it_does_not_create_a_load_balancer(sut, need_load_balancer):
+            def test_it_does_not_create_a_load_balancer(sut):
                 assert not sut.load_balancer
 
             @pulumi.runtime.test
@@ -738,11 +594,12 @@ def describe_container():
             return faker.word()
 
         @pytest.fixture
-        def sut(existing_cluster_arn):
+        def sut(component_kwargs, existing_cluster_arn):
+            component_kwargs["need_load_balancer"] = False
+            component_kwargs["ecs_cluster_arn"] = existing_cluster_arn
             import strongmind_deployment.container
             return strongmind_deployment.container.ContainerComponent("container",
-                                                                      need_load_balancer=False,
-                                                                      ecs_cluster_arn=existing_cluster_arn)
+                                                                      **component_kwargs)
 
         @pulumi.runtime.test
         def it_uses_existing_cluster(sut, existing_cluster_arn):

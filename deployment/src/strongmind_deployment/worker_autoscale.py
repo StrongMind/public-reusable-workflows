@@ -12,6 +12,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         :key worker_autoscale_threshold: The threshold for the worker autoscaling policy. Default is 3.
         """
         super().__init__('strongmind:global_build:commons:worker-autoscale', name, None, opts)
+        self.fargate_service = kwargs.get('fargate_service')
         self.worker_autoscaling_in_alarm = None
         self.worker_autoscaling_in_policy = None
         self.worker_queue_latency_alarm = None
@@ -31,11 +32,14 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
 
 
     def worker_autoscaling(self):
+
+        fargate_service_id = self.fargate_service.service.id.apply(lambda x: x.split(":")[-1])
+
         self.worker_autoscaling_target = aws.appautoscaling.Target(
             qualify_component_name("worker_autoscaling_target", self.kwargs),
             max_capacity=self.worker_max_capacity,
             min_capacity=self.worker_min_capacity,
-            resource_id=f"service/{self.namespace}/{self.namespace}-worker",
+            resource_id=fargate_service_id,
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
             opts=pulumi.ResourceOptions(

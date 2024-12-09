@@ -36,6 +36,7 @@ class ContainerComponent(pulumi.ComponentResource):
         - name: The name of the secret.
         - value_from: The ARN of the secret.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
+        :key autoscale_threshold The amount of allowable TargetResponseTime before we scale .
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -66,6 +67,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
+        self.autoscale_threshold = kwargs.get('autoscale_threshold', 5)
         self.desired_count = kwargs.get('desired_count', 2)
         self.max_capacity = 100
         self.min_capacity = self.desired_count
@@ -314,6 +316,7 @@ class ContainerComponent(pulumi.ComponentResource):
             self.autoscaling()
         if self.kwargs.get('worker_autoscale'):
             self.worker_autoscaling = WorkerAutoscaleComponent(qualify_component_name("worker-autoscale", self.kwargs),
+                                                               fargate_service=self.fargate_service,
                                                                opts=pulumi.ResourceOptions(
                                                                    parent=self,
                                                                    depends_on=[self.fargate_service]
@@ -324,11 +327,13 @@ class ContainerComponent(pulumi.ComponentResource):
 
     def autoscaling(self):
 
+        fargate_service_id = self.fargate_service.service.id.apply(lambda x: x.split(":")[-1])
+
         self.autoscaling_target = aws.appautoscaling.Target(
             qualify_component_name("autoscaling_target", self.kwargs),
             max_capacity=self.max_capacity,
             min_capacity=self.desired_count,
-            resource_id=f"service/{self.namespace}/{self.namespace}",
+            resource_id=fargate_service_id,
             scalable_dimension="ecs:service:DesiredCount",
             service_namespace="ecs",
             opts=pulumi.ResourceOptions(
@@ -386,7 +391,7 @@ class ContainerComponent(pulumi.ComponentResource):
             period=60,
             evaluation_periods=1,
             datapoints_to_alarm=1,
-            threshold=5,
+            threshold=self.autoscale_threshold,
             treat_missing_data="missing",
             tags=self.tags,
             opts=pulumi.ResourceOptions(
@@ -418,6 +423,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 depends_on=[self.fargate_service]
             )
         )
+
         self.autoscaling_in_alarm = aws.cloudwatch.MetricAlarm(
             qualify_component_name("autoscaling_in_alarm", self.kwargs),
             name=f"{self.namespace}-auto-scaling-in-alarm",
@@ -426,7 +432,7 @@ class ContainerComponent(pulumi.ComponentResource):
             alarm_actions=[self.autoscaling_in_policy.arn],
             evaluation_periods=5,
             datapoints_to_alarm=1,
-            threshold=5,
+            threshold=self.autoscale_threshold,
             treat_missing_data="missing",
             metric_name="TargetResponseTime",
             namespace="AWS/ApplicationELB",
