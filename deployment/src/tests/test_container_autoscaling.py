@@ -5,7 +5,7 @@ import pytest
 from pytest_describe import behaves_like
 
 from tests.shared import assert_output_equals, assert_outputs_equal
-from tests.test_container import a_pulumi_containerized_app
+from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
 
 
 @behaves_like(a_pulumi_containerized_app)
