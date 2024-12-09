@@ -25,9 +25,9 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
         self.alert_threshold = kwargs.get('alert_threshold', 18000)
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
-        self.worker_autoscaling()
         self.canvas = kwargs.get("namespace", False)
         self.metric_name = "JobStaleness" if self.canvas else "MaxQueueLatency"
+        self.worker_autoscaling()
 
 
     def worker_autoscaling(self):
