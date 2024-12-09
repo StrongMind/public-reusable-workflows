@@ -63,8 +63,8 @@ def describe_worker_autoscaling():
 
         @pulumi.runtime.test
         def it_uses_the_clusters_resource_id(sut, autoscaling_target):
-            resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
-            return assert_output_equals(autoscaling_target.resource_id, resource_id)
+            service_id = sut.fargate_service.service.id.apply(lambda x: x.split(":")[-1])
+            return assert_outputs_equal(autoscaling_target.resource_id, service_id)
 
         def describe_autoscaling_out_alarm():
             @pulumi.runtime.test
@@ -235,8 +235,8 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut, autoscaling_in_policy):
-                resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
-                return assert_output_equals(autoscaling_in_policy.resource_id, resource_id)
+                service_id = sut.fargate_service.service.id.apply(lambda x: x.split(":")[-1])
+                return assert_outputs_equal(autoscaling_in_policy.resource_id, service_id)
 
             @pulumi.runtime.test
             def it_has_a_default_scalable_dimension_of_desired_count(autoscaling_in_policy):
@@ -304,8 +304,8 @@ def describe_worker_autoscaling():
 
             @pulumi.runtime.test
             def it_uses_the_clusters_resource_id(sut, autoscaling_out_policy):
-                resource_id = f"service/{sut.namespace}/{sut.namespace}-worker"
-                return assert_output_equals(autoscaling_out_policy.resource_id, resource_id)
+                service_id = sut.fargate_service.service.id.apply(lambda x: x.split(":")[-1])
+                return assert_outputs_equal(autoscaling_out_policy.resource_id, service_id)
 
             @pulumi.runtime.test
             def it_has_a_default_scalable_dimension_of_desired_count(autoscaling_out_policy):
