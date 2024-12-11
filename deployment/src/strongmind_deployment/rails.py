@@ -14,6 +14,7 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
+from strongmind_deployment.worker_container import WorkerContainerComponent
 from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 
 
@@ -292,12 +293,12 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['worker_autoscale'] = self.worker_autoscale
         self.kwargs['deployment_maximum_percent'] = 200
 
-        self.worker_container = ContainerComponent(qualify_component_name("worker", self.kwargs),
-                                                   pulumi.ResourceOptions(parent=self,
-                                                                          depends_on=[self.execution]
-                                                                          ),
-                                                   **self.kwargs
-                                                   )
+        self.worker_container = WorkerContainerComponent(qualify_component_name("worker", self.kwargs),
+                                                         pulumi.ResourceOptions(parent=self,
+                                                                                depends_on=[self.execution]
+                                                                                ),
+                                                         **self.kwargs
+                                                         )
         self.kwargs['log_metric_filters'] = []
 
     def secrets(self):

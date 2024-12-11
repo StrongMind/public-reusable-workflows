@@ -29,13 +29,18 @@ def describe_a_pulumi_rails_app():
                 sut.worker_container.memory
             ).apply(check_machine_specs)
 
-        @pulumi.runtime.test
-        def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
-            assert sut.worker_container.entry_point == worker_container_entry_point
+        def describe_with_sidekiq():
+            @pytest.fixture
+            def sidekiq_present():
+                return True
 
-        @pulumi.runtime.test
-        def it_uses_sidekiq_as_a_default_cmd(sut):
-            assert sut.worker_container.command == ["sh", "-c", "bundle exec sidekiq"]
+            @pulumi.runtime.test
+            def it_uses_sidekiq_entry_point_for_worker(sut, worker_container_entry_point):
+                assert sut.worker_container.entry_point == worker_container_entry_point
+
+            @pulumi.runtime.test
+            def it_uses_sidekiq_as_a_default_cmd(sut):
+                assert sut.worker_container.command == ["sh", "-c", "bundle exec sidekiq"]
 
         def describe_with_a_custom_cmd():
             @pytest.fixture
