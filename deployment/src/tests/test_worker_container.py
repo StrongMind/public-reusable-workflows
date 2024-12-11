@@ -6,7 +6,7 @@ from pytest_describe import behaves_like
 from strongmind_deployment import worker_container
 from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
 from tests.shared import assert_output_equals
-from tests.test_container import a_pulumi_containerized_app
+from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
 from strongmind_deployment.worker_container import WorkerContainerComponent
 
 
@@ -70,7 +70,7 @@ def describe_a_worker_container():
                 return assert_output_equals(worker_autoscaling.worker_autoscaling_out_alarm.namespace, "Canvas")
 
             @pulumi.runtime.test
-            def it_sets_the_dimenions(worker_autoscaling, stack, app_name):
+            def it_sets_the_dimensions(worker_autoscaling, stack, app_name):
                 return assert_output_equals(worker_autoscaling.worker_autoscaling_out_alarm.dimensions, {"domain": f"{stack}-{app_name}.strongmind.com"})
 
             @pulumi.runtime.test
