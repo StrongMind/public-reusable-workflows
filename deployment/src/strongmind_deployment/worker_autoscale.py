@@ -21,6 +21,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.worker_autoscaling_target = None
         self.kwargs = kwargs
         self.namespace = kwargs.get("namespace", f"{pulumi.get_project()}-{pulumi.get_stack()}")
+        self.alarm_namespace = self.namespace
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 65)
         self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
@@ -85,7 +86,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             metric_name=self.metric_name,
             unit="Seconds",
             dimensions=self.dimensions,
-            namespace=self.namespace,
+            namespace=self.alarm_namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -104,7 +105,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             metric_name=self.metric_name,
             unit="Seconds",
             dimensions=self.dimensions,
-            namespace=self.namespace,
+            namespace=self.alarm_namespace,
             period=60,
             statistic="Maximum",
             threshold=self.alert_threshold,
@@ -147,7 +148,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             metric_name=self.metric_name,
             unit="Seconds",
             dimensions=self.dimensions,
-            namespace=self.namespace,
+            namespace=self.alarm_namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -165,17 +166,12 @@ class WorkerInstJobsAutoscaleComponent(WorkerAutoscaleComponent):
         super().__init__(name, opts, **kwargs)
 
     def domain(self):
-        stack = pulumi.get_stack()
-        project = pulumi.get_project()
-        if stack != "prod":
-            subdomain = f"{stack}-{project}"
-        else:
-            subdomain = project
+        namespace = self.namespace
         domain = 'strongmind.com'
-        return f"{subdomain}.{domain}"
+        return f"{namespace}.{domain}"
 
     def worker_autoscaling(self):
         self.metric_name = "JobStaleness"
-        self.dimensions = {'domain': self.domain()}
-        self.namespace = "Canvas"
+        self.dimensions = {'Name': 'domain', 'Value': self.domain()}
+        self.alarm_namespace = "Canvas"
         super().worker_autoscaling()
