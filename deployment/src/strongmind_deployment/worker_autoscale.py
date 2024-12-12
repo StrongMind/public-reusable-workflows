@@ -28,6 +28,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
         self.canvas = kwargs.get("namespace", False)
         self.metric_name = "JobStaleness" if self.canvas else "MaxQueueLatency"
+        self.dimensions = {'domain': f'{self.namespace}.strongmind.com'} if self.canvas else {"QueueName": "AllQueues"}
+        self.alarm_namespace = "Canvas" if self.canvas else self.namespace
         self.worker_autoscaling()
 
 
@@ -81,10 +83,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             metric_name=self.metric_name,
             unit="Seconds",
-            dimensions={
-                "QueueName": "AllQueues"
-            },
-            namespace=self.namespace,
+            dimensions=self.dimensions,
+            namespace=self.alarm_namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
@@ -101,10 +101,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=1,
             metric_name=self.metric_name,
             unit="Seconds",
-            dimensions={
-                "QueueName": "AllQueues"
-            },
-            namespace=self.namespace,
+            dimensions=self.dimensions,
+            namespace=self.alarm_namespace,
             period=60,
             statistic="Maximum",
             threshold=self.alert_threshold,
@@ -145,10 +143,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
             evaluation_periods=5,
             metric_name=self.metric_name,
             unit="Seconds",
-            dimensions={
-                "QueueName": "AllQueues"
-            },
-            namespace=self.namespace,
+            dimensions=self.dimensions,
+            namespace=self.alarm_namespace,
             period=60,
             statistic="Maximum",
             threshold=self.scaling_threshold,
