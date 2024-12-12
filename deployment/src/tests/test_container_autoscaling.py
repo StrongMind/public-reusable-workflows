@@ -58,7 +58,7 @@ def describe_autoscaling():
 
             @pulumi.runtime.test
             def it_triggers_when_greater_than_threshold(sut):
-                return assert_output_equals(sut.running_tasks_alarm.comparison_operator, "GreaterThanThreshold")
+                return assert_output_equals(sut.running_tasks_alarm.comparison_operator, "GreaterThanOrEqualToThreshold")
 
             @pulumi.runtime.test
             def it_evaluates_for_one_period(sut):
