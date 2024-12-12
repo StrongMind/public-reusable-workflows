@@ -449,15 +449,19 @@ class ContainerComponent(pulumi.ComponentResource):
             )
         )
 
+        cluster_name = self.ecs_cluster_arn.apply(
+            lambda arn: arn.split("/")[-1]
+        )
+
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
             qualify_component_name("running_tasks_alarm", self.kwargs),
             name=f"{self.namespace}-running-tasks-alarm",
-            comparison_operator="GreaterThanThreshold",
+            comparison_operator="GreaterThanOrEqualToThreshold",
             evaluation_periods=1,
             metric_name="RunningTaskCount",
             namespace="ECS/ContainerInsights",
             dimensions={
-                "ClusterName": self.namespace,
+                "ClusterName": cluster_name,
                 "ServiceName": self.namespace
             },
             period=60,
