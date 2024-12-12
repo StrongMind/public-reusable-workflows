@@ -2,6 +2,7 @@ import os
 
 import pytest
 from tests.mocks import get_pulumi_mocks
+import pulumi
 
 
 def a_pulumi_containerized_app():
@@ -88,6 +89,10 @@ def a_pulumi_containerized_app():
         return faker.word()
 
     @pytest.fixture
+    def ecs_cluster_arn():
+        return pulumi.Output.from_input("arn:aws:ecs:us-west-2:123456789012:cluster/my-cluster")
+
+    @pytest.fixture
     def domain_validation_options(faker, resource_record_name, resource_record_value, resource_record_type):
         class FakeValidationOption:
             def __init__(self, name, value, type):
@@ -117,6 +122,7 @@ def a_pulumi_containerized_app():
                          secrets,
                          zone_id,
                          load_balancer_dns_name,
+                         ecs_cluster_arn,
                          domain_validation_options,
                          ):
         return {
@@ -131,6 +137,7 @@ def a_pulumi_containerized_app():
             "secrets": secrets,
             "zone_id": zone_id,
             "load_balancer_dns_name": load_balancer_dns_name,
+            "ecs_cluster_arn": ecs_cluster_arn,
             "domain_validation_options": domain_validation_options
         }
 
