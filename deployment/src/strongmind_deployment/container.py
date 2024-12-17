@@ -396,6 +396,7 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(
                 parent=self,
+                ignore_changes=["Threshold"],
                 depends_on=[self.fargate_service]
             )
         )
