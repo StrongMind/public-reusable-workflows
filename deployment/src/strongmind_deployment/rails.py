@@ -403,10 +403,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.env_vars.update(self.storage.s3_env_vars)
 
     def setup_dashboard(self, namespace):
-        self.dashboard = DashboardComponent(
-            name="dashboard",
+        self.dashboard = DashboardComponent(qualify_component_name("dashboard", self.kwargs),
             namespace=self.namespace,
             web_container=self.web_container,
             ecs_cluster=self.ecs_cluster,
             rds_serverless_cluster_instance=self.rds_serverless_cluster_instance,
+                                            opts=pulumi.ResourceOptions(parent=self, depends_on=self.ecs_cluster),
         )
