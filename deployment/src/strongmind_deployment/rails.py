@@ -182,7 +182,7 @@ class RailsComponent(pulumi.ComponentResource):
 
     def ecs(self):
         self.ecs_cluster = create_ecs_cluster(self, self.namespace, self.kwargs)
-        self.kwargs['ecs_cluster_arn'] = self.ecs_cluster.arn
+        self.kwargs['ecs_cluster'] = self.ecs_cluster
 
         container_image = os.environ['CONTAINER_IMAGE']
         master_key = os.environ['RAILS_MASTER_KEY']
