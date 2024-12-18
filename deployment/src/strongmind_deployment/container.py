@@ -54,6 +54,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self._security_group_name = None
         self.cname_record = None
         self.worker_autoscaling = None
+        self.ecs_cluster = kwargs.get('ecs_cluster')
         self.need_load_balancer = kwargs.get('need_load_balancer', True)
         self.container_image = kwargs.get('container_image')
         self.container_port = kwargs.get('container_port', 3000)
@@ -93,10 +94,11 @@ class ContainerComponent(pulumi.ComponentResource):
             "owner": owning_team,
         }
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
-        if self.ecs_cluster_arn is None:
+
+        if not self.ecs_cluster:
             self.ecs_cluster = create_ecs_cluster(self, self.namespace, self.kwargs)
 
-            self.ecs_cluster_arn = self.ecs_cluster.arn
+        self.ecs_cluster_arn = self.ecs_cluster.arn
 
         if self.need_load_balancer:
             self.setup_load_balancer(kwargs, project, self.namespace, stack)
@@ -453,12 +455,12 @@ class ContainerComponent(pulumi.ComponentResource):
         self.running_tasks_alarm = aws.cloudwatch.MetricAlarm(
             qualify_component_name("running_tasks_alarm", self.kwargs),
             name=f"{self.namespace}-running-tasks-alarm",
-            comparison_operator="GreaterThanThreshold",
+            comparison_operator="GreaterThanOrEqualToThreshold",
             evaluation_periods=1,
             metric_name="RunningTaskCount",
             namespace="ECS/ContainerInsights",
             dimensions={
-                "ClusterName": self.namespace,
+                "ClusterName": self.ecs_cluster.name.apply(lambda name: name),
                 "ServiceName": self.namespace
             },
             period=60,

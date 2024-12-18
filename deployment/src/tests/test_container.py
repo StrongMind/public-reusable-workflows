@@ -417,7 +417,7 @@ def describe_container():
                     assert service_cluster == cluster
 
                 return pulumi.Output.all(sut.fargate_service.cluster,
-                                         sut.ecs_cluster.arn).apply(check_cluster)
+                                          sut.ecs_cluster.arn).apply(check_cluster)
 
             @pulumi.runtime.test
             def it_has_task_definition(sut, container_port, cpu, memory, entry_point, command, stack, app_name,
@@ -590,20 +590,21 @@ def describe_container():
 
     def describe_with_existing_cluster():
         @pytest.fixture
-        def existing_cluster_arn(faker):
-            return faker.word()
+        def existing_cluster():
+            import pulumi_aws as aws
+            return aws.ecs.Cluster("existing-cluster")
 
         @pytest.fixture
-        def sut(component_kwargs, existing_cluster_arn):
+        def sut(component_kwargs, existing_cluster):
             component_kwargs["need_load_balancer"] = False
-            component_kwargs["ecs_cluster_arn"] = existing_cluster_arn
+            component_kwargs["ecs_cluster"] = existing_cluster
             import strongmind_deployment.container
             return strongmind_deployment.container.ContainerComponent("container",
                                                                       **component_kwargs)
 
         @pulumi.runtime.test
-        def it_uses_existing_cluster(sut, existing_cluster_arn):
-            return assert_output_equals(sut.fargate_service.cluster, existing_cluster_arn)
+        def it_uses_existing_cluster(sut, existing_cluster):
+            assert sut.ecs_cluster == existing_cluster
 
     def describe_logs():
         @pulumi.runtime.test
