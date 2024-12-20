@@ -73,7 +73,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.max_capacity = 100
         self.min_capacity = self.desired_count
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
-        self.binary_sns_topic_arn = 'arn:aws:sns:us-west-2:221871915463:DevOps-Opsgenie'
+        self.binary_sns_topic_arn = os.environ.get('BINARY_SNS_TOPIC_ARN')
+        self.strongmind_service_updates_topic_arn = os.environ.get('STRONGMIND_SERVICE_UPDATES_TOPIC_ARN')
         self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
 
         project = pulumi.get_project()
@@ -549,9 +550,9 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                             name=f"{namespace}-healthy-host-metric-alarm",
                                                                                                             actions_enabled=True,
                                                                                                             ok_actions=[
-                                                                                                                self.sns_topic_arn],
+                                                                                                                self.sns_topic_arn, self.strongmind_service_updates_arn],
                                                                                                             alarm_actions=[
-                                                                                                                self.sns_topic_arn],
+                                                                                                                self.sns_topic_arn, self.strongmind_service_updates_arn],
                                                                                                             insufficient_data_actions=[],
                                                                                                             evaluation_periods=1,
                                                                                                             datapoints_to_alarm=1,
@@ -624,9 +625,9 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                               name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
-                                                                                                                  self.sns_topic_arn],
+                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_arn],
                                                                                                               alarm_actions=[
-                                                                                                                  self.sns_topic_arn],
+                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_arn],
                                                                                                               insufficient_data_actions=[],
                                                                                                               evaluation_periods=1,
                                                                                                               datapoints_to_alarm=1,
