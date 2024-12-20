@@ -550,9 +550,9 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                             name=f"{namespace}-healthy-host-metric-alarm",
                                                                                                             actions_enabled=True,
                                                                                                             ok_actions=[
-                                                                                                                self.sns_topic_arn, self.strongmind_service_updates_arn],
+                                                                                                                self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
                                                                                                             alarm_actions=[
-                                                                                                                self.sns_topic_arn, self.strongmind_service_updates_arn],
+                                                                                                                self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
                                                                                                             insufficient_data_actions=[],
                                                                                                             evaluation_periods=1,
                                                                                                             datapoints_to_alarm=1,
@@ -625,9 +625,9 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                               name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
-                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_arn],
+                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
                                                                                                               alarm_actions=[
-                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_arn],
+                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_topic_:awsarn],
                                                                                                               insufficient_data_actions=[],
                                                                                                               evaluation_periods=1,
                                                                                                               datapoints_to_alarm=1,
