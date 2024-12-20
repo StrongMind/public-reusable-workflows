@@ -221,7 +221,7 @@ jobs:
       - name: Test
         if: ${{ steps.secret-check.outputs.available != 'true' && inputs.run-parallel == false }}
         run: |
-          bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
+          RAILS_ENV=test bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
 
       - name: Test & publish code coverage
         uses: paambaati/codeclimate-action@v5.0.0
