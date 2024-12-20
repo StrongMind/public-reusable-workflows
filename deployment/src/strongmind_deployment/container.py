@@ -627,7 +627,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                               ok_actions=[
                                                                                                                   self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
                                                                                                               alarm_actions=[
-                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_topic_:awsarn],
+                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
                                                                                                               insufficient_data_actions=[],
                                                                                                               evaluation_periods=1,
                                                                                                               datapoints_to_alarm=1,
