@@ -82,6 +82,8 @@ jobs:
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
         ENVIRONMENT_NAME: ${{ inputs.environment-name }}
+        BINARY_SNS_TOPIC_ARN: ${{ secrets.BINARY_SNS_TOPIC_ARN }}
+        STRONGMIND_SERVICE_UPDATES_TOPIC_ARN: ${{ secrets.STRONGMIND_SERVICE_UPDATES_TOPIC_ARN }}
         ID_MAPPER_TOKEN: ${{ secrets.ID_MAPPER_TOKEN }}
         ID_MAPPER_DOMAIN: ${{ secrets.ID_MAPPER_DOMAIN }}
       run: |
