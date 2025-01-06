@@ -109,7 +109,7 @@ jobs:
       run: dotnet publish ${{ inputs.project_path }} --configuration Release --output .\${{ inputs.upload_source }}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ${{ github.sha }}${{ inputs.artifact_name }}
         path: '${{ github.workspace }}\${{ inputs.upload_source }}\*'
