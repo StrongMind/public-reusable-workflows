@@ -108,8 +108,8 @@ def describe_autoscaling():
                                             "AWS/ApplicationELB")
 
             @pulumi.runtime.test
-            def it_checks_the_unit_as_a_p99(sut):
-                return assert_output_equals(sut.autoscaling_out_alarm.extended_statistic, "p99")
+            def it_checks_the_unit_as_a_p95(sut):
+                return assert_output_equals(sut.autoscaling_out_alarm.extended_statistic, "p95")
 
             @pulumi.runtime.test
             def it_pulls_the_metric_data_from_the_target_group(sut):
@@ -198,8 +198,8 @@ def describe_autoscaling():
                                             "AWS/ApplicationELB")
 
             @pulumi.runtime.test
-            def it_checks_the_unit_as_a_p99(sut):
-                return assert_output_equals(sut.autoscaling_in_alarm.extended_statistic, "p99")
+            def it_checks_the_unit_as_a_p95(sut):
+                return assert_output_equals(sut.autoscaling_in_alarm.extended_statistic, "p95")
 
             @pulumi.runtime.test
             def it_pulls_the_metric_data_from_the_target_group(sut):

@@ -386,7 +386,7 @@ class ContainerComponent(pulumi.ComponentResource):
             alarm_actions=[self.autoscaling_out_policy.arn],
             metric_name="TargetResponseTime",
             namespace="AWS/ApplicationELB",
-            extended_statistic="p99",
+            extended_statistic="p95",
             dimensions={
                 "TargetGroup": target_group_dimension,
                 "LoadBalancer": load_balancer_arn,
@@ -440,7 +440,7 @@ class ContainerComponent(pulumi.ComponentResource):
             treat_missing_data="missing",
             metric_name="TargetResponseTime",
             namespace="AWS/ApplicationELB",
-            extended_statistic="p99",
+            extended_statistic="p95",
             dimensions={
                 "TargetGroup": target_group_dimension,
                 "LoadBalancer": load_balancer_arn,
