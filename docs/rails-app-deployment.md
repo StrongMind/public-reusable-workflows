@@ -29,14 +29,6 @@ This ensures that your local postgres server will have the correct database name
 1. Paste the contents of the `config/master.key` file into the value field.
 1. Click on `Add secret`.
 
-## Turn off autoscaling for first deploy
-(Belding plans to fix this soon)
-1. Open the `infrastructure/__main__.py` file.
-1. Edit the second line to be the following:
-```python
-component = RailsComponent("rails", autoscale=False)
-```
-3. Save the file, commit and push.
 
 ## Check Deployment
 1. Push or merge your changes to the main branch.
@@ -80,7 +72,3 @@ component = RailsComponent("rails", autoscale=False)
 1. Click on the `Deploy to production` workflow.
 1. Click on `Run workflow` on the right.
 1. Click on the green `Run workflow` button.
-
-## Autoscaling
-
-Remove `autoscale=false` from the `infrastructure/__main__.py` file and redeploy.
