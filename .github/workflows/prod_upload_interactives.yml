@@ -1,0 +1,38 @@
+name: Prod Deploy
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pulling Repo Name to use as subfolder
+        run: |
+          echo "REPONAME=$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_ENV
+
+      - name: Remove Unneeded Files
+        run: |
+          rm -r .github/ .git/
+
+      - name: Upload to blob storage
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.67.0
+          # azcopy workadound https://github.com/Azure/azure-cli/issues/30635
+          inlineScript: |
+              tdnf install -y azcopy;
+              az storage blob upload-batch  --source ./ --destination "\$web/${{ env.REPONAME }}/" --connection-string '${{ secrets.INTERACTIVE_CONNECTION_STRING_PROD }}'
+
+
+  notify_deployment:
+    name: Notify Deployment
+    needs: deploy
+    uses:
+      strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
+    with:
+      repository_name: ${{ github.repository }}
+    secrets: inherit
