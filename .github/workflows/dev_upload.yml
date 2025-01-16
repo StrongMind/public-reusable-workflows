@@ -26,6 +26,15 @@ jobs:
       - name: Remove Unneeded Files
         run: |
           rm -r .github/ .git/
+
+      - name: Install azcopy
+        uses: azure/CLI@v1
+        with:
+          azcliversion: 2.67.0
+          # azcopy workadound https://github.com/Azure/azure-cli/issues/30635
+          inlineScript: |
+              tdnf install -y azcopy
+
       - name: edjufy Azure Blob Storage Upload (fork)
         # You may pin to the exact commit or the version.
         # uses: edjufy/azure-blob-storage-upload@a538f6f929ae98c1627aa6c0bc7e4284546210e5
