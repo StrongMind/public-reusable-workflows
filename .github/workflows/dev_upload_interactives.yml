@@ -25,4 +25,4 @@ jobs:
           # azcopy workadound https://github.com/Azure/azure-cli/issues/30635
           inlineScript: |
               tdnf install -y azcopy;
-              az storage blob upload-batch  --source ./ --destination "\$web/${{ env.REPONAME }}/" --connection-string '${{ secrets.INTERACTIVE_CONNECTION_STRING_DEV_KEY_2 }}'
+              az storage blob upload-batch  --source ./ --destination "\$web/${{ env.REPONAME }}" --connection-string '${{ secrets.INTERACTIVE_CONNECTION_STRING_DEV_KEY_2 }}'
