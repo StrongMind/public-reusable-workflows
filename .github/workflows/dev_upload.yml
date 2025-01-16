@@ -1,0 +1,41 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Dev Deploy
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the master branch
+
+  # Allows you to run this workflow manually from the Actions tab
+#  workflow_dispatch:
+  workflow_call:
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+      - name: Pulling Repo Name to use as subfolder
+        run: |
+          echo "REPONAME=$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_ENV
+      - name: Remove Unneeded Files
+        run: |
+          rm -r .github/ .git/
+      - name: edjufy Azure Blob Storage Upload (fork)
+        # You may pin to the exact commit or the version.
+        # uses: edjufy/azure-blob-storage-upload@a538f6f929ae98c1627aa6c0bc7e4284546210e5
+        uses: edjufy/azure-blob-storage-upload@v1.3.0
+        with:
+          # The name of the storage account container these assets will be uploaded to
+          container_name: "$web"
+          # The name of the directory you want to upload
+          source_dir: ./
+          # The connection string for the storage account. Used if value is set. Either connection_string or sas_token must be supplied
+          connection_string: ${{ secrets.INTERACTIVE_CONNECTION_STRING_DEV }}
+          # Extra arguments that can be passed to `az storage blob upload-batch|sync`. Useful for passing flags like `--pattern` or `--destination-path`
+          extra_args: '--destination ${{ env.REPONAME }}/'
