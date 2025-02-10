@@ -219,19 +219,35 @@ class ImmediateExecutor(ThreadPoolExecutor):
     postponed - see https://github.com/pulumi/pulumi/issues/7663
     """
 
-    def __init__(self):
-        super()
-        self._default_executor = ThreadPoolExecutor()
+    def __init__(self, max_workers=None):
+        super().__init__(max_workers=max_workers or 1)
+        self._shutdown = False
 
     def submit(self, fn, *args, **kwargs):
-        v = fn(*args, **kwargs)
-        return self._default_executor.submit(ImmediateExecutor._identity, v)
+        if self._shutdown:
+            raise RuntimeError('cannot schedule new futures after shutdown')
+        
+        try:
+            # Execute the function immediately in the current thread
+            result = fn(*args, **kwargs)
+            # Create and complete the future immediately
+            future = concurrent.futures.Future()
+            future.set_result(result)
+            return future
+        except Exception as e:
+            future = concurrent.futures.Future()
+            future.set_exception(e)
+            return future
 
     def map(self, func, *iterables, timeout=None, chunksize=1):
-        raise Exception('map not implemented')
+        if self._shutdown:
+            raise RuntimeError('cannot schedule new futures after shutdown')
+        
+        results = map(func, *iterables)
+        return [self.submit(ImmediateExecutor._identity, x) for x in results]
 
     def shutdown(self, wait=True, cancel_futures=False):
-        raise Exception('shutdown not implemented')
+        self._shutdown = True
 
     @staticmethod
     def _identity(x):
