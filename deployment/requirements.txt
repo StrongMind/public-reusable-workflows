@@ -6,6 +6,7 @@ pulumi-random
 boto3
 
 pytest-describe
+pytest-timeout
 faker
 mockito
 pytest-mockito
