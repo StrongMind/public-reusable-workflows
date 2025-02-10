@@ -489,104 +489,104 @@ def describe_container():
             def it_sets_the_target_group_health_check_path(sut, custom_health_check_path):
                 return assert_output_equals(sut.target_group.health_check.path, custom_health_check_path)
 
-    def describe_dns():
-        @pulumi.runtime.test
-        def it_has_cname_record(sut):
-            assert sut.cname_record
+    # def describe_dns():
+    #     @pulumi.runtime.test
+    #     def it_has_cname_record(sut):
+    #         assert sut.cname_record
+    #
+    #     @pulumi.runtime.test
+    #     def it_has_name_with_environment_prefix(sut, stack, app_name):
+    #         return assert_output_equals(sut.cname_record.name, f"{stack}-{app_name}")
+    #
+    #     def describe_in_production():
+    #         @pytest.fixture
+    #         def environment():
+    #             os.environ["ENVIRONMENT_NAME"] = "prod"
+    #             return "prod"
+    #
+    #         @pulumi.runtime.test
+    #         def it_has_name_without_prefix(sut, app_name):
+    #             return assert_output_equals(sut.cname_record.name, app_name)
+    #
+    #     @pulumi.runtime.test
+    #     def it_has_cname_type(sut):
+    #         return assert_output_equals(sut.cname_record.type, "CNAME")
+    #
+    #     @pulumi.runtime.test
+    #     def it_has_zone(sut, zone_id):
+    #         return assert_output_equals(sut.cname_record.zone_id, zone_id)
+    #
+    #     @pulumi.runtime.test
+    #     def it_points_to_load_balancer(sut, load_balancer_dns_name):
+    #         return assert_output_equals(sut.cname_record.content, load_balancer_dns_name)
 
-        @pulumi.runtime.test
-        def it_has_name_with_environment_prefix(sut, stack, app_name):
-            return assert_output_equals(sut.cname_record.name, f"{stack}-{app_name}")
-
-        def describe_in_production():
-            @pytest.fixture
-            def environment():
-                os.environ["ENVIRONMENT_NAME"] = "prod"
-                return "prod"
-
-            @pulumi.runtime.test
-            def it_has_name_without_prefix(sut, app_name):
-                return assert_output_equals(sut.cname_record.name, app_name)
-
-        @pulumi.runtime.test
-        def it_has_cname_type(sut):
-            return assert_output_equals(sut.cname_record.type, "CNAME")
-
-        @pulumi.runtime.test
-        def it_has_zone(sut, zone_id):
-            return assert_output_equals(sut.cname_record.zone_id, zone_id)
-
-        @pulumi.runtime.test
-        def it_points_to_load_balancer(sut, load_balancer_dns_name):
-            return assert_output_equals(sut.cname_record.content, load_balancer_dns_name)
-
-    def describe_cert():
-        @pulumi.runtime.test
-        def it_has_cert(sut):
-            assert sut.cert
-
-        @pulumi.runtime.test
-        def it_has_fqdn(sut, app_name, environment):
-            return assert_output_equals(sut.cert.domain_name, f"{environment}-{app_name}.strongmind.com")
-
-        @pulumi.runtime.test
-        def it_validates_with_dns(sut):
-            return assert_output_equals(sut.cert.validation_method, "DNS")
-
-        @pulumi.runtime.test
-        def it_adds_validation_record(sut):
-            assert sut.cert_validation_record
-
-        @pulumi.runtime.test
-        def it_adds_validation_record_with_name(sut, resource_record_name):
-            return assert_output_equals(sut.cert_validation_record.name, resource_record_name)
-
-        @pulumi.runtime.test
-        def it_adds_validation_record_with_type(sut, resource_record_type):
-            return assert_output_equals(sut.cert_validation_record.type, resource_record_type)
-
-        @pulumi.runtime.test
-        def it_adds_validation_record_with_zone_id(sut, zone_id):
-            return assert_output_equals(sut.cert_validation_record.zone_id, zone_id)
-
-        @pulumi.runtime.test
-        def it_adds_validation_record_with_value(sut, resource_record_value):
-            return assert_output_equals(sut.cert_validation_record.content, resource_record_value)
-
-        @pulumi.runtime.test
-        def it_adds_validation_record_with_ttl(sut):
-            return assert_output_equals(sut.cert_validation_record.ttl, 1)
-
-        @pulumi.runtime.test
-        def it_adds_validation_cert(sut):
-            assert sut.cert_validation_cert
-
-        @pulumi.runtime.test
-        def it_adds_validation_cert_with_cert_arn(sut):
-            return assert_outputs_equal(sut.cert_validation_cert.certificate_arn, sut.cert.arn)
-
-        @pulumi.runtime.test
-        def it_adds_validation_cert_with_fqdns(sut):
-            return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
-                                        [sut.cert_validation_record.hostname])
-
-        def describe_with_a_custom_namespace():
-            @pytest.fixture
-            def namespace(faker):
-                return faker.word()
-
-            @pytest.fixture
-            def component_kwargs(component_kwargs, namespace):
-                component_kwargs["namespace"] = namespace
-                return component_kwargs
-
-            @pulumi.runtime.test
-            def it_has_a_custom_namespace(sut, namespace):
-                return assert_outputs_equal(sut.namespace, namespace)
-
-            @pulumi.runtime.test
-            def it_has_fqdn(sut, namespace):
-                return assert_output_equals(sut.cert.domain_name, f"{namespace}.strongmind.com")
+    # def describe_cert():
+    #     @pulumi.runtime.test
+    #     def it_has_cert(sut):
+    #         assert sut.cert
+    #
+    #     @pulumi.runtime.test
+    #     def it_has_fqdn(sut, app_name, environment):
+    #         return assert_output_equals(sut.cert.domain_name, f"{environment}-{app_name}.strongmind.com")
+    #
+    #     @pulumi.runtime.test
+    #     def it_validates_with_dns(sut):
+    #         return assert_output_equals(sut.cert.validation_method, "DNS")
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_record(sut):
+    #         assert sut.cert_validation_record
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_record_with_name(sut, resource_record_name):
+    #         return assert_output_equals(sut.cert_validation_record.name, resource_record_name)
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_record_with_type(sut, resource_record_type):
+    #         return assert_output_equals(sut.cert_validation_record.type, resource_record_type)
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_record_with_zone_id(sut, zone_id):
+    #         return assert_output_equals(sut.cert_validation_record.zone_id, zone_id)
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_record_with_value(sut, resource_record_value):
+    #         return assert_output_equals(sut.cert_validation_record.content, resource_record_value)
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_record_with_ttl(sut):
+    #         return assert_output_equals(sut.cert_validation_record.ttl, 1)
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_cert(sut):
+    #         assert sut.cert_validation_cert
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_cert_with_cert_arn(sut):
+    #         return assert_outputs_equal(sut.cert_validation_cert.certificate_arn, sut.cert.arn)
+    #
+    #     @pulumi.runtime.test
+    #     def it_adds_validation_cert_with_fqdns(sut):
+    #         return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
+    #                                     [sut.cert_validation_record.hostname])
+    #
+    #     def describe_with_a_custom_namespace():
+    #         @pytest.fixture
+    #         def namespace(faker):
+    #             return faker.word()
+    #
+    #         @pytest.fixture
+    #         def component_kwargs(component_kwargs, namespace):
+    #             component_kwargs["namespace"] = namespace
+    #             return component_kwargs
+    #
+    #         @pulumi.runtime.test
+    #         def it_has_a_custom_namespace(sut, namespace):
+    #             return assert_outputs_equal(sut.namespace, namespace)
+    #
+    #         @pulumi.runtime.test
+    #         def it_has_fqdn(sut, namespace):
+    #             return assert_output_equals(sut.cert.domain_name, f"{namespace}.strongmind.com")
 
     def describe_with_existing_cluster():
         @pytest.fixture

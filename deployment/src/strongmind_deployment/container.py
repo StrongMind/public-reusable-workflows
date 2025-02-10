@@ -46,9 +46,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_out_alarm = None
         self.log_metric_filters = []
         self.target_group = None
+        self.load_balancer = None
         self.load_balancer_listener_redirect_http_to_https = None
         self.load_balancer_listener = None
-        self.load_balancer = None
         self.cert_validation_cert = None
         self.cert_validation_record = None
         self.cert = None
@@ -719,7 +719,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         # Create certificate in us-east-1 for CloudFront
         aws_east_1 = aws.Provider("aws-east-1", region="us-east-1")
-        
+
         self.cloudfront_cert = aws.acm.Certificate("cloudfront-cert",
             domain_name=full_name,
             validation_method="DNS",
@@ -736,26 +736,40 @@ class ContainerComponent(pulumi.ComponentResource):
 
         self.cloudfront_cert_validation_record = Record(
             'cloudfront_cert_validation_record',
-            name=domain_validation_options[0].resource_record_name,
-            type=domain_validation_options[0].resource_record_type,
+            name=domain_validation_options[0]['resource_record_name'],
+            type=domain_validation_options[0]['resource_record_type'],
             zone_id=zone_id,
-            content=domain_validation_options[0].resource_record_value.apply(remove_trailing_period),
+            content=self.cloudfront_cert.domain_validation_options.apply(
+                lambda opts: remove_trailing_period(opts[0]['resource_record_value'])
+            ),            
             ttl=1,
             opts=pulumi.ResourceOptions(parent=self)
         )
 
+
+
+        # self.cloudfront_cert_validation_record = Record(
+        #     'cloudfront_cert_validation_record',
+        #     name=domain_validation_options[0].resource_record_name,
+        #     type=domain_validation_options[0].resource_record_type,
+        #     zone_id=zone_id,
+        #     content=domain_validation_options[0].resource_record_value.apply(remove_trailing_period),
+        #     ttl=1,
+        #     opts=pulumi.ResourceOptions(parent=self)
+        # )
+        #
         self.cloudfront_cert_validation = aws.acm.CertificateValidation("cloudfront-cert-validation",
             certificate_arn=self.cloudfront_cert.arn,
             validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],
             opts=pulumi.ResourceOptions(provider=aws_east_1)
         )
-
-        # Create CloudFront distribution with both origins
+        #
+        # # Create CloudFront distribution with both origins
         cache_policy = aws.cloudfront.get_cache_policy(name="UseOriginCacheControlHeaders-QueryStrings")
         error_page_policy = aws.cloudfront.get_cache_policy(name="Managed-CachingOptimized")
         origin_request_policy = aws.cloudfront.get_origin_request_policy(name="Managed-AllViewer")
         response_header_policy = aws.cloudfront.get_response_headers_policy("5cc3b908-e619-4b99-88e5-2cf7f45965bd")
-
+        
         
         self.cloudfront_distribution = aws.cloudfront.Distribution(
             qualify_component_name("cloudfront", self.kwargs),
@@ -822,7 +836,7 @@ class ContainerComponent(pulumi.ComponentResource):
             ),
             tags=self.tags,
         )
-                # Use CloudFront distribution domain if available, otherwise use ALB
+         # Use CloudFront distribution domain if available, otherwise use ALB
         dns_target = self.cloudfront_distribution.domain_name if self.cloudfront_distribution else self.load_balancer.dns_name
         
         if self.kwargs.get('cname', True):

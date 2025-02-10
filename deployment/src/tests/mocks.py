@@ -1,8 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 
 import pulumi
 import pulumi_aws as aws
 
+from pulumi_aws.acm.outputs import CertificateDomainValidationOption
+
+from collections import namedtuple
 
 def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
     class PulumiMocks(pulumi.runtime.Mocks):
@@ -20,10 +24,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                 }
             if args.typ == "awsx:ecs:FargateService":
                 class TaskDefinitionMock(dict):
-                    __slots__ = {
-
-                    }
-
+                    def __init__(self):
+                        super().__init__()
+                        self.family = "mock-task-family"
+                        self.revision = 1
+                        self.task_role_arn = "arn:aws:iam::123456789012:role/mock-task-role"
+                        self.execution_role_arn = "arn:aws:iam::123456789012:role/mock-execution-role"
 
                 service_name = args.inputs["name"]
                 ecs_service_mock = aws.ecs.Service(service_name)
@@ -58,10 +64,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "hostname": faker.domain_name()
                 }
             if args.typ == "aws:acm/certificate:Certificate":
-                outputs = {
-                    **args.inputs,
-                    "arn": f"arn:aws:acm:us-west-2:123456789012:certificate/{faker.word()}",
-                }
+                outputs["arn"] = f"arn:aws:acm:us-east-1:123456789012:certificate/{faker.uuid4()}"
+                outputs["domain_validation_options"] = [{
+                    "resource_record_name": f"_validation.{outputs.get('domain_name', 'example.com')}.",
+                    "resource_record_type": "CNAME",
+                    "resource_record_value": f"{faker.word()}.acm-validations.aws."
+                }]
             if args.typ == "aws:lb/targetGroup:TargetGroup":
                 outputs = {
                     **args.inputs,
@@ -147,6 +155,40 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "arn": f"arn:aws:secretsmanager:us-west-2:123456789013:secret/my-secrets",
                     "secretString": secret_string
                 }
+
+            if args.token == "aws:cloudfront/getCachePolicy:getCachePolicy":
+                # print(f"Debug - MockCallArgs contents: {dir(args)}")  # Debug line
+                # print(f"Debug - MockCallArgs args: {args.args}")  # Debug line
+                if args.args.get("name") == "Managed-CachingOptimized":
+                    return {
+                        "id": "658327ea-f89d-4fab-a63d-7e88639e58f6",  # This is AWS's actual ID for this policy
+                        "name": "Managed-CachingOptimized"
+                    }
+                elif args.args.get("name") == "UseOriginCacheControlHeaders-QueryStrings":
+                    return {
+                        "id": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",  # This is a mock ID
+                        "name": "UseOriginCacheControlHeaders-QueryStrings"
+                    }
+                else:
+                    raise Exception(f"Unknown cache policy name: {args.args.get('name')}")
+
+            if args.token == "aws:cloudfront/getOriginRequestPolicy:getOriginRequestPolicy":
+                if args.args.get("name") == "Managed-AllViewer":
+                    return {
+                        "id": "216adef6-5c7f-47e4-b989-5492eafa07d3",  # This is AWS's actual ID for this policy
+                        "name": "Managed-AllViewer"
+                    }
+                else:
+                    raise Exception(f"Unknown origin request policy name: {args.args.get('name')}")
+
+            if args.token == "aws:cloudfront/getResponseHeadersPolicy:getResponseHeadersPolicy":
+                if args.args.get("id") == "5cc3b908-e619-4b99-88e5-2cf7f45965bd":
+                    return {
+                        "id": "5cc3b908-e619-4b99-88e5-2cf7f45965bd",
+                        "name": "CORS-With-Preflight"
+                    }
+                else:
+                    raise Exception(f"Unknown response headers policy ID: {args.args.get('id')}")
 
             if args.token == "aws:ec2/getSubnets:getSubnets":
                 return {"ids": ["subnet-12345", "subnet-67890"]}
