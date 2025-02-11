@@ -61,7 +61,8 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
             if args.typ == "cloudflare:index/record:Record":
                 outputs = {
                     **args.inputs,
-                    "hostname": faker.domain_name()
+                    "hostname": faker.domain_name(),
+                    "zone_id": "b4b7fec0d0aacbd55c5a259d1e64fff5"
                 }
             if args.typ == "aws:acm/certificate:Certificate":
                 outputs["arn"] = f"arn:aws:acm:us-east-1:123456789012:certificate/{faker.uuid4()}"

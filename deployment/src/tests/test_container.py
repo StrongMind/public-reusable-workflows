@@ -488,105 +488,205 @@ def describe_container():
             @pulumi.runtime.test
             def it_sets_the_target_group_health_check_path(sut, custom_health_check_path):
                 return assert_output_equals(sut.target_group.health_check.path, custom_health_check_path)
+            
+    def describe_with_cloudfront():
+        @pulumi.runtime.test
+        def it_creates_a_cloudfront_distribution(sut):
+            assert sut.cloudfront_distribution
 
-    # def describe_dns():
-    #     @pulumi.runtime.test
-    #     def it_has_cname_record(sut):
-    #         assert sut.cname_record
-    #
-    #     @pulumi.runtime.test
-    #     def it_has_name_with_environment_prefix(sut, stack, app_name):
-    #         return assert_output_equals(sut.cname_record.name, f"{stack}-{app_name}")
-    #
-    #     def describe_in_production():
-    #         @pytest.fixture
-    #         def environment():
-    #             os.environ["ENVIRONMENT_NAME"] = "prod"
-    #             return "prod"
-    #
-    #         @pulumi.runtime.test
-    #         def it_has_name_without_prefix(sut, app_name):
-    #             return assert_output_equals(sut.cname_record.name, app_name)
-    #
-    #     @pulumi.runtime.test
-    #     def it_has_cname_type(sut):
-    #         return assert_output_equals(sut.cname_record.type, "CNAME")
-    #
-    #     @pulumi.runtime.test
-    #     def it_has_zone(sut, zone_id):
-    #         return assert_output_equals(sut.cname_record.zone_id, zone_id)
-    #
-    #     @pulumi.runtime.test
-    #     def it_points_to_load_balancer(sut, load_balancer_dns_name):
-    #         return assert_output_equals(sut.cname_record.content, load_balancer_dns_name)
+        @pulumi.runtime.test
+        def it_has_a_cloudfront_certificate(sut):
+            assert sut.cloudfront_cert
 
-    # def describe_cert():
-    #     @pulumi.runtime.test
-    #     def it_has_cert(sut):
-    #         assert sut.cert
-    #
-    #     @pulumi.runtime.test
-    #     def it_has_fqdn(sut, app_name, environment):
-    #         return assert_output_equals(sut.cert.domain_name, f"{environment}-{app_name}.strongmind.com")
-    #
-    #     @pulumi.runtime.test
-    #     def it_validates_with_dns(sut):
-    #         return assert_output_equals(sut.cert.validation_method, "DNS")
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_record(sut):
-    #         assert sut.cert_validation_record
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_record_with_name(sut, resource_record_name):
-    #         return assert_output_equals(sut.cert_validation_record.name, resource_record_name)
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_record_with_type(sut, resource_record_type):
-    #         return assert_output_equals(sut.cert_validation_record.type, resource_record_type)
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_record_with_zone_id(sut, zone_id):
-    #         return assert_output_equals(sut.cert_validation_record.zone_id, zone_id)
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_record_with_value(sut, resource_record_value):
-    #         return assert_output_equals(sut.cert_validation_record.content, resource_record_value)
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_record_with_ttl(sut):
-    #         return assert_output_equals(sut.cert_validation_record.ttl, 1)
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_cert(sut):
-    #         assert sut.cert_validation_cert
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_cert_with_cert_arn(sut):
-    #         return assert_outputs_equal(sut.cert_validation_cert.certificate_arn, sut.cert.arn)
-    #
-    #     @pulumi.runtime.test
-    #     def it_adds_validation_cert_with_fqdns(sut):
-    #         return assert_outputs_equal(sut.cert_validation_cert.validation_record_fqdns,
-    #                                     [sut.cert_validation_record.hostname])
-    #
-    #     def describe_with_a_custom_namespace():
-    #         @pytest.fixture
-    #         def namespace(faker):
-    #             return faker.word()
-    #
-    #         @pytest.fixture
-    #         def component_kwargs(component_kwargs, namespace):
-    #             component_kwargs["namespace"] = namespace
-    #             return component_kwargs
-    #
-    #         @pulumi.runtime.test
-    #         def it_has_a_custom_namespace(sut, namespace):
-    #             return assert_outputs_equal(sut.namespace, namespace)
-    #
-    #         @pulumi.runtime.test
-    #         def it_has_fqdn(sut, namespace):
-    #             return assert_output_equals(sut.cert.domain_name, f"{namespace}.strongmind.com")
+        @pulumi.runtime.test
+        def it_configures_cloudfront_with_correct_aliases(sut, stack, app_name):
+            def check_aliases(args):
+                aliases = args[0]
+                expected_alias = f"{stack}-{app_name}.strongmind.com" if stack != "prod" else f"{app_name}.strongmind.com"
+                assert aliases == [expected_alias]
+
+            return pulumi.Output.all(sut.cloudfront_distribution.aliases).apply(check_aliases)
+
+        @pulumi.runtime.test
+        def it_configures_cloudfront_with_correct_origins(sut, stack):
+            def check_origins(args):
+                alb_origin, s3_origin, alb_dns_name = args
+                # Check ALB origin
+                assert alb_origin["domain_name"] == alb_dns_name
+                assert alb_origin["origin_id"] == alb_dns_name
+                assert alb_origin["custom_origin_config"]["origin_protocol_policy"] == "https-only"
+                assert alb_origin["custom_origin_config"]["origin_ssl_protocols"] == ["TLSv1.2"]
+                
+                # Check S3 origin
+                cdn_bucket = "strongmind-cdn-stage" if stack != "prod" else "strongmind-cdn-prod"
+                expected_s3_domain = f"{cdn_bucket}.s3.us-west-2.amazonaws.com"
+                assert s3_origin["domain_name"] == expected_s3_domain
+                assert s3_origin["origin_id"] == expected_s3_domain
+
+            return pulumi.Output.all(
+                sut.cloudfront_distribution.origins[0],
+                sut.cloudfront_distribution.origins[1],
+                sut.load_balancer.dns_name
+            ).apply(check_origins)
+        
+        @pulumi.runtime.test
+        def it_configures_cloudfront_with_correct_cache_behavior(sut):
+            assert sut.cloudfront_distribution.default_cache_behavior
+            
+        @pulumi.runtime.test
+        def it_has_a_viewer_certificate(sut):
+            assert sut.cloudfront_distribution.viewer_certificate
+
+        @pulumi.runtime.test
+        def it_uses_the_sni_only_method_for_the_viewer_certificate(sut):
+            def check_ssl_method(args):
+                viewer_cert = args[0]
+                assert viewer_cert.get("ssl_support_method") == "sni-only"
+
+            return pulumi.Output.all(sut.cloudfront_distribution.viewer_certificate).apply(check_ssl_method)
+
+        @pulumi.runtime.test
+        def it_uses_the_tls_v1_2_protocol_for_the_viewer_certificate(sut):
+            def check_protocol_version(args):
+                viewer_cert = args[0]
+                assert viewer_cert.get("minimum_protocol_version") == "TLSv1.2_2021"
+
+            return pulumi.Output.all(sut.cloudfront_distribution.viewer_certificate).apply(check_protocol_version)
+
+        @pulumi.runtime.test
+        def it_has_a_default_root_object(sut):
+            def check_root_object(args):
+                root_object = args[0]
+                if isinstance(root_object, list):
+                    assert root_object[0] == ""
+                else:
+                    assert root_object == ""
+
+            return pulumi.Output.all(sut.cloudfront_distribution.default_root_object).apply(check_root_object)
+            
+        @pulumi.runtime.test
+        def it_has_an_ordered_cache_behavior_for_error_pages(sut):
+            assert sut.cloudfront_distribution.ordered_cache_behaviors
+
+        @pulumi.runtime.test
+        def it_configures_ordered_cache_behavior_correctly(sut, stack):
+            def check_cache_behavior(args):
+                behaviors = args[0]
+                behavior = behaviors[0]  # We only have one ordered cache behavior
+                
+                # Check path pattern
+                assert behavior["path_pattern"] == "/504.html"
+                
+                # Check origin
+                cdn_bucket = "strongmind-cdn-stage" if stack != "prod" else "strongmind-cdn-prod"
+                expected_origin = f"{cdn_bucket}.s3.us-west-2.amazonaws.com"
+                assert behavior["target_origin_id"] == expected_origin
+                
+                # Check methods
+                assert behavior["allowed_methods"] == ["GET", "HEAD"]
+                assert behavior["cached_methods"] == ["GET", "HEAD"]
+                
+                # Check protocol and compression
+                assert behavior["viewer_protocol_policy"] == "allow-all"
+                assert behavior["compress"] is True
+                
+                # Check policy IDs are set (we can't check exact values as they're looked up)
+                assert behavior["cache_policy_id"] is not None
+                assert behavior["response_headers_policy_id"] is not None
+
+            return pulumi.Output.all(sut.cloudfront_distribution.ordered_cache_behaviors).apply(check_cache_behavior)
+        
+        @pulumi.runtime.test
+        def it_has_a_default_cache_behavior(sut):
+            assert sut.cloudfront_distribution.default_cache_behavior
+
+        @pulumi.runtime.test
+        def it_configures_default_cache_behavior_correctly(sut):
+            def check_default_cache_behavior(args):
+                behavior, alb_dns_name = args
+                
+                # Check target origin
+                assert behavior["target_origin_id"] == alb_dns_name
+                
+                # Check protocol policy
+                assert behavior["viewer_protocol_policy"] == "allow-all"
+                
+                # Check methods
+                assert set(behavior["allowed_methods"]) == {"GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"}
+                assert set(behavior["cached_methods"]) == {"GET", "HEAD"}
+                
+                # Check compression
+                assert behavior["compress"] is True
+                
+                # Check policy IDs are set
+                assert behavior["cache_policy_id"] is not None
+                assert behavior["origin_request_policy_id"] is not None
+
+            return pulumi.Output.all(
+                sut.cloudfront_distribution.default_cache_behavior,
+                sut.load_balancer.dns_name
+            ).apply(check_default_cache_behavior)
+        
+        @pulumi.runtime.test
+        def it_has_custom_error_responses(sut):
+            assert sut.cloudfront_distribution.custom_error_responses
+
+        @pulumi.runtime.test
+        def it_configures_custom_error_responses_correctly(sut):
+            def check_error_responses(args):
+                error_responses = args[0]
+                error_response = error_responses[0]  # We only have one error response
+                
+                # Check error and response codes
+                assert error_response["error_code"] == 504
+                assert error_response["response_code"] == 504
+                
+                # Check response page path
+                assert error_response["response_page_path"] == "/504.html"
+                
+                # Check caching TTL
+                assert error_response["error_caching_min_ttl"] == 10
+
+            return pulumi.Output.all(sut.cloudfront_distribution.custom_error_responses).apply(check_error_responses)
+        
+        @pulumi.runtime.test
+        def it_has_restrictions(sut):
+            assert sut.cloudfront_distribution.restrictions
+
+        @pulumi.runtime.test
+        def it_configures_restrictions_correctly(sut):
+            def check_restrictions(args):
+                restrictions = args[0]
+                assert restrictions["geo_restriction"]["restriction_type"] == "none"
+
+            return pulumi.Output.all(sut.cloudfront_distribution.restrictions).apply(check_restrictions)
+
+        @pulumi.runtime.test
+        def it_has_tags(sut):
+            assert sut.cloudfront_distribution.tags
+
+        @pulumi.runtime.test
+        def it_has_a_cname_record(sut):
+            assert sut.cname_record
+
+        @pulumi.runtime.test
+        def it_sets_cname_record_type(sut):
+            return assert_output_equals(sut.cname_record.type, "CNAME")
+
+        @pulumi.runtime.test
+        def it_sets_cname_record_content(sut):
+            return assert_outputs_equal(sut.cname_record.content, sut.cloudfront_distribution.domain_name)
+
+        @pulumi.runtime.test
+        def it_sets_cname_record_name(sut, stack, app_name):
+            expected_name = f"{stack}-{app_name}" if stack != "prod" else app_name
+            return assert_output_equals(sut.cname_record.name, expected_name)
+
+        @pulumi.runtime.test
+        def it_sets_cname_record_zone_id(sut):
+            return assert_output_equals(sut.cname_record.zone_id, "b4b7fec0d0aacbd55c5a259d1e64fff5")
+        
+        
 
     def describe_with_existing_cluster():
         @pytest.fixture
