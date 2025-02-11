@@ -746,18 +746,6 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self)
         )
 
-
-
-        # self.cloudfront_cert_validation_record = Record(
-        #     'cloudfront_cert_validation_record',
-        #     name=domain_validation_options[0].resource_record_name,
-        #     type=domain_validation_options[0].resource_record_type,
-        #     zone_id=zone_id,
-        #     content=domain_validation_options[0].resource_record_value.apply(remove_trailing_period),
-        #     ttl=1,
-        #     opts=pulumi.ResourceOptions(parent=self)
-        # )
-        #
         self.cloudfront_cert_validation = aws.acm.CertificateValidation("cloudfront-cert-validation",
             certificate_arn=self.cloudfront_cert.arn,
             validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],

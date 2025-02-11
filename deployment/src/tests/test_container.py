@@ -499,6 +499,84 @@ def describe_container():
             assert sut.cloudfront_cert
 
         @pulumi.runtime.test
+        def it_creates_cloudfront_certificate_in_us_east_1(sut):
+            def check_region(args):
+                arn = args[0]
+                # ARN format: arn:aws:acm:REGION:ACCOUNT:certificate/UUID
+                assert ":us-east-1:" in arn, "Certificate must be created in us-east-1 for CloudFront"
+
+            return pulumi.Output.all(sut.cloudfront_cert.arn).apply(check_region)
+
+        @pulumi.runtime.test
+        def it_has_a_certificate_validation_record(sut):
+            assert sut.cloudfront_cert_validation_record
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_record_name_from_options(sut):
+            def check_name(args):
+                record_name, validation_options = args
+                expected_name = validation_options[0]['resource_record_name']
+                assert record_name == expected_name
+
+            return pulumi.Output.all(
+                sut.cloudfront_cert_validation_record.name,
+                sut.cloudfront_cert.domain_validation_options
+            ).apply(check_name)
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_record_type_from_options(sut):
+            def check_type(args):
+                record_type, validation_options = args
+                expected_type = validation_options[0]['resource_record_type']
+                assert record_type == expected_type
+
+            return pulumi.Output.all(
+                sut.cloudfront_cert_validation_record.type,
+                sut.cloudfront_cert.domain_validation_options
+            ).apply(check_type)
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_record_content_from_options(sut):
+            def check_content(args):
+                record_content, validation_options = args
+                validation_value = validation_options[0]['resource_record_value']
+                # Remove trailing period if present
+                expected_content = validation_value[:-1] if validation_value.endswith('.') else validation_value
+                assert record_content == expected_content
+
+            return pulumi.Output.all(
+                sut.cloudfront_cert_validation_record.content,
+                sut.cloudfront_cert.domain_validation_options
+            ).apply(check_content)
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_record_ttl(sut):
+            return assert_output_equals(sut.cloudfront_cert_validation_record.ttl, 1)
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_record_zone_id(sut):
+            return assert_output_equals(sut.cloudfront_cert_validation_record.zone_id, "b4b7fec0d0aacbd55c5a259d1e64fff5")
+
+        @pulumi.runtime.test
+        def it_has_certificate_validation(sut):
+            assert sut.cloudfront_cert_validation
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_certificate_arn(sut):
+            return assert_outputs_equal(sut.cloudfront_cert_validation.certificate_arn, sut.cloudfront_cert.arn)
+
+        @pulumi.runtime.test
+        def it_sets_certificate_validation_record_fqdns(sut):
+            def check_fqdns(args):
+                validation_fqdns, record_hostname = args
+                assert validation_fqdns == [record_hostname]
+
+            return pulumi.Output.all(
+                sut.cloudfront_cert_validation.validation_record_fqdns,
+                sut.cloudfront_cert_validation_record.hostname
+            ).apply(check_fqdns)
+
+        @pulumi.runtime.test
         def it_configures_cloudfront_with_correct_aliases(sut, stack, app_name):
             def check_aliases(args):
                 aliases = args[0]
@@ -686,7 +764,42 @@ def describe_container():
         def it_sets_cname_record_zone_id(sut):
             return assert_output_equals(sut.cname_record.zone_id, "b4b7fec0d0aacbd55c5a259d1e64fff5")
         
-        
+    def describe_with_repository_domain_name_certificate():
+        @pulumi.runtime.test
+        def it_sets_certificate_domain_name_correctly(sut, stack, app_name):
+            def check_domain_name(args):
+                domain_name = args[0]
+                expected_domain = f"{stack}-{app_name}.strongmind.com" if stack != "prod" else f"{app_name}.strongmind.com"
+                assert domain_name == expected_domain
+
+            return pulumi.Output.all(sut.cloudfront_cert.domain_name).apply(check_domain_name)
+
+        @pulumi.runtime.test
+        def it_uses_dns_validation_method(sut):
+            return assert_output_equals(sut.cloudfront_cert.validation_method, "DNS")
+
+        def describe_with_custom_namespace():
+            @pytest.fixture
+            def namespace(faker):
+                return faker.word()
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, namespace):
+                component_kwargs["namespace"] = namespace
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_uses_namespace_for_certificate_domain(sut, namespace):
+                def check_domain_name(args):
+                    domain_name = args[0]
+                    expected_domain = f"{namespace}.strongmind.com"
+                    assert domain_name == expected_domain
+
+                return pulumi.Output.all(sut.cloudfront_cert.domain_name).apply(check_domain_name)
+
+        @pulumi.runtime.test
+        def it_has_tags(sut):
+            assert sut.cloudfront_cert.tags
 
     def describe_with_existing_cluster():
         @pytest.fixture
