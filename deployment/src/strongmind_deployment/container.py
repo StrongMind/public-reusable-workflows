@@ -693,7 +693,6 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                           )
                                                                                                           )
 
-        # Create CloudFront distribution if requested
         if kwargs.get('use_cloudfront', True):
             self.setup_cloudfront(project, stack)
 
@@ -711,13 +710,7 @@ class ContainerComponent(pulumi.ComponentResource):
         domain = 'strongmind.com'
         full_name = f"{name}.{domain}"
 
-        # Create Origin Access Identity for S3
-        self.origin_access_identity = aws.cloudfront.OriginAccessIdentity(
-            qualify_component_name("oai", self.kwargs),
-            comment=f"OAI for {full_name} error pages"
-        )
 
-        # Create certificate in us-east-1 for CloudFront
         aws_east_1 = aws.Provider("aws-east-1", region="us-east-1")
 
         self.cloudfront_cert = aws.acm.Certificate("cloudfront-cert",
@@ -727,7 +720,6 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(provider=aws_east_1)
         )
 
-        # DNS validation for the certificate
         domain_validation_options = self.cloudfront_cert.domain_validation_options
         zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
 
@@ -735,7 +727,7 @@ class ContainerComponent(pulumi.ComponentResource):
             return re.sub("\\.$", "", value)
 
         self.cloudfront_cert_validation_record = Record(
-            'cloudfront_cert_validation_record',
+            'cert_validation_record',
             name=domain_validation_options[0]['resource_record_name'],
             type=domain_validation_options[0]['resource_record_type'],
             zone_id=zone_id,
@@ -743,16 +735,15 @@ class ContainerComponent(pulumi.ComponentResource):
                 lambda opts: remove_trailing_period(opts[0]['resource_record_value'])
             ),            
             ttl=1,
-            opts=pulumi.ResourceOptions(parent=self)
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_cert], delete_before_replace=True)
         )
 
-        self.cloudfront_cert_validation = aws.acm.CertificateValidation("cloudfront-cert-validation",
+        self.cloudfront_cert_validation = aws.acm.CertificateValidation("cert_validation",
             certificate_arn=self.cloudfront_cert.arn,
             validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],
-            opts=pulumi.ResourceOptions(provider=aws_east_1)
+            opts=pulumi.ResourceOptions(provider=aws_east_1, parent=self, depends_on=[self.cloudfront_cert_validation_record], delete_before_replace=True)
         )
-        #
-        # # Create CloudFront distribution with both origins
+        
         cache_policy = aws.cloudfront.get_cache_policy(name="UseOriginCacheControlHeaders-QueryStrings")
         error_page_policy = aws.cloudfront.get_cache_policy(name="Managed-CachingOptimized")
         origin_request_policy = aws.cloudfront.get_origin_request_policy(name="Managed-AllViewer")
@@ -780,7 +771,7 @@ class ContainerComponent(pulumi.ComponentResource):
                     origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
                 )
             ],
-            default_root_object="",  # ALB will handle routing
+            default_root_object="", 
             aliases=[full_name],
             viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
                 acm_certificate_arn=self.cloudfront_cert.arn,
@@ -788,7 +779,6 @@ class ContainerComponent(pulumi.ComponentResource):
                 minimum_protocol_version="TLSv1.2_2021",
             ),
             ordered_cache_behaviors=[
-                # Cache behavior for error pages
                 aws.cloudfront.DistributionOrderedCacheBehaviorArgs(
                     path_pattern="/504.html",
                     target_origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
@@ -824,9 +814,8 @@ class ContainerComponent(pulumi.ComponentResource):
             ),
             tags=self.tags,
         )
-         # Use CloudFront distribution domain if available, otherwise use ALB
-        dns_target = self.cloudfront_distribution.domain_name if self.cloudfront_distribution else self.load_balancer.dns_name
-        
+
+        dns_target = self.cloudfront_distribution.domain_name
         if self.kwargs.get('cname', True):
             self.cname_record = Record(
                 qualify_component_name('cname_record', self.kwargs),
@@ -836,7 +825,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 zone_id=zone_id,
                 content=dns_target,
                 ttl=1,
-                opts=pulumi.ResourceOptions(parent=self),
+                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_distribution]),
             )
         pulumi.export("url", Output.concat("https://", full_name))
 
