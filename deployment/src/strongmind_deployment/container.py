@@ -711,7 +711,7 @@ class ContainerComponent(pulumi.ComponentResource):
         full_name = f"{name}.{domain}"
 
 
-        aws_east_1 = aws.Provider("aws-east-1", region="us-east-1")
+        aws_east_1 = aws.Provider(qualify_component_name("aws-east-1", self.kwargs), region="us-east-1")
 
         self.cloudfront_cert = aws.acm.Certificate(
             qualify_component_name("cloudfront-cert", self.kwargs),
