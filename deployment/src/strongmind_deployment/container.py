@@ -36,7 +36,8 @@ class ContainerComponent(pulumi.ComponentResource):
         - name: The name of the secret.
         - value_from: The ARN of the secret.
         :key custom_health_check_path: The path to use for the health check. Defaults to `/up`.
-        :key autoscale_threshold The amount of allowable TargetResponseTime before we scale .
+        :key autoscale_threshold The amount of allowable TargetResponseTime before we scale.
+        :key use_cloudfront: Whether to create a CloudFront distribution in front of the ALB. Defaults to False.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -45,9 +46,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_out_alarm = None
         self.log_metric_filters = []
         self.target_group = None
+        self.load_balancer = None
         self.load_balancer_listener_redirect_http_to_https = None
         self.load_balancer_listener = None
-        self.load_balancer = None
         self.cert_validation_cert = None
         self.cert_validation_record = None
         self.cert = None
@@ -76,6 +77,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.binary_sns_topic_arn = os.environ.get('BINARY_SNS_TOPIC_ARN')
         self.strongmind_service_updates_topic_arn = os.environ.get('STRONGMIND_SERVICE_UPDATES_TOPIC_ARN')
         self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
+        self.cloudfront_distribution = None
 
         project = pulumi.get_project()
         self.namespace = kwargs.get('namespace', f"{project}-{stack}")
@@ -691,7 +693,143 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                           )
                                                                                                           )
 
-        self.dns(project, stack)
+        if kwargs.get('use_cloudfront', True):
+            self.setup_cloudfront(project, stack)
+
+
+    def setup_cloudfront(self, project, stack):
+        """Set up CloudFront distribution in front of the ALB"""
+        if stack != "prod":
+            name = f"{stack}-{project}"
+            cdn_bucket = "strongmind-cdn-stage"
+        else:
+            name = project
+            cdn_bucket = "strongmind-cdn-prod"
+            
+        name = self.kwargs.get('namespace', name)
+        domain = 'strongmind.com'
+        full_name = f"{name}.{domain}"
+
+
+        aws_east_1 = aws.Provider(qualify_component_name("aws-east-1", self.kwargs), region="us-east-1")
+
+        self.cloudfront_cert = aws.acm.Certificate(
+            qualify_component_name("cloudfront-cert", self.kwargs),
+            domain_name=full_name,
+            validation_method="DNS",
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(provider=aws_east_1)
+        )
+
+        domain_validation_options = self.cloudfront_cert.domain_validation_options
+        zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
+
+        def remove_trailing_period(value):
+            return re.sub("\\.$", "", value)
+
+        self.cloudfront_cert_validation_record = Record(
+            qualify_component_name("cert_validation_record", self.kwargs),
+            name=domain_validation_options[0]['resource_record_name'],
+            type=domain_validation_options[0]['resource_record_type'],
+            zone_id=zone_id,
+            content=self.cloudfront_cert.domain_validation_options.apply(
+                lambda opts: remove_trailing_period(opts[0]['resource_record_value'])
+            ),            
+            ttl=1,
+            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_cert], delete_before_replace=True)
+        )
+
+        self.cloudfront_cert_validation = aws.acm.CertificateValidation(
+            qualify_component_name("cert_validation", self.kwargs),
+            certificate_arn=self.cloudfront_cert.arn,
+            validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],
+            opts=pulumi.ResourceOptions(provider=aws_east_1, parent=self, depends_on=[self.cloudfront_cert_validation_record], delete_before_replace=True)
+        )
+        
+        cache_policy = aws.cloudfront.get_cache_policy(name="UseOriginCacheControlHeaders-QueryStrings")
+        error_page_policy = aws.cloudfront.get_cache_policy(name="Managed-CachingOptimized")
+        origin_request_policy = aws.cloudfront.get_origin_request_policy(name="Managed-AllViewer")
+        response_header_policy = aws.cloudfront.get_response_headers_policy("5cc3b908-e619-4b99-88e5-2cf7f45965bd")
+        
+        
+        self.cloudfront_distribution = aws.cloudfront.Distribution(
+            qualify_component_name("cloudfront", self.kwargs),
+            enabled=True,
+            origins=[
+                # ALB Origin
+                aws.cloudfront.DistributionOriginArgs(
+                    domain_name=self.load_balancer.dns_name,
+                    origin_id=self.load_balancer.dns_name,
+                    custom_origin_config=aws.cloudfront.DistributionOriginCustomOriginConfigArgs(
+                        http_port=80,
+                        https_port=443,
+                        origin_protocol_policy="https-only",
+                        origin_ssl_protocols=["TLSv1.2"],
+                    ),
+                ),
+                # S3 Origin for error pages
+                aws.cloudfront.DistributionOriginArgs(
+                    domain_name=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
+                    origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
+                )
+            ],
+            default_root_object="", 
+            aliases=[full_name],
+            viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
+                acm_certificate_arn=self.cloudfront_cert.arn,
+                ssl_support_method="sni-only",
+                minimum_protocol_version="TLSv1.2_2021",
+            ),
+            ordered_cache_behaviors=[
+                aws.cloudfront.DistributionOrderedCacheBehaviorArgs(
+                    path_pattern="/504.html",
+                    target_origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
+                    viewer_protocol_policy="allow-all",
+                    allowed_methods=["GET", "HEAD"],
+                    cached_methods=["GET", "HEAD"],
+                    cache_policy_id=error_page_policy.id,
+                    response_headers_policy_id=response_header_policy.id,
+                    compress=True,
+                )
+            ],
+            default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
+                target_origin_id=self.load_balancer.dns_name,
+                viewer_protocol_policy="allow-all",
+                allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
+                cached_methods=["GET", "HEAD"],
+                cache_policy_id=cache_policy.id,
+                origin_request_policy_id=origin_request_policy.id,
+                compress=True,
+            ),
+            custom_error_responses=[
+                aws.cloudfront.DistributionCustomErrorResponseArgs(
+                    error_code=504,
+                    response_code=504,
+                    response_page_path="/504.html",
+                    error_caching_min_ttl=10
+                )
+            ],
+            restrictions=aws.cloudfront.DistributionRestrictionsArgs(
+                geo_restriction=aws.cloudfront.DistributionRestrictionsGeoRestrictionArgs(
+                    restriction_type="none"
+                )
+            ),
+            tags=self.tags,
+        )
+
+        dns_target = self.cloudfront_distribution.domain_name
+        if self.kwargs.get('cname', True):
+            self.cname_record = Record(
+                qualify_component_name('cname_record', self.kwargs),
+                name=name,
+                type='CNAME',
+                allow_overwrite=True,
+                zone_id=zone_id,
+                content=dns_target,
+                ttl=1,
+                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_distribution]),
+            )
+        pulumi.export("url", Output.concat("https://", full_name))
 
     def certificate(self, name, stack):
         if stack != "prod":
@@ -707,52 +845,3 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-    def dns(self, name, stack):
-        if stack != "prod":
-            name = f"{stack}-{name}"
-        name = self.kwargs.get('namespace', name)
-        domain = 'strongmind.com'
-        full_name = f"{name}.{domain}"
-        zone_id = self.kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
-        lb_dns_name = self.kwargs.get('load_balancer_dns_name',
-                                      self.load_balancer.dns_name)  # pragma: no cover
-        if self.kwargs.get('cname', True):
-            self.cname_record = Record(
-                qualify_component_name('cname_record', self.kwargs),
-                name=name,
-                type='CNAME',
-                allow_overwrite=True,
-                zone_id=zone_id,
-                content=lb_dns_name,
-                ttl=1,
-                opts=pulumi.ResourceOptions(parent=self),
-            )
-        pulumi.export("url", Output.concat("https://", full_name))
-
-        domain_validation_options = self.kwargs.get('domain_validation_options',
-                                                    self.cert.domain_validation_options)  # pragma: no cover
-
-        resource_record_value = domain_validation_options[0].resource_record_value
-
-        def remove_trailing_period(value):
-            return re.sub("\\.$", "", value)
-
-        if type(resource_record_value) != str:
-            resource_record_value = resource_record_value.apply(remove_trailing_period)
-
-        self.cert_validation_record = Record(
-            qualify_component_name('cert_validation_record', self.kwargs),
-            name=domain_validation_options[0].resource_record_name,
-            type=domain_validation_options[0].resource_record_type,
-            zone_id=zone_id,
-            content=resource_record_value,
-            ttl=1,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
-        )
-
-        self.cert_validation_cert = aws.acm.CertificateValidation(
-            qualify_component_name("cert_validation", self.kwargs),
-            certificate_arn=self.cert.arn,
-            validation_record_fqdns=[self.cert_validation_record.hostname],
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record]),
-        )

@@ -1,8 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
+import concurrent.futures
 
 import pulumi
 import pulumi_aws as aws
 
+from pulumi_aws.acm.outputs import CertificateDomainValidationOption
+
+from collections import namedtuple
 
 def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
     class PulumiMocks(pulumi.runtime.Mocks):
@@ -20,10 +24,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                 }
             if args.typ == "awsx:ecs:FargateService":
                 class TaskDefinitionMock(dict):
-                    __slots__ = {
-
-                    }
-
+                    def __init__(self):
+                        super().__init__()
+                        self.family = "mock-task-family"
+                        self.revision = 1
+                        self.task_role_arn = "arn:aws:iam::123456789012:role/mock-task-role"
+                        self.execution_role_arn = "arn:aws:iam::123456789012:role/mock-execution-role"
 
                 service_name = args.inputs["name"]
                 ecs_service_mock = aws.ecs.Service(service_name)
@@ -55,13 +61,16 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
             if args.typ == "cloudflare:index/record:Record":
                 outputs = {
                     **args.inputs,
-                    "hostname": faker.domain_name()
+                    "hostname": faker.domain_name(),
+                    "zone_id": "b4b7fec0d0aacbd55c5a259d1e64fff5"
                 }
             if args.typ == "aws:acm/certificate:Certificate":
-                outputs = {
-                    **args.inputs,
-                    "arn": f"arn:aws:acm:us-west-2:123456789012:certificate/{faker.word()}",
-                }
+                outputs["arn"] = f"arn:aws:acm:us-east-1:123456789012:certificate/{faker.uuid4()}"
+                outputs["domain_validation_options"] = [{
+                    "resource_record_name": f"_validation.{outputs.get('domain_name', 'example.com')}.",
+                    "resource_record_type": "CNAME",
+                    "resource_record_value": f"{faker.word()}.acm-validations.aws."
+                }]
             if args.typ == "aws:lb/targetGroup:TargetGroup":
                 outputs = {
                     **args.inputs,
@@ -148,6 +157,40 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "secretString": secret_string
                 }
 
+            if args.token == "aws:cloudfront/getCachePolicy:getCachePolicy":
+                # print(f"Debug - MockCallArgs contents: {dir(args)}")  # Debug line
+                # print(f"Debug - MockCallArgs args: {args.args}")  # Debug line
+                if args.args.get("name") == "Managed-CachingOptimized":
+                    return {
+                        "id": "658327ea-f89d-4fab-a63d-7e88639e58f6",  # This is AWS's actual ID for this policy
+                        "name": "Managed-CachingOptimized"
+                    }
+                elif args.args.get("name") == "UseOriginCacheControlHeaders-QueryStrings":
+                    return {
+                        "id": "4135ea2d-6df8-44a3-9df3-4b5a84be39ad",  # This is a mock ID
+                        "name": "UseOriginCacheControlHeaders-QueryStrings"
+                    }
+                else:
+                    raise Exception(f"Unknown cache policy name: {args.args.get('name')}")
+
+            if args.token == "aws:cloudfront/getOriginRequestPolicy:getOriginRequestPolicy":
+                if args.args.get("name") == "Managed-AllViewer":
+                    return {
+                        "id": "216adef6-5c7f-47e4-b989-5492eafa07d3",  # This is AWS's actual ID for this policy
+                        "name": "Managed-AllViewer"
+                    }
+                else:
+                    raise Exception(f"Unknown origin request policy name: {args.args.get('name')}")
+
+            if args.token == "aws:cloudfront/getResponseHeadersPolicy:getResponseHeadersPolicy":
+                if args.args.get("id") == "5cc3b908-e619-4b99-88e5-2cf7f45965bd":
+                    return {
+                        "id": "5cc3b908-e619-4b99-88e5-2cf7f45965bd",
+                        "name": "CORS-With-Preflight"
+                    }
+                else:
+                    raise Exception(f"Unknown response headers policy ID: {args.args.get('id')}")
+
             if args.token == "aws:ec2/getSubnets:getSubnets":
                 return {"ids": ["subnet-12345", "subnet-67890"]}
             
@@ -177,19 +220,35 @@ class ImmediateExecutor(ThreadPoolExecutor):
     postponed - see https://github.com/pulumi/pulumi/issues/7663
     """
 
-    def __init__(self):
-        super()
-        self._default_executor = ThreadPoolExecutor()
+    def __init__(self, max_workers=None):
+        super().__init__(max_workers=max_workers or 1)
+        self._shutdown = False
 
     def submit(self, fn, *args, **kwargs):
-        v = fn(*args, **kwargs)
-        return self._default_executor.submit(ImmediateExecutor._identity, v)
+        if self._shutdown:
+            raise RuntimeError('cannot schedule new futures after shutdown')
+        
+        try:
+            # Execute the function immediately in the current thread
+            result = fn(*args, **kwargs)
+            # Create and complete the future immediately
+            future = concurrent.futures.Future()
+            future.set_result(result)
+            return future
+        except Exception as e:
+            future = concurrent.futures.Future()
+            future.set_exception(e)
+            return future
 
     def map(self, func, *iterables, timeout=None, chunksize=1):
-        raise Exception('map not implemented')
+        if self._shutdown:
+            raise RuntimeError('cannot schedule new futures after shutdown')
+        
+        results = map(func, *iterables)
+        return [self.submit(ImmediateExecutor._identity, x) for x in results]
 
     def shutdown(self, wait=True, cancel_futures=False):
-        raise Exception('shutdown not implemented')
+        self._shutdown = True
 
     @staticmethod
     def _identity(x):
