@@ -713,7 +713,8 @@ class ContainerComponent(pulumi.ComponentResource):
 
         aws_east_1 = aws.Provider("aws-east-1", region="us-east-1")
 
-        self.cloudfront_cert = aws.acm.Certificate("cloudfront-cert",
+        self.cloudfront_cert = aws.acm.Certificate(
+            qualify_component_name("cloudfront-cert", self.kwargs),
             domain_name=full_name,
             validation_method="DNS",
             tags=self.tags,
@@ -727,7 +728,7 @@ class ContainerComponent(pulumi.ComponentResource):
             return re.sub("\\.$", "", value)
 
         self.cloudfront_cert_validation_record = Record(
-            'cert_validation_record',
+            qualify_component_name("cert_validation_record", self.kwargs),
             name=domain_validation_options[0]['resource_record_name'],
             type=domain_validation_options[0]['resource_record_type'],
             zone_id=zone_id,
@@ -738,7 +739,8 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_cert], delete_before_replace=True)
         )
 
-        self.cloudfront_cert_validation = aws.acm.CertificateValidation("cert_validation",
+        self.cloudfront_cert_validation = aws.acm.CertificateValidation(
+            qualify_component_name("cert_validation", self.kwargs),
             certificate_arn=self.cloudfront_cert.arn,
             validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],
             opts=pulumi.ResourceOptions(provider=aws_east_1, parent=self, depends_on=[self.cloudfront_cert_validation_record], delete_before_replace=True)
