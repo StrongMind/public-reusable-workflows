@@ -312,7 +312,7 @@ class ContainerComponent(pulumi.ComponentResource):
             task_definition_args=self.task_definition_args,
             deployment_maximum_percent=self.deployment_maximum_percent,
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"]),
+            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count", "service.desired_count", "service.desiredCount"]),
         )
 
         if self.kwargs.get('autoscale'):
