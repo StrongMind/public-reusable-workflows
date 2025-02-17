@@ -6,6 +6,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
+import boto3
 
 from strongmind_deployment import operations
 from strongmind_deployment.container import ContainerComponent
@@ -116,7 +117,15 @@ class RailsComponent(pulumi.ComponentResource):
             "environment": self.env_name,
             "owner": owning_team,
         }
+        ecs_client = boto3.client('ecs', region_name='us-west-2')
 
+        # Get the current desired count for the web service
+        response = ecs_client.describe_services(
+            cluster=self.namespace,  # This is our cluster name
+            services=[self.namespace]  # This is our web service name
+        )
+        self.web_desired_count = response['services'][0]['desiredCount']
+        pulumi.log.info(f"Current web service desired task count: {self.web_desired_count}")
         self.rds()
 
         self.setup_dynamo()
@@ -133,6 +142,19 @@ class RailsComponent(pulumi.ComponentResource):
 
         if self.env_name == "prod":
             self.setup_dashboard(self.namespace)
+
+
+
+
+
+        # If we have a worker service, get its desired count too
+        if self.need_worker:
+            worker_response = ecs_client.describe_services(
+                cluster=self.namespace,
+                services=[f"{self.namespace}-worker"]  # This is our worker service name
+            )
+            worker_desired_count = worker_response['services'][0]['desiredCount']
+            print(f"Current worker service desired task count: {worker_desired_count}")
 
     def setup_redis(self):
         if sidekiq_present():
@@ -254,10 +276,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
-        self.kwargs['desired_count'] = self.desired_web_count
+        self.kwargs['desired_count'] = self.web_desired_count
         self.kwargs['autoscale'] = self.autoscale
         self.kwargs['worker_autoscale'] = False
-
+        
         self.web_container = ContainerComponent(qualify_component_name("container", self.kwargs),
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]
