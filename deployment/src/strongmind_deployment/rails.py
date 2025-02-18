@@ -119,13 +119,20 @@ class RailsComponent(pulumi.ComponentResource):
         }
         ecs_client = boto3.client('ecs', region_name='us-west-2')
 
-        # Get the current desired count for the web service
         response = ecs_client.describe_services(
-            cluster=self.namespace,  # This is our cluster name
-            services=[self.namespace]  # This is our web service name
+            cluster=self.namespace,
+            services=[self.namespace]
         )
-        self.web_desired_count = response['services'][0]['desiredCount']
-        pulumi.log.info(f"Current web service desired task count: {self.web_desired_count}")
+        self.current_desired_count = response['services'][0]['desiredCount']
+        pulumi.log.info(f"Current web service desired task count: {self.current_desired_count}")
+        if self.need_worker: #keeping this for posterity although not using it currently
+            worker_response = ecs_client.describe_services(
+                cluster=self.namespace,
+                services=[f"{self.namespace}-worker"]  # This is our worker service name
+            )
+            self.worker_desired_count = worker_response['services'][0]['desiredCount']
+            pulumi.log.info(f"Current worker service desired task count: {self.worker_desired_count}")
+
         self.rds()
 
         self.setup_dynamo()
@@ -142,19 +149,6 @@ class RailsComponent(pulumi.ComponentResource):
 
         if self.env_name == "prod":
             self.setup_dashboard(self.namespace)
-
-
-
-
-
-        # If we have a worker service, get its desired count too
-        if self.need_worker:
-            worker_response = ecs_client.describe_services(
-                cluster=self.namespace,
-                services=[f"{self.namespace}-worker"]  # This is our worker service name
-            )
-            worker_desired_count = worker_response['services'][0]['desiredCount']
-            print(f"Current worker service desired task count: {worker_desired_count}")
 
     def setup_redis(self):
         if sidekiq_present():
