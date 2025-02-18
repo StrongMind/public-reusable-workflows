@@ -794,7 +794,7 @@ class ContainerComponent(pulumi.ComponentResource):
             ],
             default_cache_behavior=aws.cloudfront.DistributionDefaultCacheBehaviorArgs(
                 target_origin_id=self.load_balancer.dns_name,
-                viewer_protocol_policy="allow-all",
+                viewer_protocol_policy="redirect-to-https",
                 allowed_methods=["GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"],
                 cached_methods=["GET", "HEAD"],
                 cache_policy_id=cache_policy.id,
