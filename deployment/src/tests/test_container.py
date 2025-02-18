@@ -475,6 +475,52 @@ def describe_container():
             def it_sets_the_deployment_maximum_percent_to_200(sut):
                 return assert_output_equals(sut.fargate_service.deployment_maximum_percent, 200)
 
+            def describe_desired_count():
+                @pytest.fixture
+                def desired_count():
+                    import random
+                    return random.randint(10, 100)
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, desired_count):
+                    component_kwargs["desired_count"] = desired_count
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_sets_the_desired_count(sut, desired_count):
+                    return assert_output_equals(sut.fargate_service.desired_count, desired_count)
+
+                def describe_new_service():
+                    @pytest.fixture
+                    def min_capacity():
+                        import random
+                        return random.randint(1, 5)
+
+                    @pytest.fixture
+                    def component_kwargs(component_kwargs, min_capacity):
+                        component_kwargs["min_capacity"] = min_capacity
+                        return component_kwargs
+
+                    @pytest.fixture
+                    def empty_mock_boto():
+                        with mock_ecs():
+                            # Create cluster but no service
+                            ecs = boto3.client('ecs', region_name='us-west-2')
+                            ecs.create_cluster(
+                                clusterName='test-cluster'
+                            )
+                            yield ecs
+
+                    @pulumi.runtime.test
+                    def it_uses_minimum_count_for_new_service(sut, empty_mock_boto, min_capacity):
+                        # When service doesn't exist, it should use the minimum capacity
+                        response = empty_mock_boto.describe_services(
+                            cluster='test-cluster',
+                            services=['test-service']
+                        )
+                        assert len(response['services']) == 0
+                        return assert_output_equals(sut.fargate_service.desired_count, min_capacity)
+
         def describe_with_custom_health_check_path():
             @pytest.fixture
             def custom_health_check_path(faker):

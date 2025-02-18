@@ -124,14 +124,6 @@ class RailsComponent(pulumi.ComponentResource):
             services=[self.namespace]
         )
         self.current_desired_count = response['services'][0]['desiredCount']
-        pulumi.log.info(f"Current web service desired task count: {self.current_desired_count}")
-        if self.need_worker: #keeping this for posterity although not using it currently
-            worker_response = ecs_client.describe_services(
-                cluster=self.namespace,
-                services=[f"{self.namespace}-worker"]  # This is our worker service name
-            )
-            self.worker_desired_count = worker_response['services'][0]['desiredCount']
-            pulumi.log.info(f"Current worker service desired task count: {self.worker_desired_count}")
 
         self.rds()
 

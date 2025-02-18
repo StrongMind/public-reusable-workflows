@@ -5,6 +5,8 @@ from random import randint
 
 import pulumi
 import pytest
+import boto3
+from moto import mock_ecs
 
 from tests.mocks import ImmediateExecutor
 
@@ -38,3 +40,27 @@ def aws_credentials():
     os.environ["AWS_DEFAULT_REGION"] = 'us-east-1'
 
     yield os.environ
+
+@pytest.fixture(autouse=True)
+def mock_boto():
+    with mock_ecs():
+        ecs = boto3.client('ecs', region_name='us-west-2')
+        
+        # Create a test cluster
+        ecs.create_cluster(
+            clusterName='test-cluster'
+        )
+        
+        # Create a test service
+        ecs.create_service(
+            cluster='test-cluster',
+            serviceName='test-service',
+            taskDefinition='test-task:1',
+            desiredCount=2,
+            deploymentConfiguration={
+                'maximumPercent': 200,
+                'minimumHealthyPercent': 50
+            }
+        )
+        
+        yield ecs
