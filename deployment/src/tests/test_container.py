@@ -687,7 +687,7 @@ def describe_container():
                 assert behavior["target_origin_id"] == alb_dns_name
                 
                 # Check protocol policy
-                assert behavior["viewer_protocol_policy"] == "allow-all"
+                assert behavior["viewer_protocol_policy"] == "redirect-to-https"
                 
                 # Check methods
                 assert set(behavior["allowed_methods"]) == {"GET", "HEAD", "OPTIONS", "PUT", "PATCH", "POST", "DELETE"}
