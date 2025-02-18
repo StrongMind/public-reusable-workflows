@@ -117,7 +117,9 @@ class RailsComponent(pulumi.ComponentResource):
             "environment": self.env_name,
             "owner": owning_team,
         }
-        ecs_client = boto3.client('ecs', region_name='us-west-2')
+        
+        # Use injected ECS client or create one if not provided
+        ecs_client = kwargs.get('ecs_client') or boto3.client('ecs', region_name='us-west-2')
 
         response = ecs_client.describe_services(
             cluster=self.namespace,
@@ -262,7 +264,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
-        self.kwargs['desired_count'] = self.web_desired_count
+        self.kwargs['desired_count'] = self.desired_web_count
         self.kwargs['autoscale'] = self.autoscale
         self.kwargs['worker_autoscale'] = False
         

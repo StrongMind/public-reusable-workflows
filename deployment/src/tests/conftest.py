@@ -45,5 +45,4 @@ def aws_credentials():
 def mock_boto():
     with mock_aws():
         ecs = boto3.client('ecs', region_name='us-west-2')
-        
         yield ecs

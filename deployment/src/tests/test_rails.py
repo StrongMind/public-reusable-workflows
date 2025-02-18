@@ -180,38 +180,30 @@ def a_pulumi_rails_app():
                                                          )
         return sut
 
+
     @pytest.fixture
-    def stubbed_ecs_client():
+    def namespace(app_name, stack):
+        return f"{app_name}-{stack}"
+
+    @pytest.fixture
+    def stubbed_ecs_client(namespace):
         ecs_client = boto3.client('ecs')
         stubber = Stubber(ecs_client)
+
+        # Stub describe_services call with correct namespace
         stubber.add_response(
-            'run_task',
-            {"tasks": [{
-                "taskArn": "arn",
-            }]},
+            'describe_services',
             {
-                "taskDefinition": "family",
-                "cluster": "test_ecs_cluster",
-                "launchType": "FARGATE",
-                "networkConfiguration": {
-                    "awsvpcConfiguration": {
-                        "subnets": ["subnets"],
-                        "securityGroups": ["security_groups"],
-                        "assignPublicIp": "ENABLED"
-                    }
-                },
-                "startedBy": "rails-component"
+                'services': [{
+                    'desiredCount': 2,
+                }]
+            },
+            {
+                'cluster': namespace,
+                'services': [namespace]
             }
         )
-        stubber.add_response('describe_tasks', {"tasks":
-            [{
-                "lastStatus": "STOPPED",
-                "containers": [{
-                    "exitCode": 0,
-                }]
-            }]
-        }
-                             )
+
         stubber.activate()
         yield ecs_client
         stubber.deactivate()
