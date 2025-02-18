@@ -121,11 +121,14 @@ class RailsComponent(pulumi.ComponentResource):
         # Use injected ECS client or create one if not provided
         ecs_client = kwargs.get('ecs_client') or boto3.client('ecs', region_name='us-west-2')
 
-        response = ecs_client.describe_services(
-            cluster=self.namespace,
-            services=[self.namespace]
-        )
-        self.current_desired_count = response['services'][0]['desiredCount']
+        try:
+            response = ecs_client.describe_services(
+                cluster=self.namespace,
+                services=[self.namespace]
+            )
+            self.current_desired_count = response['services'][0]['desiredCount']
+        except [ecs_client.exceptions.ClusterNotFoundException, ecs_client.exceptions.ServiceNotFoundException] as e:
+            self.current_desired_count = self.desired_web_count
 
         self.rds()
 
