@@ -1,8 +1,10 @@
 import json
 import os
 
+import boto3
 import pulumi.runtime
 import pytest
+from moto import mock_aws
 from pytest_describe import behaves_like
 
 from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
@@ -503,7 +505,7 @@ def describe_container():
 
                     @pytest.fixture
                     def empty_mock_boto():
-                        with mock_ecs():
+                        with mock_aws():
                             # Create cluster but no service
                             ecs = boto3.client('ecs', region_name='us-west-2')
                             ecs.create_cluster(

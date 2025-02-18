@@ -6,7 +6,7 @@ from random import randint
 import pulumi
 import pytest
 import boto3
-from moto import mock_ecs
+from moto import mock_aws
 
 from tests.mocks import ImmediateExecutor
 
@@ -43,24 +43,7 @@ def aws_credentials():
 
 @pytest.fixture(autouse=True)
 def mock_boto():
-    with mock_ecs():
+    with mock_aws():
         ecs = boto3.client('ecs', region_name='us-west-2')
-        
-        # Create a test cluster
-        ecs.create_cluster(
-            clusterName='test-cluster'
-        )
-        
-        # Create a test service
-        ecs.create_service(
-            cluster='test-cluster',
-            serviceName='test-service',
-            taskDefinition='test-task:1',
-            desiredCount=2,
-            deploymentConfiguration={
-                'maximumPercent': 200,
-                'minimumHealthyPercent': 50
-            }
-        )
         
         yield ecs
