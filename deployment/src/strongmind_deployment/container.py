@@ -553,9 +553,11 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                               name=f"{namespace}-unhealthy-host-metric-alarm",
                                                                                                               actions_enabled=True,
                                                                                                               ok_actions=[
-                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
+                                                                                                                  self.sns_topic_arn,
+                                                                                                                  self.strongmind_service_updates_topic_arn],
                                                                                                               alarm_actions=[
-                                                                                                                  self.sns_topic_arn, self.strongmind_service_updates_topic_arn],
+                                                                                                                  self.sns_topic_arn,
+                                                                                                                  self.strongmind_service_updates_topic_arn],
                                                                                                               insufficient_data_actions=[],
                                                                                                               evaluation_periods=1,
                                                                                                               datapoints_to_alarm=1,
@@ -605,7 +607,6 @@ class ContainerComponent(pulumi.ComponentResource):
         if kwargs.get('use_cloudfront', True):
             self.setup_cloudfront(project, stack)
 
-
     def setup_cloudfront(self, project, stack):
         """Set up CloudFront distribution in front of the ALB"""
         if stack != "prod":
@@ -614,11 +615,10 @@ class ContainerComponent(pulumi.ComponentResource):
         else:
             name = project
             cdn_bucket = "strongmind-cdn-prod"
-            
+
         name = self.kwargs.get('namespace', name)
         domain = 'strongmind.com'
         full_name = f"{name}.{domain}"
-
 
         aws_east_1 = aws.Provider(qualify_component_name("aws-east-1", self.kwargs), region="us-east-1")
 
@@ -643,7 +643,7 @@ class ContainerComponent(pulumi.ComponentResource):
             zone_id=zone_id,
             content=self.cloudfront_cert.domain_validation_options.apply(
                 lambda opts: remove_trailing_period(opts[0]['resource_record_value'])
-            ),            
+            ),
             ttl=1,
             opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_cert], delete_before_replace=True)
         )
@@ -652,15 +652,15 @@ class ContainerComponent(pulumi.ComponentResource):
             qualify_component_name("cert_validation", self.kwargs),
             certificate_arn=self.cloudfront_cert.arn,
             validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],
-            opts=pulumi.ResourceOptions(provider=aws_east_1, parent=self, depends_on=[self.cloudfront_cert_validation_record], delete_before_replace=True)
+            opts=pulumi.ResourceOptions(provider=aws_east_1, parent=self,
+                                        depends_on=[self.cloudfront_cert_validation_record], delete_before_replace=True)
         )
-        
+
         cache_policy = aws.cloudfront.get_cache_policy(name="UseOriginCacheControlHeaders-QueryStrings")
         error_page_policy = aws.cloudfront.get_cache_policy(name="Managed-CachingOptimized")
         origin_request_policy = aws.cloudfront.get_origin_request_policy(name="Managed-AllViewer")
         response_header_policy = aws.cloudfront.get_response_headers_policy("5cc3b908-e619-4b99-88e5-2cf7f45965bd")
-        
-        
+
         self.cloudfront_distribution = aws.cloudfront.Distribution(
             qualify_component_name("cloudfront", self.kwargs),
             enabled=True,
@@ -682,7 +682,7 @@ class ContainerComponent(pulumi.ComponentResource):
                     origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
                 )
             ],
-            default_root_object="", 
+            default_root_object="",
             aliases=[full_name],
             viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
                 acm_certificate_arn=self.cloudfront_cert.arn,
@@ -753,4 +753,3 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
-

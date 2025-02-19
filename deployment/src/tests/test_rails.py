@@ -194,7 +194,17 @@ def a_pulumi_rails_app():
         ecs_client = boto3.client('ecs')
         stubber = Stubber(ecs_client)
 
-        # Stub describe_services call with correct namespace and desired count
+        # First attempt - standard case (will fail)
+        stubber.add_client_error(
+            'describe_services',
+            service_error_code='ServiceNotFoundException',
+            expected_params={
+                'cluster': namespace,
+                'services': [namespace]
+            }
+        )
+
+        # Second attempt - edge case (will succeed)
         stubber.add_response(
             'describe_services',
             {
@@ -204,7 +214,7 @@ def a_pulumi_rails_app():
             },
             {
                 'cluster': namespace,
-                'services': [namespace]
+                'services': [f"{namespace}-{namespace}-container"]
             }
         )
 
@@ -998,6 +1008,7 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_creates_secrets_with_the_namespace(sut, namespace):
             assert sut.secret.namespace == namespace
+
 
     @pulumi.runtime.test
     def it_sets_the_desired_web_count(sut):
