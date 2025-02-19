@@ -1008,3 +1008,12 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_creates_secrets_with_the_namespace(sut, namespace):
             assert sut.secret.namespace == namespace
+
+
+    @pulumi.runtime.test
+    def it_sets_the_desired_web_count(sut):
+        def check_desired_count(args):
+            desired_count = args[0]
+            assert sut.current_desired_count == desired_count
+            return True
+        return pulumi.Output.all(sut.web_container.fargate_service.desired_count).apply(check_desired_count)
