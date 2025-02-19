@@ -7,6 +7,7 @@ import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
 import boto3
+from botocore.exceptions import ClientError
 
 from strongmind_deployment import operations
 from strongmind_deployment.container import ContainerComponent
@@ -118,18 +119,37 @@ class RailsComponent(pulumi.ComponentResource):
             "owner": owning_team,
         }
         
-        # Use injected ECS client or create one if not provided
         ecs_client = kwargs.get('ecs_client') or boto3.client('ecs', region_name='us-west-2')
 
-        try:
-            response = ecs_client.describe_services(
-                cluster=self.namespace,
-                services=[self.namespace]
-            )
-            self.current_desired_count = response['services'][0]['desiredCount']
-            pulumi.log.info(f"Current desired count: {self.current_desired_count}")
-        except [ecs_client.exceptions.ClusterNotFoundException, ecs_client.exceptions.ServiceNotFoundException] as e:
-            pulumi.log.info(f"Cluster or service not found: {e}")
+        possible_service_names = [
+            self.namespace,  
+            f"{self.namespace}-{self.namespace}-container", 
+        ]
+
+        found_service = False
+        for service_name in possible_service_names:
+            try:
+                response = ecs_client.describe_services(
+                    cluster=self.namespace,
+                    services=[service_name]
+                )
+
+                if response.get('services') and len(response['services']) > 0:
+                    self.current_desired_count = response['services'][0]['desiredCount']
+                    pulumi.log.info(f"Found service {service_name} with desired count: {self.current_desired_count}")
+                    found_service = True
+                    break
+            except ClientError as e:
+                error_code = e.response['Error']['Code']
+                if error_code in ['ClusterNotFoundException', 'ServiceNotFoundException']:
+                    pulumi.log.info(f"Service {service_name} not found: {e}")
+                    continue
+                else:
+                    pulumi.log.warn(f"Unexpected error checking service {service_name}: {str(e)}")
+                    continue
+
+        if not found_service:
+            pulumi.log.info("No existing services found, using default desired count")
             self.current_desired_count = self.desired_web_count
 
         self.rds()
