@@ -127,7 +127,9 @@ class RailsComponent(pulumi.ComponentResource):
                 services=[self.namespace]
             )
             self.current_desired_count = response['services'][0]['desiredCount']
+            pulumi.log.info(f"Current desired count: {self.current_desired_count}")
         except [ecs_client.exceptions.ClusterNotFoundException, ecs_client.exceptions.ServiceNotFoundException] as e:
+            pulumi.log.info(f"Cluster or service not found: {e}")
             self.current_desired_count = self.desired_web_count
 
         self.rds()
@@ -267,7 +269,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
-        self.kwargs['desired_count'] = self.desired_web_count
+        self.kwargs['desired_count'] = self.current_desired_count
         self.kwargs['autoscale'] = self.autoscale
         self.kwargs['worker_autoscale'] = False
         
