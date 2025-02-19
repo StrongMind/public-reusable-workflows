@@ -6,6 +6,7 @@ import pulumi
 import pulumi_aws as aws
 import pulumi_random as random
 from pulumi import export, Output
+import boto3
 
 from strongmind_deployment import operations
 from strongmind_deployment.container import ContainerComponent
@@ -116,6 +117,20 @@ class RailsComponent(pulumi.ComponentResource):
             "environment": self.env_name,
             "owner": owning_team,
         }
+        
+        # Use injected ECS client or create one if not provided
+        ecs_client = kwargs.get('ecs_client') or boto3.client('ecs', region_name='us-west-2')
+
+        try:
+            response = ecs_client.describe_services(
+                cluster=self.namespace,
+                services=[self.namespace]
+            )
+            self.current_desired_count = response['services'][0]['desiredCount']
+            pulumi.log.info(f"Current desired count: {self.current_desired_count}")
+        except [ecs_client.exceptions.ClusterNotFoundException, ecs_client.exceptions.ServiceNotFoundException] as e:
+            pulumi.log.info(f"Cluster or service not found: {e}")
+            self.current_desired_count = self.desired_web_count
 
         self.rds()
 
@@ -254,10 +269,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
-        self.kwargs['desired_count'] = self.desired_web_count
+        self.kwargs['desired_count'] = self.current_desired_count
         self.kwargs['autoscale'] = self.autoscale
         self.kwargs['worker_autoscale'] = False
-
+        
         self.web_container = ContainerComponent(qualify_component_name("container", self.kwargs),
                                                 pulumi.ResourceOptions(parent=self,
                                                                        depends_on=[self.execution]

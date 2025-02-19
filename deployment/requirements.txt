@@ -10,5 +10,6 @@ pytest-timeout
 faker
 mockito
 pytest-mockito
+moto[ecs]
 
 wheel

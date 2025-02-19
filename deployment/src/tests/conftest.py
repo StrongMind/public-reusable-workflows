@@ -5,6 +5,8 @@ from random import randint
 
 import pulumi
 import pytest
+import boto3
+from moto import mock_aws
 
 from tests.mocks import ImmediateExecutor
 
@@ -38,3 +40,9 @@ def aws_credentials():
     os.environ["AWS_DEFAULT_REGION"] = 'us-east-1'
 
     yield os.environ
+
+@pytest.fixture(autouse=True)
+def mock_boto():
+    with mock_aws():
+        ecs = boto3.client('ecs', region_name='us-west-2')
+        yield ecs

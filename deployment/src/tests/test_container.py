@@ -1,8 +1,10 @@
 import json
 import os
 
+import boto3
 import pulumi.runtime
 import pytest
+from moto import mock_aws
 from pytest_describe import behaves_like
 
 from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
@@ -475,6 +477,21 @@ def describe_container():
             def it_sets_the_deployment_maximum_percent_to_200(sut):
                 return assert_output_equals(sut.fargate_service.deployment_maximum_percent, 200)
 
+            def describe_desired_count():
+                @pytest.fixture
+                def desired_count():
+                    import random
+                    return random.randint(10, 100)
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, desired_count):
+                    component_kwargs["desired_count"] = desired_count
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_sets_the_desired_count(sut, desired_count):
+                    return assert_output_equals(sut.fargate_service.desired_count, desired_count)
+
         def describe_with_custom_health_check_path():
             @pytest.fixture
             def custom_health_check_path(faker):
@@ -920,56 +937,10 @@ def describe_container():
                 return assert_output_equals(sut.log_metric_filters[1].metric_transformation.namespace,
                                             "Jobs")
 
-    def describe_healthy_host_metric_alarm():
-        @pulumi.runtime.test
-        def it_exits(sut):
-            assert hasattr(sut, 'healthy_host_metric_alarm')
-            assert sut.healthy_host_metric_alarm is not None
-
-        @pulumi.runtime.test
-        def it_is_named_healthy_host_metric_alarm(sut, app_name, stack):
-            return assert_output_equals(sut.healthy_host_metric_alarm.name, f"{app_name}-{stack}-healthy-host-metric-alarm")
-
-        @pulumi.runtime.test
-        def it_triggers_when_less_than_threshold(sut):
-            return assert_output_equals(sut.healthy_host_metric_alarm.comparison_operator, "LessThanThreshold")
-
-        @pulumi.runtime.test
-        def it_evaluates_for_one_period(sut):
-            return assert_output_equals(sut.healthy_host_metric_alarm.evaluation_periods, 1)
-
-        @pulumi.runtime.test
-        def it_triggers_based_on_mathematical_expression(sut):
-            return assert_output_equals(sut.healthy_host_metric_alarm.metric_queries[0].expression, "SUM(METRICS())")
-
-        @pulumi.runtime.test
-        def it_checks_the_unit_as_a_count(sut):
-            return assert_output_equals(sut.healthy_host_metric_alarm.metric_queries[1].metric.stat, "Maximum")
-
-        @pulumi.runtime.test
-        def it_belongs_to_the_ECS_namespace(sut):
-            return assert_output_equals(sut.healthy_host_metric_alarm.metric_queries[1].metric.namespace,
-                                        "AWS/ApplicationELB")
-
-        @pulumi.runtime.test
-        def it_runs_every_minute(sut):
-            return assert_output_equals(sut.healthy_host_metric_alarm.metric_queries[1].metric.period, 60)
-
-        @pulumi.runtime.test
-        def it_triggers_when_the_threshold_is_less_than_the_desired_count(sut):
-            expected_threshold = sut.desired_count
-            actual_threshold = sut.healthy_host_metric_alarm.threshold
-            assert_output_equals(actual_threshold, expected_threshold)
-
-        @pulumi.runtime.test
-        def it_has_tags(sut):
-            assert sut.healthy_host_metric_alarm.tags
-
     def describe_unhealthy_host_metric_alarm():
         @pulumi.runtime.test
         def it_exits(sut):
-            assert hasattr(sut, 'unhealthy_host_metric_alarm')
-            assert sut.unhealthy_host_metric_alarm is not None
+            assert sut.unhealthy_host_metric_alarm
 
         @pulumi.runtime.test
         def it_is_named_unhealthy_host_metric_alarm(sut, app_name, stack):
@@ -985,7 +956,7 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_triggers_based_on_mathematical_expression(sut):
-            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].expression, "SUM(METRICS())")
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].expression, "IF(desired_tasks > 0, unhealthy_hosts / desired_tasks, 0)")
 
         @pulumi.runtime.test
         def it_checks_the_unit_as_a_count(sut):
@@ -993,19 +964,15 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_belongs_to_the_ECS_namespace(sut):
-            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[1].metric.namespace,
-                                        "AWS/ApplicationELB")
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[2].metric.namespace, "ECS/ContainerInsights")
 
         @pulumi.runtime.test
         def it_runs_every_minute(sut):
-            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[1].metric.period, 60)
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[2].metric.period, 60)
 
         @pulumi.runtime.test
         def it_triggers_when_the_threshold_is_more_than_25percent_of_desired_count(sut):
-            desired_count = sut.desired_count
-            expected_threshold = desired_count * 0.25
-            actual_threshold = sut.unhealthy_host_metric_alarm.threshold
-            assert_output_equals(actual_threshold, expected_threshold)
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.threshold, 0.25)
 
         @pulumi.runtime.test
         def it_has_tags(sut):

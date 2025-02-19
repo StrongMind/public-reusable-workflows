@@ -180,38 +180,34 @@ def a_pulumi_rails_app():
                                                          )
         return sut
 
+
     @pytest.fixture
-    def stubbed_ecs_client():
+    def namespace(app_name, stack):
+        return f"{app_name}-{stack}"
+
+    @pytest.fixture
+    def default_desired_count():
+        return 2
+
+    @pytest.fixture
+    def stubbed_ecs_client(namespace, default_desired_count):
         ecs_client = boto3.client('ecs')
         stubber = Stubber(ecs_client)
+
+        # Stub describe_services call with correct namespace and desired count
         stubber.add_response(
-            'run_task',
-            {"tasks": [{
-                "taskArn": "arn",
-            }]},
+            'describe_services',
             {
-                "taskDefinition": "family",
-                "cluster": "test_ecs_cluster",
-                "launchType": "FARGATE",
-                "networkConfiguration": {
-                    "awsvpcConfiguration": {
-                        "subnets": ["subnets"],
-                        "securityGroups": ["security_groups"],
-                        "assignPublicIp": "ENABLED"
-                    }
-                },
-                "startedBy": "rails-component"
+                'services': [{
+                    'desiredCount': default_desired_count,
+                }]
+            },
+            {
+                'cluster': namespace,
+                'services': [namespace]
             }
         )
-        stubber.add_response('describe_tasks', {"tasks":
-            [{
-                "lastStatus": "STOPPED",
-                "containers": [{
-                    "exitCode": 0,
-                }]
-            }]
-        }
-                             )
+
         stubber.activate()
         yield ecs_client
         stubber.deactivate()
@@ -257,6 +253,28 @@ def a_pulumi_rails_app():
                 assert container["cpu"] == 2048
 
             return pulumi.Output.all(sut.worker_container.fargate_service.task_definition_args).apply(check_task_definition)
+
+    def describe_when_desired_web_count_is_provided():
+        @pytest.fixture
+        def desired_web_count(faker):
+            return faker.random_int()
+
+        @pytest.fixture
+        def default_desired_count(desired_web_count):
+            return desired_web_count
+
+        @pytest.fixture
+        def component_kwargs(component_kwargs, desired_web_count):
+            component_kwargs['desired_web_count'] = desired_web_count
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_sets_the_desired_web_count(sut):
+            def check_desired_count(args):
+                desired_count = args[0]
+                assert sut.current_desired_count == desired_count
+                return True
+            return pulumi.Output.all(sut.web_container.fargate_service.desired_count).apply(check_desired_count)
 
 
 
@@ -705,24 +723,6 @@ def describe_a_pulumi_rails_component():
             ).apply(check_machine_specs)
 
         @pulumi.runtime.test
-        def it_sets_the_desired_web_count_to_a_default_of_two(sut):
-            return assert_output_equals(sut.web_container.fargate_service.desired_count, 2)
-
-        def describe_when_desired_web_count_is_provided():
-            @pytest.fixture
-            def desired_web_count(faker):
-                return faker.random_int()
-
-            @pytest.fixture
-            def component_kwargs(component_kwargs, desired_web_count):
-                component_kwargs['desired_web_count'] = desired_web_count
-                return component_kwargs
-
-            @pulumi.runtime.test
-            def it_sets_the_desired_web_count(sut, desired_web_count):
-                return assert_output_equals(sut.web_container.fargate_service.desired_count, desired_web_count)
-
-        @pulumi.runtime.test
         def it_uses_rails_entry_point(sut, container_entry_point):
             assert sut.web_container.entry_point == container_entry_point
 
@@ -998,3 +998,11 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_creates_secrets_with_the_namespace(sut, namespace):
             assert sut.secret.namespace == namespace
+
+    @pulumi.runtime.test
+    def it_sets_the_desired_web_count(sut):
+        def check_desired_count(args):
+            desired_count = args[0]
+            assert sut.current_desired_count == desired_count
+            return True
+        return pulumi.Output.all(sut.web_container.fargate_service.desired_count).apply(check_desired_count)
