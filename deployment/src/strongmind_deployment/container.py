@@ -185,6 +185,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                 "logs:CreateLogStream",
                                 "logs:PutLogEvents",
                                 "secretsmanager:GetSecretValue",
+                                "s3:ListBucket",
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
