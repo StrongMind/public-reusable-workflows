@@ -137,9 +137,9 @@ Code owners can be found in [CODEOWNERS file](./CODEOWNERS)
        - Then, run `pulumi down` again to complete the teardown.
 
 
-## Chat with AI Assistant (Palumi King)
+## Chat with AI Assistant (Pulumi King)
 
-You can [chat with Palumi King](https://chatgpt.com/g/g-67bcb0b91c388191a2812a788901a882-palumi-king), an AI assistant designed to help with StrongMind infrastructure. Palumi King provides guidance on:
+You can [chat with Pulumi King](https://chatgpt.com/g/g-67bcb0b91c388191a2812a788901a882-pulumi-king), an AI assistant designed to help with StrongMind infrastructure. Palumi King provides guidance on:
 
 - AWS services and best practices
 - Infrastructure as Code using Pulumi
@@ -172,4 +172,3 @@ To regenerate the AI-generated documentation, follow these steps:
   * The three generated files will serve as references for the AI assistant to understand and provide insights into the infrastructure.
 
 By following this process, you ensure that the AI assistant stays updated with the latest infrastructure documentation.
-
