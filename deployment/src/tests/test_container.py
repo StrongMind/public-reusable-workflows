@@ -113,6 +113,8 @@ def describe_container():
                                 "s3:PutObject*",
                                 "s3:DeleteObject",
                                 "s3:ListBucket",
+                                "ses:SendEmail",
+                                "ses:SendRawEmail"
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
