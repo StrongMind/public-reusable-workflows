@@ -36,7 +36,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Vips dependencies
-        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
+        if: ${{ github.repository == 'StrongMind/central' && steps.spec-check.outputs.specs-found == 'true' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libvips-dev
@@ -91,7 +91,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Vips dependencies
-        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
+        if: ${{ github.repository == 'StrongMind/central' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libvips-dev
@@ -187,6 +187,7 @@ jobs:
         uses: actions/checkout@v4
       
       - name: Install Vips dependencies
+        if: ${{ github.repository == 'StrongMind/central' }}
         run: |
           sudo apt-get update
           sudo apt-get install -y libvips-dev
