@@ -4,6 +4,7 @@ import pulumi
 import pytest
 from pytest_describe import behaves_like
 
+from strongmind_deployment.container import ContainerComponent
 from tests.shared import assert_output_equals, assert_outputs_equal
 from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
 
@@ -404,3 +405,105 @@ def describe_autoscaling():
                 @pulumi.runtime.test
                 def it_scales_up_by_three_instances(step):
                     return assert_output_equals(step.scaling_adjustment, 3)
+
+    def describe_scheduled_scaling():
+        def describe_when_enabled():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs["autoscale"] = True
+                component_kwargs["scheduled_scaling"] = True
+                component_kwargs["peak_start_time"] = "06:00"
+                component_kwargs["peak_min_capacity"] = 3
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_scheduled_action(sut):
+                assert sut.peak_scale_up
+
+            @pulumi.runtime.test
+            def it_is_named_correctly(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.name,
+                    f"{sut.namespace}-pre-scale-action"
+                )
+
+            @pulumi.runtime.test
+            def it_uses_correct_cron_expression(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.schedule,
+                    "cron(0 00 06 ? * MON-FRI)"
+                )
+
+            @pulumi.runtime.test
+            def it_uses_mst_timezone(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.timezone,
+                    "Etc/GMT+7"
+                )
+
+            @pulumi.runtime.test
+            def it_sets_correct_min_capacity(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.scalable_target_action.min_capacity,
+                    3
+                )
+
+            @pulumi.runtime.test
+            def it_preserves_max_capacity(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.scalable_target_action.max_capacity,
+                    100
+                )
+
+            @pulumi.runtime.test
+            def it_uses_ecs_service_namespace(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.service_namespace,
+                    "ecs"
+                )
+
+            @pulumi.runtime.test
+            def it_uses_desired_count_scalable_dimension(sut):
+                return assert_output_equals(
+                    sut.peak_scale_up.scalable_dimension,
+                    "ecs:service:DesiredCount"
+                )
+
+            @pulumi.runtime.test
+            def it_uses_the_clusters_resource_id(sut):
+                return assert_outputs_equal(
+                    sut.peak_scale_up.resource_id,
+                    sut.autoscaling_target.resource_id
+                )
+
+            @pulumi.runtime.test
+            def it_depends_on_autoscaling_target(sut):
+                assert sut.peak_scale_up
+                assert sut.autoscaling_target
+
+            def describe_with_different_times():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["autoscale"] = True
+                    component_kwargs["scheduled_scaling"] = True
+                    component_kwargs["peak_start_time"] = "23:59"
+                    component_kwargs["peak_min_capacity"] = 3
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_handles_end_of_day_time(sut):
+                    return assert_output_equals(
+                        sut.peak_scale_up.schedule,
+                        "cron(0 59 23 ? * MON-FRI)"
+                    )
+
+        def describe_when_disabled():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs["autoscale"] = True
+                component_kwargs["scheduled_scaling"] = False
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_does_not_create_scheduled_action(sut):
+                assert not hasattr(sut, 'peak_scale_up')
