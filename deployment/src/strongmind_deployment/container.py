@@ -2,6 +2,7 @@ import json
 import os
 import re
 import subprocess
+from datetime import datetime, timezone, timedelta
 
 import pulumi
 import pulumi_aws as aws
@@ -39,7 +40,8 @@ class ContainerComponent(pulumi.ComponentResource):
         :key autoscale_threshold The amount of allowable TargetResponseTime before we scale.
         :key use_cloudfront: Whether to create a CloudFront distribution in front of the ALB. Defaults to False.
         :key scheduled_scaling: Whether to enable time-based scaling. Defaults to False.
-        :key peak_start_time: MST time to start peak hours (format: "HH:MM"). Required if scheduled_scaling is True.
+        :key pre_scale_time: MST time to start peak hours (format: "HH:MM"). Required if scheduled_scaling is True.
+        :key post_scale_time: MST time to end peak hours (format: "HH:MM"). Required if scheduled_scaling is True.
         :key peak_min_capacity: Minimum capacity during peak hours. Required if scheduled_scaling is True.
         :key desired_web_count: Minimum capacity during off-peak hours. Defaults to 2.
         """
@@ -83,7 +85,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.deployment_maximum_percent = kwargs.get('deployment_maximum_percent', 200)
         self.cloudfront_distribution = None
         self.scheduled_scaling = kwargs.get('scheduled_scaling', False)
-        self.peak_start_time = kwargs.get('peak_start_time')
+        self.pre_scale_time = kwargs.get('pre_scale_time')
+        self.post_scale_time = kwargs.get('post_scale_time')
         self.peak_min_capacity = kwargs.get('peak_min_capacity')
 
         project = pulumi.get_project()
@@ -349,7 +352,72 @@ class ContainerComponent(pulumi.ComponentResource):
                 raise ValueError
             return True
         except ValueError:
-            raise ValueError("peak_start_time must be in 'HH:MM' format (24-hour)")
+            raise ValueError("pre_scale_time must be in 'HH:MM' format (24-hour)")
+
+    def _validate_scheduled_scaling(self):
+        if not self.scheduled_scaling:
+            return
+
+        if not all([self.pre_scale_time, self.post_scale_time, self.peak_min_capacity]):
+            raise ValueError("pre_scale_time, post_scale_time, and peak_min_capacity must be provided when scheduled_scaling is enabled")
+
+        self._validate_time_format(self.pre_scale_time)
+        self._validate_time_format(self.post_scale_time)
+        self._validate_time_window(self.pre_scale_time, self.post_scale_time)
+
+    def _validate_time_window(self, start_time, end_time):
+        start_hour, start_minute = map(int, start_time.split(":"))
+        end_hour, end_minute = map(int, end_time.split(":"))
+        start_minutes = start_hour * 60 + start_minute
+        end_minutes = end_hour * 60 + end_minute
+        if end_minutes <= start_minutes:
+            raise ValueError("post_scale_time must be after pre_scale_time")
+
+    def _create_scheduled_scaling(self):
+        if not self.scheduled_scaling:
+            return
+
+        self._validate_scheduled_scaling()
+        
+        # Scale up action
+        start_hour, start_minute = self.pre_scale_time.split(":")
+        self.peak_scale_up = aws.appautoscaling.ScheduledAction(
+            qualify_component_name("pre_scale_action", self.kwargs),
+            name=f"{self.namespace}-pre-scale-action",
+            service_namespace=self.autoscaling_target.service_namespace,
+            resource_id=self.autoscaling_target.resource_id,
+            scalable_dimension=self.autoscaling_target.scalable_dimension,
+            schedule=f"cron(0 {start_minute} {start_hour} ? * MON-FRI)", 
+            timezone="Etc/GMT+7",  # MST is UTC-7, which is Etc/GMT+7 in IANA format
+            scalable_target_action=aws.appautoscaling.ScheduledActionScalableTargetActionArgs(
+                min_capacity=self.peak_min_capacity,
+                max_capacity=self.max_capacity
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.autoscaling_target]
+            )
+        )
+
+        # Scale down action
+        end_hour, end_minute = self.post_scale_time.split(":")
+        self.peak_scale_down = aws.appautoscaling.ScheduledAction(
+            qualify_component_name("post_scale_action", self.kwargs),
+            name=f"{self.namespace}-post-scale-action",
+            service_namespace=self.autoscaling_target.service_namespace,
+            resource_id=self.autoscaling_target.resource_id,
+            scalable_dimension=self.autoscaling_target.scalable_dimension,
+            schedule=f"cron(0 {end_minute} {end_hour} ? * MON-FRI)", 
+            timezone="Etc/GMT+7",  # MST is UTC-7, which is Etc/GMT+7 in IANA format
+            scalable_target_action=aws.appautoscaling.ScheduledActionScalableTargetActionArgs(
+                min_capacity=self.min_capacity,
+                max_capacity=self.max_capacity
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.autoscaling_target, self.peak_scale_up]
+            )
+        )
 
     def autoscaling(self):
 
@@ -497,29 +565,8 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
         if self.scheduled_scaling:
-            if not all([self.peak_start_time, self.peak_min_capacity]):
-                raise ValueError("peak_start_time and peak_min_capacity must be provided when scheduled_scaling is enabled")
-
-            self._validate_time_format(self.peak_start_time)
-            hour, minute = self.peak_start_time.split(":")
-
-            self.peak_scale_up = aws.appautoscaling.ScheduledAction(
-                qualify_component_name("pre_scale_action", self.kwargs),
-                name=f"{self.namespace}-pre-scale-action",
-                service_namespace=self.autoscaling_target.service_namespace,
-                resource_id=self.autoscaling_target.resource_id,
-                scalable_dimension=self.autoscaling_target.scalable_dimension,
-                schedule=f"cron(0 {minute} {hour} ? * MON-FRI)", 
-                timezone="Etc/GMT+7",  # MST is UTC-7, which is Etc/GMT+7 in IANA format
-                scalable_target_action=aws.appautoscaling.ScheduledActionScalableTargetActionArgs(
-                    min_capacity=self.peak_min_capacity,
-                    max_capacity=self.max_capacity
-                ),
-                opts=pulumi.ResourceOptions(
-                    parent=self,
-                    depends_on=[self.autoscaling_target]
-                )
-            )
+            self._validate_scheduled_scaling()
+            self._create_scheduled_scaling()
 
     def setup_load_balancer(self, kwargs, project, namespace, stack):
         self.certificate(project, stack)
