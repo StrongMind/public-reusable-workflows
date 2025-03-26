@@ -355,9 +355,6 @@ class ContainerComponent(pulumi.ComponentResource):
             raise ValueError("pre_scale_time must be in 'HH:MM' format (24-hour)")
 
     def _validate_scheduled_scaling(self):
-        if self.scheduled_scaling and self.env_name != 'prod':
-            return
-
         if not self.scheduled_scaling:
             return
 

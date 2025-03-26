@@ -1,5 +1,6 @@
 import random
 import re
+import os
 
 import pulumi
 import pytest
@@ -411,6 +412,7 @@ def describe_autoscaling():
         def describe_when_enabled():
             @pytest.fixture
             def component_kwargs(component_kwargs):
+                os.environ['ENVIRONMENT_NAME'] = 'prod'
                 component_kwargs["autoscale"] = True
                 component_kwargs["scheduled_scaling"] = True
                 component_kwargs["pre_scale_time"] = "06:00"
