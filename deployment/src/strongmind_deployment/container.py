@@ -355,6 +355,9 @@ class ContainerComponent(pulumi.ComponentResource):
             raise ValueError("pre_scale_time must be in 'HH:MM' format (24-hour)")
 
     def _validate_scheduled_scaling(self):
+        if self.scheduled_scaling and self.env_name != 'prod':
+            return
+
         if not self.scheduled_scaling:
             return
 
@@ -374,12 +377,11 @@ class ContainerComponent(pulumi.ComponentResource):
             raise ValueError("post_scale_time must be after pre_scale_time")
 
     def _create_scheduled_scaling(self):
-        if not self.scheduled_scaling:
+        if not self.scheduled_scaling or self.env_name != 'prod':
             return
 
         self._validate_scheduled_scaling()
         
-        # Scale up action
         start_hour, start_minute = self.pre_scale_time.split(":")
         self.peak_scale_up = aws.appautoscaling.ScheduledAction(
             qualify_component_name("pre_scale_action", self.kwargs),
@@ -399,7 +401,6 @@ class ContainerComponent(pulumi.ComponentResource):
             )
         )
 
-        # Scale down action
         end_hour, end_minute = self.post_scale_time.split(":")
         self.peak_scale_down = aws.appautoscaling.ScheduledAction(
             qualify_component_name("post_scale_action", self.kwargs),
