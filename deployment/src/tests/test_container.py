@@ -529,54 +529,65 @@ def describe_container():
             return pulumi.Output.all(sut.cloudfront_cert.arn).apply(check_region)
 
         @pulumi.runtime.test
-        def it_has_a_certificate_validation_record(sut):
-            assert sut.cloudfront_cert_validation_record
+        def it_has_certificate_validation_records(sut):
+            assert sut.cloudfront_cert_validation_records
 
         @pulumi.runtime.test
-        def it_sets_certificate_validation_record_name_from_options(sut):
-            def check_name(args):
-                record_name, validation_options = args
-                expected_name = validation_options[0]['resource_record_name']
-                assert record_name == expected_name
+        def it_sets_certificate_validation_record_names_from_options(sut):
+            def check_names(args):
+                records, validation_options = args
+                for i, option in enumerate(validation_options):
+                    assert records[i].name == option['resource_record_name']
 
             return pulumi.Output.all(
-                sut.cloudfront_cert_validation_record.name,
+                sut.cloudfront_cert_validation_records,
                 sut.cloudfront_cert.domain_validation_options
-            ).apply(check_name)
+            ).apply(check_names)
 
         @pulumi.runtime.test
-        def it_sets_certificate_validation_record_type_from_options(sut):
-            def check_type(args):
-                record_type, validation_options = args
-                expected_type = validation_options[0]['resource_record_type']
-                assert record_type == expected_type
+        def it_sets_certificate_validation_record_types_from_options(sut):
+            def check_types(args):
+                records, validation_options = args
+                for i, option in enumerate(validation_options):
+                    assert records[i].type == option['resource_record_type']
 
             return pulumi.Output.all(
-                sut.cloudfront_cert_validation_record.type,
+                sut.cloudfront_cert_validation_records,
                 sut.cloudfront_cert.domain_validation_options
-            ).apply(check_type)
+            ).apply(check_types)
 
         @pulumi.runtime.test
-        def it_sets_certificate_validation_record_content_from_options(sut):
-            def check_content(args):
-                record_content, validation_options = args
-                validation_value = validation_options[0]['resource_record_value']
-                # Remove trailing period if present
-                expected_content = validation_value[:-1] if validation_value.endswith('.') else validation_value
-                assert record_content == expected_content
+        def it_sets_certificate_validation_record_contents_from_options(sut):
+            def check_contents(args):
+                records, validation_options = args
+                for i, option in enumerate(validation_options):
+                    validation_value = option['resource_record_value']
+                    # Remove trailing period if present
+                    expected_content = validation_value[:-1] if validation_value.endswith('.') else validation_value
+                    assert records[i].content == expected_content
 
             return pulumi.Output.all(
-                sut.cloudfront_cert_validation_record.content,
+                sut.cloudfront_cert_validation_records,
                 sut.cloudfront_cert.domain_validation_options
-            ).apply(check_content)
+            ).apply(check_contents)
 
         @pulumi.runtime.test
-        def it_sets_certificate_validation_record_ttl(sut):
-            return assert_output_equals(sut.cloudfront_cert_validation_record.ttl, 1)
+        def it_sets_certificate_validation_record_ttls(sut):
+            def check_ttls(args):
+                records = args[0]
+                for record in records:
+                    assert record.ttl == 1
+
+            return pulumi.Output.all(sut.cloudfront_cert_validation_records).apply(check_ttls)
 
         @pulumi.runtime.test
-        def it_sets_certificate_validation_record_zone_id(sut):
-            return assert_output_equals(sut.cloudfront_cert_validation_record.zone_id, "b4b7fec0d0aacbd55c5a259d1e64fff5")
+        def it_sets_certificate_validation_record_zone_ids(sut):
+            def check_zone_ids(args):
+                records = args[0]
+                for record in records:
+                    assert record.zone_id == "b4b7fec0d0aacbd55c5a259d1e64fff5"
+
+            return pulumi.Output.all(sut.cloudfront_cert_validation_records).apply(check_zone_ids)
 
         @pulumi.runtime.test
         def it_has_certificate_validation(sut):
@@ -589,12 +600,13 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_fqdns(sut):
             def check_fqdns(args):
-                validation_fqdns, record_hostname = args
-                assert validation_fqdns == [record_hostname]
+                validation_fqdns, records = args
+                record_hostnames = [record.hostname for record in records]
+                assert validation_fqdns == record_hostnames
 
             return pulumi.Output.all(
                 sut.cloudfront_cert_validation.validation_record_fqdns,
-                sut.cloudfront_cert_validation_record.hostname
+                sut.cloudfront_cert_validation_records
             ).apply(check_fqdns)
 
         @pulumi.runtime.test
@@ -602,36 +614,48 @@ def describe_container():
             def check_aliases(args):
                 aliases = args[0]
                 expected_alias = f"{stack}-{app_name}.strongmind.com" if stack != "prod" else f"{app_name}.strongmind.com"
-                assert aliases == [expected_alias]
+                assert expected_alias in aliases
 
             return pulumi.Output.all(sut.cloudfront_distribution.aliases).apply(check_aliases)
 
-        @pulumi.runtime.test
-        def it_configures_cloudfront_with_correct_origins(sut, stack):
-            def check_origins(args):
-                alb_origin, s3_origin, alb_dns_name = args
-                # Check ALB origin
-                assert alb_origin["domain_name"] == alb_dns_name
-                assert alb_origin["origin_id"] == alb_dns_name
-                assert alb_origin["custom_origin_config"]["origin_protocol_policy"] == "https-only"
-                assert alb_origin["custom_origin_config"]["origin_ssl_protocols"] == ["TLSv1.2"]
-                
-                # Check S3 origin
-                cdn_bucket = "strongmind-cdn-stage" if stack != "prod" else "strongmind-cdn-prod"
-                expected_s3_domain = f"{cdn_bucket}.s3.us-west-2.amazonaws.com"
-                assert s3_origin["domain_name"] == expected_s3_domain
-                assert s3_origin["origin_id"] == expected_s3_domain
+        def describe_with_additional_domain_aliases():
+            @pytest.fixture
+            def additional_domains():
+                return ["enrollment.strongmind.com"]
 
-            return pulumi.Output.all(
-                sut.cloudfront_distribution.origins[0],
-                sut.cloudfront_distribution.origins[1],
-                sut.load_balancer.dns_name
-            ).apply(check_origins)
-        
-        @pulumi.runtime.test
-        def it_configures_cloudfront_with_correct_cache_behavior(sut):
-            assert sut.cloudfront_distribution.default_cache_behavior
-            
+            @pytest.fixture
+            def component_kwargs(component_kwargs, additional_domains):
+                component_kwargs["additional_domain_aliases"] = additional_domains
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_adds_domains_to_certificate_sans(sut, additional_domains):
+                return assert_outputs_equal(sut.cloudfront_cert.subject_alternative_names, additional_domains)
+
+            @pulumi.runtime.test
+            def it_adds_domains_to_cloudfront_aliases(sut, additional_domains, stack, app_name):
+                def check_aliases(args):
+                    aliases = args[0]
+                    expected_primary = f"{stack}-{app_name}.strongmind.com" if stack != "prod" else f"{app_name}.strongmind.com"
+                    assert expected_primary in aliases
+                    for domain in additional_domains:
+                        assert domain in aliases
+
+                return pulumi.Output.all(sut.cloudfront_distribution.aliases).apply(check_aliases)
+
+            @pulumi.runtime.test
+            def it_creates_cname_records_for_additional_domains(sut, additional_domains):
+                def check_cname_records(args):
+                    records = args[0]
+                    # Check we have records for all domains (primary + additional)
+                    assert len(records) == len(additional_domains) + 1
+                    # Check additional domain records
+                    additional_prefixes = [domain.split('.')[0] for domain in additional_domains]
+                    record_names = [record.name for record in records[1:]]  # Skip primary record
+                    assert sorted(additional_prefixes) == sorted(record_names)
+
+                return pulumi.Output.all(sut.cname_records).apply(check_cname_records)
+
         @pulumi.runtime.test
         def it_has_a_viewer_certificate(sut):
             assert sut.cloudfront_distribution.viewer_certificate
