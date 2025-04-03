@@ -135,3 +135,40 @@ Code owners can be found in [CODEOWNERS file](./CODEOWNERS)
          pulumi refresh
          ```
        - Then, run `pulumi down` again to complete the teardown.
+
+
+## Chat with AI Assistant (Pulumi King)
+
+You can [chat with Pulumi King](https://chatgpt.com/g/g-67bcb0b91c388191a2812a788901a882-pulumi-king), an AI assistant designed to help with StrongMind infrastructure. Palumi King provides guidance on:
+
+- AWS services and best practices
+- Infrastructure as Code using Pulumi
+- CI/CD workflows and automation
+- Troubleshooting deployment issues
+- Security and scaling strategies
+
+### How to Regenerate AI Assistant Documents
+To regenerate the AI-generated documentation, follow these steps:
+
+1. **Use Cursor to Run the Following Prompt:**
+```
+- create a file called notes.md
+- go through the files in the and folders and update the notes.md with:
+<node_md_content>
+* mermaid diagram of the infrastructure
+* list of services used
+* Description of the services used and interactions with one another
+</note_md_content>
+- update the notes.md after each file
+- go back to previous files if necessary to get a better understanding of the infrastructure
+```
+2. **Run This Prompt Three Times Using the Following Contexts:**
+
+  * **Deployment** Folder
+  * **Docs** Folder
+  * **Docs** and **Deployment** folder
+3. **Generated Files:**
+
+  * The three generated files will serve as references for the AI assistant to understand and provide insights into the infrastructure.
+
+By following this process, you ensure that the AI assistant stays updated with the latest infrastructure documentation.
