@@ -699,8 +699,14 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                           )
                                                                                                           )
 
+        # First, set up CloudFront
         if kwargs.get('use_cloudfront', True):
             self.setup_cloudfront(project, stack)
+
+        # After CloudFront is created, add certificate for additional domains if specified
+        self.additional_domain_resources = self.add_additional_domain_certificate(
+            kwargs, project, namespace, stack
+        )
 
     def setup_cloudfront(self, project, stack):
         """Set up CloudFront distribution in front of the ALB"""
@@ -717,7 +723,7 @@ class ContainerComponent(pulumi.ComponentResource):
 
         aws_east_1 = aws.Provider(qualify_component_name("aws-east-1", self.kwargs), region="us-east-1")
 
-        # Get additional domain aliases
+        # Get additional domain aliases - this will be used for both certificate and distribution
         additional_domains = self.kwargs.get('additional_domain_aliases', [])
 
         self.cloudfront_cert = aws.acm.Certificate(
@@ -920,3 +926,104 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
+
+    def add_additional_domain_certificate(self, kwargs, project, namespace, stack):
+        """Creates a new certificate just for additional domains and attaches it to the load balancer listener"""
+        
+        # Get additional domain aliases
+        additional_domains = kwargs.get('additional_domain_aliases', [])
+        if not additional_domains:
+            return None
+        
+        # Collect dependencies
+        dependencies = []
+        if hasattr(self, 'cloudfront_distribution'):
+            dependencies.append(self.cloudfront_distribution)
+            pulumi.log.info("Adding CloudFront distribution as dependency for additional domain certificate")
+        
+        # Create a new certificate for additional domains only
+        additional_domains_cert = aws.acm.Certificate(
+            qualify_component_name("additional_domains_cert", self.kwargs),
+            domain_name=additional_domains[0],  # Primary domain for this certificate
+            subject_alternative_names=additional_domains[1:] if len(additional_domains) > 1 else None,
+            validation_method="DNS",
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=dependencies
+            ),
+        )
+        
+        # Check if the domain has already been validated
+        if self.cloudfront_cert_validation:
+            pulumi.log.info("Domain already validated through CloudFront certificate, skipping additional validation.")
+            return {
+                "certificate": additional_domains_cert,
+                "attachment": aws.lb.ListenerCertificate(
+                    qualify_component_name("additional_domains_cert_attachment", self.kwargs),
+                    listener_arn=self.load_balancer_listener.arn,
+                    certificate_arn=additional_domains_cert.arn,
+                    opts=pulumi.ResourceOptions(
+                        parent=self,
+                        depends_on=[additional_domains_cert]
+                    )
+                )
+            }
+        
+        # Create validation records for the new certificate
+        domain_validation_options = additional_domains_cert.domain_validation_options
+        zone_id = kwargs.get('zone_id', 'b4b7fec0d0aacbd55c5a259d1e64fff5')
+        
+        def remove_trailing_period(value):
+            return re.sub("\\.$", "", value)
+        
+        def create_validation_records(validation_options):
+            records = []
+            for i, option in enumerate(validation_options):
+                record_name = f"additional_domain_cert_validation_{i}"
+                
+                records.append(Record(
+                    qualify_component_name(record_name, self.kwargs),
+                    name=option['resource_record_name'],
+                    type=option['resource_record_type'],
+                    zone_id=zone_id,
+                    content=remove_trailing_period(option['resource_record_value']),
+                    ttl=1,
+                    opts=pulumi.ResourceOptions(
+                        parent=self,
+                        depends_on=[additional_domains_cert] + dependencies
+                    )
+                ))
+            return records
+        
+        validation_records = domain_validation_options.apply(create_validation_records)
+        
+        # Validate the certificate
+        cert_validation = aws.acm.CertificateValidation(
+            qualify_component_name("additional_domains_cert_validation", self.kwargs),
+            certificate_arn=additional_domains_cert.arn,
+            validation_record_fqdns=validation_records.apply(
+                lambda records: [record.hostname for record in records]
+            ),
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=validation_records
+            )
+        )
+        
+        # Attach the new certificate to the existing HTTPS listener
+        cert_attachment = aws.lb.ListenerCertificate(
+            qualify_component_name("additional_domains_cert_attachment", self.kwargs),
+            listener_arn=self.load_balancer_listener.arn,
+            certificate_arn=additional_domains_cert.arn,
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[cert_validation]
+            )
+        )
+        
+        return {
+            "certificate": additional_domains_cert,
+            "validation": cert_validation,
+            "attachment": cert_attachment
+        }
