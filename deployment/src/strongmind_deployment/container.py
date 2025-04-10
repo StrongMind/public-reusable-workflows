@@ -815,6 +815,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 )
             ),
             tags=self.tags,
+            opts=pulumi.ResourceOptions(depends_on=[self.cloudfront_cert_validation])
         )
 
         dns_target = self.cloudfront_distribution.domain_name
