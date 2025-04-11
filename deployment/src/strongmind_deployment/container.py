@@ -728,8 +728,6 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(
                 provider=aws_east_1,
-                retain_on_delete=True,  # Don't delete the certificate if it's in use
-                delete_before_replace=False  # Create new certificate before deleting old one
             )
         )
 
@@ -776,8 +774,7 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(
                 provider=aws_east_1,
                 parent=self,
-                depends_on=self.cloudfront_cert_validation_records,
-                delete_before_replace=False  # Don't delete old validation until new one is ready
+                depends_on=self.cloudfront_cert_validation_records
             )
         )
 
