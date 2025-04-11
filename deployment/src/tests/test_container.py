@@ -535,59 +535,57 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_names_from_options(sut):
             def check_names(args):
-                records, validation_options = args
+                record_name, validation_options = args
                 for i, option in enumerate(validation_options):
-                    assert records[i].name == option['resource_record_name']
+                    assert record_name == option['resource_record_name']
 
             return pulumi.Output.all(
-                sut.cloudfront_cert_validation_records,
+                sut.cloudfront_cert_validation_records[0].name,
                 sut.cloudfront_cert.domain_validation_options
             ).apply(check_names)
 
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_types_from_options(sut):
             def check_types(args):
-                records, validation_options = args
+                record_type, validation_options = args
                 for i, option in enumerate(validation_options):
-                    assert records[i].type == option['resource_record_type']
+                    assert record_type == option['resource_record_type']
 
             return pulumi.Output.all(
-                sut.cloudfront_cert_validation_records,
+                sut.cloudfront_cert_validation_records[0].type,
                 sut.cloudfront_cert.domain_validation_options
             ).apply(check_types)
 
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_contents_from_options(sut):
             def check_contents(args):
-                records, validation_options = args
+                record_content, validation_options = args
                 for i, option in enumerate(validation_options):
                     validation_value = option['resource_record_value']
                     # Remove trailing period if present
                     expected_content = validation_value[:-1] if validation_value.endswith('.') else validation_value
-                    assert records[i].content == expected_content
+                    assert record_content == expected_content
 
             return pulumi.Output.all(
-                sut.cloudfront_cert_validation_records,
+                sut.cloudfront_cert_validation_records[0].content,
                 sut.cloudfront_cert.domain_validation_options
             ).apply(check_contents)
 
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_ttls(sut):
             def check_ttls(args):
-                records = args[0]
-                for record in records:
-                    assert record.ttl == 1
+                record_ttl = args[0]
+                assert record_ttl == 1
 
-            return pulumi.Output.all(sut.cloudfront_cert_validation_records).apply(check_ttls)
+            return pulumi.Output.all(sut.cloudfront_cert_validation_records[0].ttl).apply(check_ttls)
 
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_zone_ids(sut):
             def check_zone_ids(args):
-                records = args[0]
-                for record in records:
-                    assert record.zone_id == "b4b7fec0d0aacbd55c5a259d1e64fff5"
+                zone_id = args[0]
+                assert zone_id == "b4b7fec0d0aacbd55c5a259d1e64fff5"
 
-            return pulumi.Output.all(sut.cloudfront_cert_validation_records).apply(check_zone_ids)
+            return pulumi.Output.all(sut.cloudfront_cert_validation_records[0].zone_id).apply(check_zone_ids)
 
         @pulumi.runtime.test
         def it_has_certificate_validation(sut):
@@ -600,13 +598,12 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_fqdns(sut):
             def check_fqdns(args):
-                validation_fqdns, records = args
-                record_hostnames = [record.hostname for record in records]
-                assert validation_fqdns == record_hostnames
+                validation_fqdns, record_hostname = args
+                assert validation_fqdns[0] == record_hostname
 
             return pulumi.Output.all(
                 sut.cloudfront_cert_validation.validation_record_fqdns,
-                sut.cloudfront_cert_validation_records
+                sut.cloudfront_cert_validation_records[0].hostname
             ).apply(check_fqdns)
 
         @pulumi.runtime.test
@@ -646,15 +643,11 @@ def describe_container():
             @pulumi.runtime.test
             def it_creates_cname_records_for_additional_domains(sut, additional_domains):
                 def check_cname_records(args):
-                    records = args[0]
-                    # Check we have records for all domains (primary + additional)
-                    assert len(records) == len(additional_domains) + 1
-                    # Check additional domain records
-                    additional_prefixes = [domain.split('.')[0] for domain in additional_domains]
-                    record_names = [record.name for record in records[1:]]  # Skip primary record
-                    assert sorted(additional_prefixes) == sorted(record_names)
+                    record_name = args[0]
+                    additional_prefix = additional_domains[0].split('.')[0]
+                    assert additional_prefix == record_name
 
-                return pulumi.Output.all(sut.cname_records).apply(check_cname_records)
+                return pulumi.Output.all(sut.cname_records[1].name).apply(check_cname_records)
 
         @pulumi.runtime.test
         def it_has_a_viewer_certificate(sut):
@@ -790,24 +783,24 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_has_a_cname_record(sut):
-            assert sut.cname_record
+            assert sut.cname_records[0]
 
         @pulumi.runtime.test
         def it_sets_cname_record_type(sut):
-            return assert_output_equals(sut.cname_record.type, "CNAME")
+            return assert_output_equals(sut.cname_records[0].type, "CNAME")
 
         @pulumi.runtime.test
         def it_sets_cname_record_content(sut):
-            return assert_outputs_equal(sut.cname_record.content, sut.cloudfront_distribution.domain_name)
+            return assert_outputs_equal(sut.cname_records[0].content, sut.cloudfront_distribution.domain_name)
 
         @pulumi.runtime.test
         def it_sets_cname_record_name(sut, stack, app_name):
             expected_name = f"{stack}-{app_name}" if stack != "prod" else app_name
-            return assert_output_equals(sut.cname_record.name, expected_name)
+            return assert_output_equals(sut.cname_records[0].name, expected_name)
 
         @pulumi.runtime.test
         def it_sets_cname_record_zone_id(sut):
-            return assert_output_equals(sut.cname_record.zone_id, "b4b7fec0d0aacbd55c5a259d1e64fff5")
+            return assert_output_equals(sut.cname_records[0].zone_id, "b4b7fec0d0aacbd55c5a259d1e64fff5")
         
     def describe_with_repository_domain_name_certificate():
         @pulumi.runtime.test

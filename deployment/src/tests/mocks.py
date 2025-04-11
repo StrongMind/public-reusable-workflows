@@ -67,6 +67,7 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
             if args.typ == "aws:acm/certificate:Certificate":
                 outputs["arn"] = f"arn:aws:acm:us-east-1:123456789012:certificate/{faker.uuid4()}"
                 outputs["domain_validation_options"] = [{
+                    "domain_name": outputs.get('domain_name', 'example.com'),
                     "resource_record_name": f"_validation.{outputs.get('domain_name', 'example.com')}.",
                     "resource_record_type": "CNAME",
                     "resource_record_value": f"{faker.word()}.acm-validations.aws."
