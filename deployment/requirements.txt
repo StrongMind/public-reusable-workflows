@@ -1,4 +1,4 @@
-pulumi
+pulumi==3.142.0
 pulumi-aws
 pulumi-awsx
 pulumi-cloudflare==5.49.1

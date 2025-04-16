@@ -44,6 +44,10 @@ class ContainerComponent(pulumi.ComponentResource):
         :key post_scale_time: MST time to end peak hours (format: "HH:MM"). Required if scheduled_scaling is True.
         :key peak_min_capacity: Minimum capacity during peak hours. Required if scheduled_scaling is True.
         :key desired_web_count: Minimum capacity during off-peak hours. Defaults to 2.
+        :key additional_domain_aliases: Optional list of additional domain names to be included in the CloudFront distribution's 
+                                      certificate and aliases. Each domain should be a full domain name 
+                                      (e.g., ["enrollment.strongmind.com"]). These domains will be added to the certificate's 
+                                      SAN and the CloudFront distribution's aliases.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -561,7 +565,7 @@ class ContainerComponent(pulumi.ComponentResource):
             alarm_description="Alarm when ECS service running tasks are at Max of 100",
             tags=self.tags
         )
-
+        pulumi.log.info(f"SCHEDULED SCALING: {self.scheduled_scaling}")
         if self.scheduled_scaling:
             self._validate_scheduled_scaling()
             self._create_scheduled_scaling()
@@ -713,12 +717,18 @@ class ContainerComponent(pulumi.ComponentResource):
 
         aws_east_1 = aws.Provider(qualify_component_name("aws-east-1", self.kwargs), region="us-east-1")
 
+        # Get additional domain aliases
+        additional_domains = self.kwargs.get('additional_domain_aliases', [])
+
         self.cloudfront_cert = aws.acm.Certificate(
             qualify_component_name("cloudfront-cert", self.kwargs),
             domain_name=full_name,
+            subject_alternative_names=additional_domains if additional_domains else None,
             validation_method="DNS",
             tags=self.tags,
-            opts=pulumi.ResourceOptions(provider=aws_east_1)
+            opts=pulumi.ResourceOptions(
+                provider=aws_east_1,
+            )
         )
 
         domain_validation_options = self.cloudfront_cert.domain_validation_options
@@ -727,24 +737,45 @@ class ContainerComponent(pulumi.ComponentResource):
         def remove_trailing_period(value):
             return re.sub("\\.$", "", value)
 
-        self.cloudfront_cert_validation_record = Record(
-            qualify_component_name("cert_validation_record", self.kwargs),
-            name=domain_validation_options[0]['resource_record_name'],
-            type=domain_validation_options[0]['resource_record_type'],
-            zone_id=zone_id,
-            content=self.cloudfront_cert.domain_validation_options.apply(
-                lambda opts: remove_trailing_period(opts[0]['resource_record_value'])
-            ),
-            ttl=1,
-            opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_cert], delete_before_replace=True)
-        )
+        # Create validation records for all domains
+        def create_validation_records(validation_options):
+            records = []
+            for i, option in enumerate(validation_options):
+                # Keep original resource name for primary domain to maintain existing resources
+                if option['domain_name'] == full_name:
+                    record_name = "cert_validation_record"
+                else:
+                    # Only create new records for additional domains
+                    record_name = f"cert_validation_record_{option['domain_name'].replace('.', '_')}"
+                
+                records.append(Record(
+                    qualify_component_name(record_name, self.kwargs),
+                    name=option['resource_record_name'],
+                    type=option['resource_record_type'],
+                    zone_id=zone_id,
+                    content=remove_trailing_period(option['resource_record_value']),
+                    ttl=1,
+                    opts=pulumi.ResourceOptions(
+                        parent=self,
+                        depends_on=[self.cloudfront_cert]
+                    )
+                ))
+            return records
 
+        self.cloudfront_cert_validation_records = domain_validation_options.apply(create_validation_records)
+
+        # Ensure certificate validation completes before creating distribution
         self.cloudfront_cert_validation = aws.acm.CertificateValidation(
             qualify_component_name("cert_validation", self.kwargs),
             certificate_arn=self.cloudfront_cert.arn,
-            validation_record_fqdns=[self.cloudfront_cert_validation_record.hostname],
-            opts=pulumi.ResourceOptions(provider=aws_east_1, parent=self,
-                                        depends_on=[self.cloudfront_cert_validation_record], delete_before_replace=True)
+            validation_record_fqdns=self.cloudfront_cert_validation_records.apply(
+                lambda records: [record.hostname for record in records]
+            ),
+            opts=pulumi.ResourceOptions(
+                provider=aws_east_1,
+                parent=self,
+                depends_on=self.cloudfront_cert_validation_records
+            )
         )
 
         cache_policy = aws.cloudfront.get_cache_policy(name="UseOriginCacheControlHeaders-QueryStrings")
@@ -752,11 +783,13 @@ class ContainerComponent(pulumi.ComponentResource):
         origin_request_policy = aws.cloudfront.get_origin_request_policy(name="Managed-AllViewer")
         response_header_policy = aws.cloudfront.get_response_headers_policy("5cc3b908-e619-4b99-88e5-2cf7f45965bd")
 
+        # Include all domains in CloudFront aliases
+        aliases = [full_name] + additional_domains
+
         self.cloudfront_distribution = aws.cloudfront.Distribution(
             qualify_component_name("cloudfront", self.kwargs),
             enabled=True,
             origins=[
-                # ALB Origin
                 aws.cloudfront.DistributionOriginArgs(
                     domain_name=self.load_balancer.dns_name,
                     origin_id=self.load_balancer.dns_name,
@@ -767,18 +800,20 @@ class ContainerComponent(pulumi.ComponentResource):
                         origin_ssl_protocols=["TLSv1.2"],
                     ),
                 ),
-                # S3 Origin for error pages
                 aws.cloudfront.DistributionOriginArgs(
                     domain_name=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
                     origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
                 )
             ],
             default_root_object="",
-            aliases=[full_name],
+            aliases=aliases,
             viewer_certificate=aws.cloudfront.DistributionViewerCertificateArgs(
                 acm_certificate_arn=self.cloudfront_cert.arn,
                 ssl_support_method="sni-only",
                 minimum_protocol_version="TLSv1.2_2021",
+            ),
+            opts=pulumi.ResourceOptions(
+                depends_on=[self.cloudfront_cert_validation, self.cloudfront_cert]  # Ensure CloudFront waits for certificate creation and validation
             ),
             ordered_cache_behaviors=[
                 aws.cloudfront.DistributionOrderedCacheBehaviorArgs(
@@ -819,17 +854,55 @@ class ContainerComponent(pulumi.ComponentResource):
 
         dns_target = self.cloudfront_distribution.domain_name
         if self.kwargs.get('cname', True):
-            self.cname_record = Record(
-                qualify_component_name('cname_record', self.kwargs),
-                name=name,
-                type='CNAME',
-                allow_overwrite=True,
-                zone_id=zone_id,
-                content=dns_target,
-                ttl=1,
-                opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_distribution]),
-            )
-        pulumi.export("url", Output.concat("https://", full_name))
+            # Create CNAME records for all domains
+            def create_cname_records(distribution_domain_name):
+                records = [
+                    Record(
+                        qualify_component_name('cname_record', self.kwargs),  # Use original name for primary domain
+                        name=name,
+                        type='CNAME',
+                        allow_overwrite=True,
+                        zone_id=zone_id,
+                        content=distribution_domain_name,
+                        ttl=1,
+                        opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_distribution])
+                    )
+                ]
+                
+                # Add records for additional domains
+                for domain in additional_domains:
+                    domain_prefix = domain.split('.')[0]
+                    records.append(Record(
+                        qualify_component_name(f'cname_record_{domain_prefix}', self.kwargs),
+                        name=domain_prefix,
+                        type='CNAME',
+                        allow_overwrite=True,
+                        zone_id=zone_id,
+                        content=distribution_domain_name,
+                        ttl=1,
+                        opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cloudfront_distribution])
+                    ))
+                
+                # Export CNAME validation information
+                for record in records:
+                    pulumi.export(
+                        f"cname_validation_{record.name}",
+                        pulumi.Output.all(record.name, record.content).apply(
+                            lambda args: f"CNAME Record: {args[0]}.strongmind.com -> {args[1]}"
+                        )
+                    )
+                
+                return records
+
+            self.cname_records = dns_target.apply(create_cname_records)
+
+            # Export CloudFront distribution information
+            if self.kwargs.get('use_cloudfront', True):
+                pulumi.export("cloudfront_domain", self.cloudfront_distribution.domain_name)
+                if additional_domains:
+                    pulumi.export("cloudfront_aliases", pulumi.Output.format("Additional aliases: {}", ", ".join(additional_domains)))
+
+            pulumi.export("url", Output.concat("https://", full_name))
 
     def certificate(self, name, stack):
         if stack != "prod":
