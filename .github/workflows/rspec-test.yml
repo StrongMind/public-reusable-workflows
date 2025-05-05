@@ -109,7 +109,7 @@ jobs:
           # Distribute specs across folders
           distribute_files "./spec/models"
           distribute_files "./spec/requests"
-          distribute_files "./spec/lib/services"
+          distribute_files "./spec/lib"
 
       - name: List folders in spec folder
         id: get-folders
@@ -213,7 +213,7 @@ jobs:
           # Distribute specs across folders
           distribute_files "./spec/models"
           distribute_files "./spec/requests"
-          distribute_files "./spec/lib/services"
+          distribute_files "./spec/lib"
 
       - name: Check for specs
         id: spec-check
