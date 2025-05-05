@@ -35,26 +35,49 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Distribute files under specs/models into four separate folders (models1, models2, models3, models4)
+      - name: Distribute spec files into separate folders
         run: |
           set -xeuo pipefail
-          mkdir -p ./spec/models1 ./spec/models2 ./spec/models3 ./spec/models4
-          files=($(ls ./spec/models))
-          total_files=${#files[@]}
-          quarter_size=$((total_files / 4))
-          counter=0
-          for file in "${files[@]}"; do
-            if (( counter < quarter_size )); then
-              mv "./spec/models/$file" ./spec/models1/
-            elif (( counter < 2 * quarter_size )); then
-              mv "./spec/models/$file" ./spec/models2/
-            elif (( counter < 3 * quarter_size )); then
-              mv "./spec/models/$file" ./spec/models3/
-            else
-              mv "./spec/models/$file" ./spec/models4/
+          
+          # Function to distribute files from a source directory into four target directories
+          distribute_files() {
+            local dir_path=$1
+            
+            if [ -d "$dir_path" ]; then
+              # Create target directories
+              mkdir -p "${dir_path}1" "${dir_path}2" "${dir_path}3" "${dir_path}4"
+              
+              # Get files and calculate distribution
+              files=($(ls "$dir_path"))
+              total_files=${#files[@]}
+              
+              if [ $total_files -eq 0 ]; then
+                return
+              fi
+              
+              quarter_size=$((total_files / 4))
+              counter=0
+              
+              # Distribute files
+              for file in "${files[@]}"; do
+                if (( counter < quarter_size )); then
+                  mv "${dir_path}/$file" "${dir_path}1/"
+                elif (( counter < 2 * quarter_size )); then
+                  mv "${dir_path}/$file" "${dir_path}2/"
+                elif (( counter < 3 * quarter_size )); then
+                  mv "${dir_path}/$file" "${dir_path}3/"
+                else
+                  mv "${dir_path}/$file" "${dir_path}4/"
+                fi
+                counter=$((counter + 1))
+              done
             fi
-            counter=$((counter + 1))
-          done
+          }
+          
+          # Distribute specs across folders
+          distribute_files "./spec/models"
+          distribute_files "./spec/requests"
+          distribute_files "./spec/lib/services"
 
       - name: List folders in spec folder
         id: get-folders
@@ -84,26 +107,49 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Distribute files under specs/models into four separate folders (models1, models2, models3, models4)
+      - name: Distribute spec files into separate folders
         run: |
           set -xeuo pipefail
-          mkdir -p ./spec/models1 ./spec/models2 ./spec/models3 ./spec/models4
-          files=($(ls ./spec/models))
-          total_files=${#files[@]}
-          quarter_size=$((total_files / 4))
-          counter=0
-          for file in "${files[@]}"; do
-            if (( counter < quarter_size )); then
-              mv "./spec/models/$file" ./spec/models1/
-            elif (( counter < 2 * quarter_size )); then
-              mv "./spec/models/$file" ./spec/models2/
-            elif (( counter < 3 * quarter_size )); then
-              mv "./spec/models/$file" ./spec/models3/
-            else
-              mv "./spec/models/$file" ./spec/models4/
+          
+          # Function to distribute files from a source directory into four target directories
+          distribute_files() {
+            local dir_path=$1
+            
+            if [ -d "$dir_path" ]; then
+              # Create target directories
+              mkdir -p "${dir_path}1" "${dir_path}2" "${dir_path}3" "${dir_path}4"
+              
+              # Get files and calculate distribution
+              files=($(ls "$dir_path"))
+              total_files=${#files[@]}
+              
+              if [ $total_files -eq 0 ]; then
+                return
+              fi
+              
+              quarter_size=$((total_files / 4))
+              counter=0
+              
+              # Distribute files
+              for file in "${files[@]}"; do
+                if (( counter < quarter_size )); then
+                  mv "${dir_path}/$file" "${dir_path}1/"
+                elif (( counter < 2 * quarter_size )); then
+                  mv "${dir_path}/$file" "${dir_path}2/"
+                elif (( counter < 3 * quarter_size )); then
+                  mv "${dir_path}/$file" "${dir_path}3/"
+                else
+                  mv "${dir_path}/$file" "${dir_path}4/"
+                fi
+                counter=$((counter + 1))
+              done
             fi
-            counter=$((counter + 1))
-          done
+          }
+          
+          # Distribute specs across folders
+          distribute_files "./spec/models"
+          distribute_files "./spec/requests"
+          distribute_files "./spec/lib/services"
 
       - name: Check for specs
         id: spec-check
