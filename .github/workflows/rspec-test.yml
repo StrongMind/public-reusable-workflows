@@ -43,41 +43,73 @@ jobs:
           distribute_files() {
             local dir_path=$1
             
-            if [ -d "$dir_path" ]; then
-              # Create target directories
-              mkdir -p "${dir_path}1" "${dir_path}2" "${dir_path}3" "${dir_path}4"
+            if [ ! -d "$dir_path" ]; then
+              return
+            fi
+            
+            # Create target directories
+            mkdir -p "${dir_path}1" "${dir_path}2" "${dir_path}3" "${dir_path}4"
+            
+            # Get file list into an array using a more compatible approach
+            all_files=$(find "$dir_path" -type f -name "*_spec.rb" | sort)
+            total_files=$(echo "$all_files" | wc -l)
+            
+            if [ $total_files -eq 0 ]; then
+              return
+            fi
+            
+            quarter_size=$((total_files / 4))
+            counter=0
+            
+            # Distribute files
+            echo "$all_files" | while read -r file_path; do
+              # Skip empty lines
+              [ -z "$file_path" ] && continue
               
-              # Get files and calculate distribution
-              files=($(ls "$dir_path"))
-              total_files=${#files[@]}
+              # Extract just the filename
+              filename=$(basename "$file_path")
               
-              if [ $total_files -eq 0 ]; then
-                return
+              # Create parent directories if needed
+              rel_path=${file_path#$dir_path/}
+              dir_part=$(dirname "$rel_path")
+              
+              if [ "$dir_part" != "." ]; then
+                if (( counter < quarter_size )); then
+                  mkdir -p "${dir_path}1/$dir_part"
+                  cp "$file_path" "${dir_path}1/$rel_path"
+                elif (( counter < 2 * quarter_size )); then
+                  mkdir -p "${dir_path}2/$dir_part"
+                  cp "$file_path" "${dir_path}2/$rel_path"
+                elif (( counter < 3 * quarter_size )); then
+                  mkdir -p "${dir_path}3/$dir_part"
+                  cp "$file_path" "${dir_path}3/$rel_path"
+                else
+                  mkdir -p "${dir_path}4/$dir_part"
+                  cp "$file_path" "${dir_path}4/$rel_path"
+                fi
+              else
+                if (( counter < quarter_size )); then
+                  cp "$file_path" "${dir_path}1/$filename"
+                elif (( counter < 2 * quarter_size )); then
+                  cp "$file_path" "${dir_path}2/$filename"
+                elif (( counter < 3 * quarter_size )); then
+                  cp "$file_path" "${dir_path}3/$filename"
+                else
+                  cp "$file_path" "${dir_path}4/$filename"
+                fi
               fi
               
-              quarter_size=$((total_files / 4))
-              counter=0
-              
-              # Distribute files
-              for file in "${files[@]}"; do
-                if (( counter < quarter_size )); then
-                  mv "${dir_path}/$file" "${dir_path}1/"
-                elif (( counter < 2 * quarter_size )); then
-                  mv "${dir_path}/$file" "${dir_path}2/"
-                elif (( counter < 3 * quarter_size )); then
-                  mv "${dir_path}/$file" "${dir_path}3/"
-                else
-                  mv "${dir_path}/$file" "${dir_path}4/"
-                fi
-                counter=$((counter + 1))
-              done
-            fi
+              counter=$((counter + 1))
+            done
+            
+            # Now remove the original spec files to avoid duplication
+            find "$dir_path" -type f -name "*_spec.rb" -delete
           }
           
           # Distribute specs across folders
           distribute_files "./spec/models"
           distribute_files "./spec/requests"
-          distribute_files "./spec/lib/services"
+          distribute_files "./spec/lib"
 
       - name: List folders in spec folder
         id: get-folders
@@ -115,41 +147,73 @@ jobs:
           distribute_files() {
             local dir_path=$1
             
-            if [ -d "$dir_path" ]; then
-              # Create target directories
-              mkdir -p "${dir_path}1" "${dir_path}2" "${dir_path}3" "${dir_path}4"
+            if [ ! -d "$dir_path" ]; then
+              return
+            fi
+            
+            # Create target directories
+            mkdir -p "${dir_path}1" "${dir_path}2" "${dir_path}3" "${dir_path}4"
+            
+            # Get file list into an array using a more compatible approach
+            all_files=$(find "$dir_path" -type f -name "*_spec.rb" | sort)
+            total_files=$(echo "$all_files" | wc -l)
+            
+            if [ $total_files -eq 0 ]; then
+              return
+            fi
+            
+            quarter_size=$((total_files / 4))
+            counter=0
+            
+            # Distribute files
+            echo "$all_files" | while read -r file_path; do
+              # Skip empty lines
+              [ -z "$file_path" ] && continue
               
-              # Get files and calculate distribution
-              files=($(ls "$dir_path"))
-              total_files=${#files[@]}
+              # Extract just the filename
+              filename=$(basename "$file_path")
               
-              if [ $total_files -eq 0 ]; then
-                return
+              # Create parent directories if needed
+              rel_path=${file_path#$dir_path/}
+              dir_part=$(dirname "$rel_path")
+              
+              if [ "$dir_part" != "." ]; then
+                if (( counter < quarter_size )); then
+                  mkdir -p "${dir_path}1/$dir_part"
+                  cp "$file_path" "${dir_path}1/$rel_path"
+                elif (( counter < 2 * quarter_size )); then
+                  mkdir -p "${dir_path}2/$dir_part"
+                  cp "$file_path" "${dir_path}2/$rel_path"
+                elif (( counter < 3 * quarter_size )); then
+                  mkdir -p "${dir_path}3/$dir_part"
+                  cp "$file_path" "${dir_path}3/$rel_path"
+                else
+                  mkdir -p "${dir_path}4/$dir_part"
+                  cp "$file_path" "${dir_path}4/$rel_path"
+                fi
+              else
+                if (( counter < quarter_size )); then
+                  cp "$file_path" "${dir_path}1/$filename"
+                elif (( counter < 2 * quarter_size )); then
+                  cp "$file_path" "${dir_path}2/$filename"
+                elif (( counter < 3 * quarter_size )); then
+                  cp "$file_path" "${dir_path}3/$filename"
+                else
+                  cp "$file_path" "${dir_path}4/$filename"
+                fi
               fi
               
-              quarter_size=$((total_files / 4))
-              counter=0
-              
-              # Distribute files
-              for file in "${files[@]}"; do
-                if (( counter < quarter_size )); then
-                  mv "${dir_path}/$file" "${dir_path}1/"
-                elif (( counter < 2 * quarter_size )); then
-                  mv "${dir_path}/$file" "${dir_path}2/"
-                elif (( counter < 3 * quarter_size )); then
-                  mv "${dir_path}/$file" "${dir_path}3/"
-                else
-                  mv "${dir_path}/$file" "${dir_path}4/"
-                fi
-                counter=$((counter + 1))
-              done
-            fi
+              counter=$((counter + 1))
+            done
+            
+            # Now remove the original spec files to avoid duplication
+            find "$dir_path" -type f -name "*_spec.rb" -delete
           }
           
           # Distribute specs across folders
           distribute_files "./spec/models"
           distribute_files "./spec/requests"
-          distribute_files "./spec/lib/services"
+          distribute_files "./spec/lib"
 
       - name: Check for specs
         id: spec-check
