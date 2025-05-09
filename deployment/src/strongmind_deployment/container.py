@@ -747,7 +747,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 else:
                     # Only create new records for additional domains
                     record_name = f"cert_validation_record_{option['domain_name'].replace('.', '_')}"
-                
+
                 records.append(Record(
                     qualify_component_name(record_name, self.kwargs),
                     name=option['resource_record_name'],
