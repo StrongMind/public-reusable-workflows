@@ -1,7 +1,7 @@
 pulumi
 pulumi-aws
 pulumi-awsx
-pulumi-cloudflare==5.49.1
+pulumi-cloudflare
 pulumi-random
 boto3
 
