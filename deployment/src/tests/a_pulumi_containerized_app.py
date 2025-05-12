@@ -68,8 +68,8 @@ def a_pulumi_containerized_app():
         }]
 
     @pytest.fixture
-    def zone_id(faker):
-        return faker.word()
+    def zone_id():
+        return "b4b7fec0d0aacbd55c5a259d1e64fff5"
 
     @pytest.fixture
     def load_balancer_dns_name(faker):

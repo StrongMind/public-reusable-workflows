@@ -582,6 +582,7 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_zone_ids(sut):
             def check_zone_ids(args):
+                print(f"********Certificate validation record zone_id args: {args} ********")
                 zone_id = args[0]
                 assert zone_id == "b4b7fec0d0aacbd55c5a259d1e64fff5"
 
@@ -598,12 +599,12 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_fqdns(sut):
             def check_fqdns(args):
-                validation_fqdns, record_hostname = args
-                assert validation_fqdns[0] == record_hostname
+                validation_fqdns, record_name = args
+                assert validation_fqdns[0] == record_name
 
             return pulumi.Output.all(
                 sut.cloudfront_cert_validation.validation_record_fqdns,
-                sut.cloudfront_cert_validation_records[0].hostname
+                sut.cloudfront_cert_validation_records[0].name
             ).apply(check_fqdns)
 
         @pulumi.runtime.test
