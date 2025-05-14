@@ -582,7 +582,6 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_zone_ids(sut):
             def check_zone_ids(args):
-                print(f"********Certificate validation record zone_id args: {args} ********")
                 zone_id = args[0]
                 assert zone_id == "b4b7fec0d0aacbd55c5a259d1e64fff5"
 
