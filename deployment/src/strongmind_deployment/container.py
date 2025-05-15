@@ -747,7 +747,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 else:
                     # Only create new records for additional domains
                     record_name = f"cert_validation_record_{option['domain_name'].replace('.', '_')}"
-                
+
                 records.append(Record(
                     qualify_component_name(record_name, self.kwargs),
                     name=option['resource_record_name'],
@@ -769,7 +769,7 @@ class ContainerComponent(pulumi.ComponentResource):
             qualify_component_name("cert_validation", self.kwargs),
             certificate_arn=self.cloudfront_cert.arn,
             validation_record_fqdns=self.cloudfront_cert_validation_records.apply(
-                lambda records: [record.hostname for record in records]
+                lambda records: [record.name for record in records]
             ),
             opts=pulumi.ResourceOptions(
                 provider=aws_east_1,
@@ -861,7 +861,6 @@ class ContainerComponent(pulumi.ComponentResource):
                         qualify_component_name('cname_record', self.kwargs),  # Use original name for primary domain
                         name=name,
                         type='CNAME',
-                        allow_overwrite=True,
                         zone_id=zone_id,
                         content=distribution_domain_name,
                         ttl=1,
@@ -876,7 +875,6 @@ class ContainerComponent(pulumi.ComponentResource):
                         qualify_component_name(f'cname_record_{domain_prefix}', self.kwargs),
                         name=domain_prefix,
                         type='CNAME',
-                        allow_overwrite=True,
                         zone_id=zone_id,
                         content=distribution_domain_name,
                         ttl=1,

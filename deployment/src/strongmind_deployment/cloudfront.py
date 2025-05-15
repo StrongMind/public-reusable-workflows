@@ -155,7 +155,7 @@ class DistributionComponent(pulumi.ComponentResource):
         self.cert_validation_cert = aws.acm.CertificateValidation(
           "cert_validation",
           certificate_arn=self.cert.arn,
-          validation_record_fqdns=[self.cert_validation_record.hostname],
+          validation_record_fqdns=[self.cert_validation_record.name],
           opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert_validation_record], provider=aws_east_1),
         )
         return self.cert_validation_cert.certificate_arn

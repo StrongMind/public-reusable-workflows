@@ -598,12 +598,12 @@ def describe_container():
         @pulumi.runtime.test
         def it_sets_certificate_validation_record_fqdns(sut):
             def check_fqdns(args):
-                validation_fqdns, record_hostname = args
-                assert validation_fqdns[0] == record_hostname
+                validation_fqdns, record_name = args
+                assert validation_fqdns[0] == record_name
 
             return pulumi.Output.all(
                 sut.cloudfront_cert_validation.validation_record_fqdns,
-                sut.cloudfront_cert_validation_records[0].hostname
+                sut.cloudfront_cert_validation_records[0].name
             ).apply(check_fqdns)
 
         @pulumi.runtime.test
