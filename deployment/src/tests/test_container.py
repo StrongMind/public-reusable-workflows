@@ -977,7 +977,7 @@ def describe_container():
 
         @pulumi.runtime.test
         def it_triggers_based_on_mathematical_expression(sut):
-            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].expression, "IF(desired_tasks > 0, unhealthy_hosts / desired_tasks, 0)")
+            return assert_output_equals(sut.unhealthy_host_metric_alarm.metric_queries[0].expression, "IF(desired_tasks >= 5, IF(desired_tasks > 0, unhealthy_hosts / desired_tasks, 0), IF(unhealthy_hosts >= 2, 1, 0))")
 
         @pulumi.runtime.test
         def it_checks_the_unit_as_a_count(sut):
