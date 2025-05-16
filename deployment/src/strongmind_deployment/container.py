@@ -665,7 +665,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                                                                       id="e1",
                                                                                                                       label="UnhealthyHostRatio",
                                                                                                                       return_data=True,
-                                                                                                                      expression="IF(desired_tasks > 0, unhealthy_hosts / desired_tasks, 0)"
+                                                                                                                      expression="IF(desired_tasks >= 5, IF(desired_tasks > 0, unhealthy_hosts / desired_tasks, 0), IF(unhealthy_hosts >= 2, 1, 0))"
                                                                                                                   ),
                                                                                                                   aws.cloudwatch.MetricAlarmMetricQueryArgs(
                                                                                                                       id="unhealthy_hosts",
