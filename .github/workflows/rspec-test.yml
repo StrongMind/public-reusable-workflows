@@ -253,18 +253,6 @@ jobs:
         env:
           RAILS_ENV: test
 
-      - name: Download the parsing script
-        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
-        run: |
-          wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/main/scripts/parse_rspec_json_output.py'
-
-      - name: Check for skipped tests
-        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
-        run: |
-          if [ -f ${{ github.workspace }}/rspec_output.json ]; then
-            python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
-          fi
-
   run-tests:
     name: Run tests
     runs-on: ubuntu-latest-m
@@ -300,17 +288,6 @@ jobs:
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
-
-      - name: Check for Secret availability
-        id: secret-check
-        # perform secret check & put boolean result as an output
-        shell: bash
-        run: |
-          if [ "${{ secrets.CC_TEST_REPORTER_ID }}" != '' ]; then
-            echo "available=true" >> $GITHUB_OUTPUT;
-          else
-            echo "available=false" >> $GITHUB_OUTPUT;
-          fi
           
       - name: Test with Jest
         shell: bash
@@ -320,7 +297,6 @@ jobs:
               npm run test
           fi
 
-
       - name: Test in parallel
         if: ${{ inputs.run-parallel == true }}
         run: |
@@ -329,28 +305,6 @@ jobs:
           RAILS_ENV=test bundle exec rails parallel:spec
 
       - name: Test
-        if: ${{ steps.secret-check.outputs.available != 'true' && inputs.run-parallel == false }}
+        if: ${{ inputs.run-parallel == false }}
         run: |
           RAILS_ENV=test bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
-
-      - name: Test & publish code coverage
-        uses: paambaati/codeclimate-action@v5.0.0
-        if: ${{ steps.secret-check.outputs.available == 'true' && inputs.run-parallel == false }}
-        env:
-          CC_TEST_REPORTER_ID: ${{ secrets.CC_TEST_REPORTER_ID }}
-          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-        with:
-          coverageCommand: 'bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json'
-          coverageLocations: |
-            ${{github.workspace}}/coverage/coverage.json:simplecov
-          debug: true
-
-      - name: Download the parsing script
-        run: |
-          wget 'https://raw.githubusercontent.com/StrongMind/public-reusable-workflows/main/scripts/parse_rspec_json_output.py'
-  
-      - name: Check for skipped tests
-        run: |
-          if [ -f ${{ github.workspace }}/rspec_output.json ]; then
-            python ${{ github.workspace }}/parse_rspec_json_output.py ${{ github.workspace }}/rspec_output.json
-          fi
