@@ -114,6 +114,11 @@ class Alb(pulumi.ComponentResource):
 
         current = aws.get_caller_identity()
 
+        log_bucket = f"loadbalancer-logs-{current.account_id}"
+        region = aws.get_region().name
+        if region != "us-west-2":
+            log_bucket = f"loadbalancer-logs-{current.account_id}-{region}"
+
         alb = lb.LoadBalancer(
             self.namespace,
             internal=self.is_internal,
@@ -122,7 +127,7 @@ class Alb(pulumi.ComponentResource):
             subnets=self.subnet_ids,
             enable_deletion_protection=self.args.should_protect,
             access_logs=lb.LoadBalancerAccessLogsArgs(
-                bucket=f"loadbalancer-logs-{current.account_id}",
+                bucket=log_bucket,
                 prefix=self.namespace,
                 enabled=True,
             ),

@@ -290,6 +290,7 @@ class ContainerComponent(pulumi.ComponentResource):
             policy_arn=self.s3_policy.arn,
         )
 
+        region = aws.get_region().name
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
             task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
@@ -301,7 +302,7 @@ class ContainerComponent(pulumi.ComponentResource):
                     log_driver="awslogs",
                     options={
                         "awslogs-group": self.logs.name,
-                        "awslogs-region": "us-west-2",
+                        "awslogs-region": region,
                         "awslogs-stream-prefix": "container",
                     },
                 ),
@@ -786,6 +787,7 @@ class ContainerComponent(pulumi.ComponentResource):
         # Include all domains in CloudFront aliases
         aliases = [full_name] + additional_domains
 
+        region = aws.get_region().name
         self.cloudfront_distribution = aws.cloudfront.Distribution(
             qualify_component_name("cloudfront", self.kwargs),
             enabled=True,
@@ -801,8 +803,8 @@ class ContainerComponent(pulumi.ComponentResource):
                     ),
                 ),
                 aws.cloudfront.DistributionOriginArgs(
-                    domain_name=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
-                    origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
+                    domain_name=f"{cdn_bucket}.s3.{region}.amazonaws.com",
+                    origin_id=f"{cdn_bucket}.s3.{region}.amazonaws.com",
                 )
             ],
             default_root_object="",
@@ -818,7 +820,7 @@ class ContainerComponent(pulumi.ComponentResource):
             ordered_cache_behaviors=[
                 aws.cloudfront.DistributionOrderedCacheBehaviorArgs(
                     path_pattern="/504.html",
-                    target_origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
+                    target_origin_id=f"{cdn_bucket}.s3.{region}.amazonaws.com",
                     viewer_protocol_policy="allow-all",
                     allowed_methods=["GET", "HEAD"],
                     cached_methods=["GET", "HEAD"],
