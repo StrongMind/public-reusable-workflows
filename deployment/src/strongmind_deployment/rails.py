@@ -63,6 +63,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
         :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
         :key rds_maximum_capacity: The maximum capacity of the RDS cluster. Defaults to 16.
+        :key cross_account_assume_roles: A list of additional cross-account role ARNs that containers can assume. Defaults to [].
+                                        Note: All containers automatically have access to assume the StrongmindStageAccessRole.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
