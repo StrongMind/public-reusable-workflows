@@ -119,14 +119,50 @@ def describe_container():
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
-                        },
-                        {
-                            "Effect": "Allow",
-                            "Action": "sts:AssumeRole",
-                            "Resource": "arn:aws:iam::058264302180:role/StrongmindStageAccessRole"
                         }
                     ],
                 }))
+
+        @pulumi.runtime.test
+        def it_includes_cross_account_role_when_provided(component_kwargs):
+            component_kwargs["cross_account_arn_role"] = "arn:aws:iam::123456789012:role/TestRole"
+            import strongmind_deployment.container
+            sut = strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+            
+            return assert_output_equals(sut.task_policy.policy, json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Action": [
+                            "bedrock:InvokeModel",
+                            "bedrock:InvokeModelWithResponseStream",
+                            "bedrock:ListInferenceProfiles",
+                            "ecs:UpdateTaskProtection",
+                            "ssmmessages:CreateControlChannel",
+                            "ssmmessages:CreateDataChannel",
+                            "ssmmessages:OpenControlChannel",
+                            "ssmmessages:OpenDataChannel",
+                            "cloudwatch:*",
+                            "logs:CreateLogStream",
+                            "logs:PutLogEvents",
+                            "s3:GetObject",
+                            "s3:PutObject*",
+                            "s3:DeleteObject",
+                            "s3:ListBucket",
+                            "ses:SendEmail",
+                            "ses:SendRawEmail",
+                            "sts:AssumeRole"
+                        ],
+                        "Effect": "Allow",
+                        "Resource": "*",
+                    },
+                    {
+                        "Effect": "Allow",
+                        "Action": "sts:AssumeRole",
+                        "Resource": "arn:aws:iam::123456789012:role/TestRole"
+                    }
+                ],
+            }))
 
         @pulumi.runtime.test
         def it_creates_an_s3_policy(sut):

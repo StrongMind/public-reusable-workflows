@@ -50,6 +50,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                       SAN and the CloudFront distribution's aliases.
         :key cross_account_assume_roles: A list of additional cross-account role ARNs that the container can assume. Defaults to [].
                                         Note: All containers automatically have access to assume the StrongmindStageAccessRole.
+        :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -895,7 +896,7 @@ class ContainerComponent(pulumi.ComponentResource):
         )
 
     def _build_task_policy_statements(self):
-        """Build the task policy statements, including strongmind stage role assumption."""
+        """Build the task policy statements, including cross-account role assumption."""
         base_statement = {
             "Action": [
                 "bedrock:InvokeModel",
@@ -921,14 +922,17 @@ class ContainerComponent(pulumi.ComponentResource):
             "Resource": "*",
         }
         
-        # Always include strongmind stage role assumption
-        strongmind_stage_role_statement = {
-            "Effect": "Allow",
-            "Action": "sts:AssumeRole",
-            "Resource": "arn:aws:iam::058264302180:role/StrongmindStageAccessRole"
-        }
+        statements = [base_statement]
         
-        statements = [base_statement, strongmind_stage_role_statement]
+        # Include primary cross-account role assumption if provided
+        cross_account_role_arn = self.kwargs.get('cross_account_arn_role')
+        if cross_account_role_arn:
+            cross_account_role_statement = {
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole",
+                "Resource": cross_account_role_arn
+            }
+            statements.append(cross_account_role_statement)
         
         # Add additional cross-account role assumptions if specified
         cross_account_roles = self.kwargs.get('cross_account_assume_roles', [])
