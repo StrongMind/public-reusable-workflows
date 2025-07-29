@@ -114,10 +114,16 @@ def describe_container():
                                 "s3:DeleteObject",
                                 "s3:ListBucket",
                                 "ses:SendEmail",
-                                "ses:SendRawEmail"
+                                "ses:SendRawEmail",
+                                "sts:AssumeRole"
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
+                        },
+                        {
+                            "Effect": "Allow",
+                            "Action": "sts:AssumeRole",
+                            "Resource": "arn:aws:iam::058264302180:role/StrongmindStageAccessRole"
                         }
                     ],
                 }))
