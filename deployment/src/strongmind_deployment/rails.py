@@ -63,6 +63,9 @@ class RailsComponent(pulumi.ComponentResource):
         :key desired_worker_count: The number of instances of the worker container to run. Defaults to 1.
         :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
         :key rds_maximum_capacity: The maximum capacity of the RDS cluster. Defaults to 16.
+        :key cross_account_assume_roles: A list of additional cross-account role ARNs that containers can assume. Defaults to [].
+                                        Note: All containers automatically have access to assume the StrongmindStageAccessRole.
+        :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to StrongmindStageAccessRole.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -100,6 +103,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
         self.kwargs['sns_topic_arn'] = self.kwargs.get('sns_topic_arn',
                                                        operations.get_opsgenie_sns_topic_arn())
+        
+        # Set default cross-account role ARN for container task policies
+        self.kwargs['cross_account_arn_role'] = self.kwargs.get('cross_account_arn_role',
+                                                               'arn:aws:iam::058264302180:role/StrongmindStageAccessRole')
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 

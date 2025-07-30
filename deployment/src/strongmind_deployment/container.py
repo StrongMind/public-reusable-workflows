@@ -48,6 +48,9 @@ class ContainerComponent(pulumi.ComponentResource):
                                       certificate and aliases. Each domain should be a full domain name 
                                       (e.g., ["enrollment.strongmind.com"]). These domains will be added to the certificate's 
                                       SAN and the CloudFront distribution's aliases.
+        :key cross_account_assume_roles: A list of additional cross-account role ARNs that the container can assume. Defaults to [].
+                                        Note: All containers automatically have access to assume the StrongmindStageAccessRole.
+        :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -236,31 +239,7 @@ class ContainerComponent(pulumi.ComponentResource):
             policy=json.dumps(
                 {
                     "Version": "2012-10-17",
-                    "Statement": [
-                        {
-                            "Action": [
-                                "bedrock:InvokeModel",
-                                "bedrock:InvokeModelWithResponseStream",
-                                "bedrock:ListInferenceProfiles",
-                                "ecs:UpdateTaskProtection",
-                                "ssmmessages:CreateControlChannel",
-                                "ssmmessages:CreateDataChannel",
-                                "ssmmessages:OpenControlChannel",
-                                "ssmmessages:OpenDataChannel",
-                                "cloudwatch:*",
-                                "logs:CreateLogStream",
-                                "logs:PutLogEvents",
-                                "s3:GetObject",
-                                "s3:PutObject*",
-                                "s3:DeleteObject",
-                                "s3:ListBucket",
-                                "ses:SendEmail",
-                                "ses:SendRawEmail",
-                            ],
-                            "Effect": "Allow",
-                            "Resource": "*",
-                        }
-                    ],
+                    "Statement": self._build_task_policy_statements(),
                 }
             ),
             opts=pulumi.ResourceOptions(parent=self),
@@ -915,3 +894,53 @@ class ContainerComponent(pulumi.ComponentResource):
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self),
         )
+
+    def _build_task_policy_statements(self):
+        """Build the task policy statements, including cross-account role assumption."""
+        base_statement = {
+            "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:InvokeModelWithResponseStream",
+                "bedrock:ListInferenceProfiles",
+                "ecs:UpdateTaskProtection",
+                "ssmmessages:CreateControlChannel",
+                "ssmmessages:CreateDataChannel",
+                "ssmmessages:OpenControlChannel",
+                "ssmmessages:OpenDataChannel",
+                "cloudwatch:*",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents",
+                "s3:GetObject",
+                "s3:PutObject*",
+                "s3:DeleteObject",
+                "s3:ListBucket",
+                "ses:SendEmail",
+                "ses:SendRawEmail",
+                "sts:AssumeRole",
+            ],
+            "Effect": "Allow",
+            "Resource": "*",
+        }
+        
+        statements = [base_statement]
+        
+        # Include primary cross-account role assumption if provided
+        cross_account_role_arn = self.kwargs.get('cross_account_arn_role')
+        if cross_account_role_arn:
+            cross_account_role_statement = {
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole",
+                "Resource": cross_account_role_arn
+            }
+            statements.append(cross_account_role_statement)
+        
+        # Add additional cross-account role assumptions if specified
+        cross_account_roles = self.kwargs.get('cross_account_assume_roles', [])
+        if cross_account_roles:
+            statements.append({
+                "Effect": "Allow",
+                "Action": "sts:AssumeRole",
+                "Resource": cross_account_roles
+            })
+        
+        return statements
