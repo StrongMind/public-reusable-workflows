@@ -36,6 +36,8 @@ class LambdaArgs:
             "python3.9",
             "python3.10",
             "python3.11",
+            "python3.12",
+            "python3.13"
         ]
         if self.runtime not in valid_runtimes:
             raise ValueError(f"Unsupported runtime: {self.runtime}")
