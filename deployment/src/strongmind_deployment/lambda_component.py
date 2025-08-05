@@ -2,7 +2,7 @@ import pulumi
 import pulumi_aws as aws
 import os
 import json
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Union, Any
 
 from strongmind_deployment.operations import get_code_owner_team_name
 
@@ -61,7 +61,7 @@ class LambdaEnvVariables:
     Manages environment variables for the Lambda function.
     """
 
-    def __init__(self, variables: Optional[Dict[str, str]] = None):
+    def __init__(self, variables: Optional[Dict[str, Union[str, Any]]] = None):
         self.variables = variables or {}
         self.validate()
 
@@ -69,8 +69,9 @@ class LambdaEnvVariables:
         if not isinstance(self.variables, dict):
             raise ValueError("Environment variables must be provided as a dictionary")
         for key, value in self.variables.items():
-            if not isinstance(key, str) or not isinstance(value, str):
-                raise ValueError("Environment variable keys and values must be strings")
+            # Keys must be strings, values can be strings or Pulumi Outputs
+            if not isinstance(key, str) or not (isinstance(value, str) or hasattr(value, 'apply')):
+                raise ValueError("Environment variable keys must be strings and values must be strings or Pulumi Outputs")
 
 
 class LambdaComponent(pulumi.ComponentResource):
