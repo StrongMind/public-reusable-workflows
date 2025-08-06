@@ -66,6 +66,10 @@ class LambdaEnvVariables:
         self.validate()
 
     def validate(self):
+        # If the entire variables is a Pulumi Output, skip validation as it will be resolved at runtime
+        if hasattr(self.variables, 'apply'):
+            return
+            
         if not isinstance(self.variables, dict):
             raise ValueError("Environment variables must be provided as a dictionary")
         for key, value in self.variables.items():
