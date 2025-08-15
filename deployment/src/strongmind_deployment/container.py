@@ -901,6 +901,7 @@ class ContainerComponent(pulumi.ComponentResource):
             "Action": [
                 "bedrock:InvokeModel",
                 "bedrock:InvokeModelWithResponseStream",
+                "bedrock:ListFoundationModels",
                 "bedrock:ListInferenceProfiles",
                 "ecs:UpdateTaskProtection",
                 "ssmmessages:CreateControlChannel",

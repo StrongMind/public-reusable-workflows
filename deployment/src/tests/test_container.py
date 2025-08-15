@@ -100,6 +100,7 @@ def describe_container():
                             "Action": [
                                 "bedrock:InvokeModel",
                                 "bedrock:InvokeModelWithResponseStream",
+                                "bedrock:ListFoundationModels",
                                 "bedrock:ListInferenceProfiles",
                                 "ecs:UpdateTaskProtection",
                                 "ssmmessages:CreateControlChannel",
@@ -137,6 +138,7 @@ def describe_container():
                             "bedrock:InvokeModel",
                             "bedrock:InvokeModelWithResponseStream",
                             "bedrock:ListInferenceProfiles",
+                            "bedrock:ListFoundationModels",
                             "ecs:UpdateTaskProtection",
                             "ssmmessages:CreateControlChannel",
                             "ssmmessages:CreateDataChannel",
