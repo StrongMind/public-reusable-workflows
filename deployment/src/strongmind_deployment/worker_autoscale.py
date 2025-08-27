@@ -8,7 +8,7 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
         :key worker_max_number_of_instances: The maximum number of instances available in the scaling policy for the worker.
-        :key worker_min_number_of_instances: The minimum number of instances available in the scaling policy for the worker.
+        :key worker_min_number_of_instances: The minimum number of instances available in the scaling policy for the worker. Defaults to desired_count.
         :key worker_autoscale_threshold: The threshold for the worker autoscaling policy. Default is 3.
         """
         super().__init__('strongmind:global_build:commons:worker-autoscale', name, None, opts)
@@ -22,7 +22,8 @@ class WorkerAutoscaleComponent(pulumi.ComponentResource):
         self.kwargs = kwargs
         self.namespace = kwargs.get("namespace", f"{pulumi.get_project()}-{pulumi.get_stack()}")
         self.worker_max_capacity = kwargs.get('worker_max_number_of_instances', 65)
-        self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', 1)
+        desired_count = kwargs.get('desired_count', 1)
+        self.worker_min_capacity = kwargs.get('worker_min_number_of_instances', desired_count)
         self.scaling_threshold = kwargs.get('max_queue_latency_threshold', 60)
         self.alert_threshold = kwargs.get('alert_threshold', 18000)
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
