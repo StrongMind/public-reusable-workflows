@@ -84,8 +84,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_out_policy = None
         self.autoscale_threshold = kwargs.get('autoscale_threshold', 5)
         self.desired_count = kwargs.get('desired_count', 2)
-        self.max_capacity = 100
-        self.min_capacity = kwargs.get('desired_web_count', 2)
+        self.max_capacity = kwargs.get('max_number_of_instances', 100)
+        self.min_capacity = kwargs.get('min_number_of_instances', kwargs.get('desired_web_count', 2))
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
         self.binary_sns_topic_arn = os.environ.get('BINARY_SNS_TOPIC_ARN')
         self.strongmind_service_updates_topic_arn = os.environ.get('STRONGMIND_SERVICE_UPDATES_TOPIC_ARN')
@@ -425,17 +425,17 @@ class ContainerComponent(pulumi.ComponentResource):
             service_namespace=self.autoscaling_target.service_namespace,
             step_scaling_policy_configuration=aws.appautoscaling.PolicyStepScalingPolicyConfigurationArgs(
                 adjustment_type="ChangeInCapacity",
-                cooldown=15,
+                cooldown=45,
                 metric_aggregation_type="Maximum",
                 step_adjustments=[
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
-                        metric_interval_upper_bound="10",
+                        metric_interval_upper_bound="5",
                         metric_interval_lower_bound="0",
                         scaling_adjustment=1,
                     ),
                     aws.appautoscaling.PolicyStepScalingPolicyConfigurationStepAdjustmentArgs(
-                        metric_interval_lower_bound="10",
-                        scaling_adjustment=3,
+                        metric_interval_lower_bound="5",
+                        scaling_adjustment=2,
                     )
                 ],
             ),
