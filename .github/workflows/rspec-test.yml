@@ -27,7 +27,7 @@ on:
 jobs:
   list-folders:
     name: List folders
-    runs-on: ubuntu-latest-m
+    runs-on: self-hosted
     if: ${{ inputs.run-job-per-folder == true }}
     outputs:
       matrix: ${{ steps.get-folders.outputs.matrix }}
@@ -118,7 +118,7 @@ jobs:
 
   run-tests-in-folder:
     name: Run tests in folder
-    runs-on: ubuntu-latest-m
+    runs-on: self-hosted
     needs: list-folders
     if: ${{ inputs.run-job-per-folder == true }}
     strategy:
@@ -255,7 +255,7 @@ jobs:
 
   run-tests:
     name: Run tests
-    runs-on: ubuntu-latest-m
+    runs-on: self-hosted
     if: ${{ inputs.run-job-per-folder == false }}
     services:
       postgres:
