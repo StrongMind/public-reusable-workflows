@@ -34,6 +34,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Distribute spec files into separate folders
         run: |
@@ -138,6 +140,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          clean: true
 
       - name: Distribute spec files into separate folders
         run: |
@@ -271,6 +275,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          clean: true
       
       - name: Start Postgres
         run: sudo systemctl start postgresql.service
