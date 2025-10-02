@@ -24,9 +24,6 @@ on:
         default: false
         type: boolean
 
-env:
-  PYTHONDONTWRITEBYTECODE: 1
-
 jobs:
   list-folders:
     name: List folders
@@ -35,11 +32,6 @@ jobs:
     outputs:
       matrix: ${{ steps.get-folders.outputs.matrix }}
     steps:
-      - name: Clean workspace
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
-
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -146,11 +138,6 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-      - name: Clean workspace
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
-
       - name: Check out repository
         uses: actions/checkout@v4
         with:
@@ -286,11 +273,6 @@ jobs:
         options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
 
     steps:
-      - name: Clean workspace
-        run: |
-          sudo rm -rf ${{ github.workspace }}/* || true
-          sudo rm -rf ${{ github.workspace }}/.* 2>/dev/null || true
-
       - name: Check out repository
         uses: actions/checkout@v4
         with:
