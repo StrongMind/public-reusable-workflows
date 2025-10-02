@@ -151,10 +151,8 @@ class ContainerComponent(pulumi.ComponentResource):
                 )
             )
 
-        # Use custom port mappings if provided, otherwise use automatic logic
         port_mappings = kwargs.get('port_mappings', None)
         if port_mappings is None:
-            # Automatic port mapping logic (existing behavior)
             if self.target_group is not None:
                 port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
                     container_port=self.container_port,
