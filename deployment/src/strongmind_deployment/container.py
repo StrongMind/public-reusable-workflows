@@ -51,6 +51,8 @@ class ContainerComponent(pulumi.ComponentResource):
         :key cross_account_assume_roles: A list of additional cross-account role ARNs that the container can assume. Defaults to [].
                                         Note: All containers automatically have access to assume the StrongmindStageAccessRole.
         :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
+        :key port_mappings: Custom port mappings for the container. If provided, overrides automatic port mapping logic.
+                           Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to None.
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -149,13 +151,14 @@ class ContainerComponent(pulumi.ComponentResource):
                 )
             )
 
-        port_mappings = None
-        if self.target_group is not None:
-            port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
-                container_port=self.container_port,
-                host_port=self.container_port,
-                target_group=self.target_group,
-            )]
+        port_mappings = kwargs.get('port_mappings', None)
+        if port_mappings is None:
+            if self.target_group is not None:
+                port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
+                    container_port=self.container_port,
+                    host_port=self.container_port,
+                    target_group=self.target_group,
+                )]
 
         self.execution_role = aws.iam.Role(
             f"{self.namespace}-execution-role",
