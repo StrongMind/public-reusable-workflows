@@ -7,9 +7,15 @@ on:
       - main
     paths:
       - 'deployment/**'
-
+    inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
 jobs:
   build:
     name: Build and Publish
     uses: strongmind/public-reusable-workflows/.github/workflows/python-package-build.yml@main
+    with:
+      runner: ${{ inputs.runner }}
     secrets: inherit

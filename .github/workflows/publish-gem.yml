@@ -51,6 +51,7 @@ jobs:
     uses: strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
     with:
       repository_name: ${{ github.repository }}
+      runner: ${{ inputs.runner }}
     secrets: inherit
 
     

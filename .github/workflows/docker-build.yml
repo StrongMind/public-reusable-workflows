@@ -55,6 +55,8 @@ jobs:
     name: publish commit
     uses: strongmind/public-reusable-workflows/.github/workflows/commit-info.yml@main
     if: github.ref == 'refs/heads/main'
+    with:
+      runner: ${{ inputs.runner }}
     secrets: inherit
 
   test-docker:
@@ -124,4 +126,5 @@ jobs:
       ruby-version: ${{ inputs.ruby-version }}
       run-parallel: ${{ inputs.run-parallel-tests }}
       run-job-per-folder: ${{ inputs.run-job-per-folder }}
+      runner: ${{ inputs.runner }}
     secrets: inherit

@@ -25,6 +25,10 @@ on:
         required: false
         type: string
         default: 'pulumi-state-sm'
+      runner:
+        required: false
+        type: string
+        default: 'ubuntu-latest'
 
 jobs:
   deploy-auto:
@@ -37,6 +41,7 @@ jobs:
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.event.workflow_run.head_sha }}
       pulumi-command: ${{ inputs.pulumi-command }}
       pulumi-bucket: ${{ inputs.pulumi-bucket }}
+      runner: ${{ inputs.runner }}
     secrets: inherit
 
   deploy-manual:
@@ -49,6 +54,7 @@ jobs:
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ github.sha }}
       pulumi-command: ${{ inputs.pulumi-command }}
       pulumi-bucket: ${{ inputs.pulumi-bucket }}
+      runner: ${{ inputs.runner }}
     secrets: inherit
 
 
@@ -61,4 +67,5 @@ jobs:
       web-container-image: ${{ inputs.web-repository-name }}:${{ inputs.commit-sha }}
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ inputs.commit-sha }}
       pulumi-bucket: ${{ inputs.pulumi-bucket }}
+      runner: ${{ inputs.runner }}
     secrets: inherit
