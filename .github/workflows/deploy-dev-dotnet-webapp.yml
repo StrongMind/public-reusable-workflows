@@ -3,6 +3,10 @@ name: "Deploy Dev"
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
       project_path_test:
         required: false
         type: string
@@ -14,7 +18,7 @@ on:
 jobs:
   Deploy-to-Rollback:
     name: Artifact Download
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
     - name: Download workflow artifact
       uses: dawidd6/action-download-artifact@v6

@@ -2,11 +2,16 @@ name: Build Python Package
 
 on: 
   workflow_call:
+    inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
 
 jobs:
   Build-Publish:
     name: Build and Publish
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
 
     - name: Checkout repository
@@ -44,7 +49,7 @@ jobs:
   Upload-Package:
     name: Upload Package
     needs: Build-Publish
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
     - name: Download Artifacts
       uses: actions/download-artifact@v4.1.7

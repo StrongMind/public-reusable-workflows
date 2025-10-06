@@ -2,6 +2,11 @@ name: Refresh Pulumi
 
 on:
   workflow_call:
+    inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
 
 env:
   AWS_REGION: us-west-2
@@ -12,7 +17,7 @@ permissions:
 jobs:
   deploy:
     name: Refresh Pulumi
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
 
     steps:
     - name: Checkout

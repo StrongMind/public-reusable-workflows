@@ -5,6 +5,10 @@ name: Pulumi Sub Workflow
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
       pulumi_command:
         description: 'pulumi command. either up or preview'
         type: string
@@ -57,7 +61,7 @@ jobs:
     concurrency:
       group: "${{ inputs.pulumi_command }}-${{ inputs.working_directory }}-${{ inputs.pulumi_stack }}"
     name: ${{ inputs.working_directory }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     permissions:
       id-token: write
       contents: read

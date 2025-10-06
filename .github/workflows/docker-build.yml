@@ -3,6 +3,10 @@ name: Build docker and Upload to ECR
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest-m"
+        type: string
       test_docker_run_extra_params:
         description: List of extra params to pass to docker run (for things like environment variables that are required to start)
         required: false
@@ -54,7 +58,7 @@ jobs:
     secrets: inherit
 
   test-docker:
-    runs-on: ubuntu-latest-m
+    runs-on: ${{ inputs.runner }}
     services:
       postgres:
         image: postgres

@@ -3,13 +3,17 @@ name: Send Deployment Notification
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
       repository_name:
         required: true
         type: string
 
 jobs:
   send_notification:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
 
     steps:
       - name: Get current time
