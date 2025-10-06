@@ -7,7 +7,6 @@ on:
         required: false
         default: "ubuntu-latest"
         type: string
-    inputs:
       jira-ticket:
         required: false
         type: string
