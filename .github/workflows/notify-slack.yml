@@ -3,11 +3,20 @@ name: Notify release to slack
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
+    inputs:
       jira-ticket:
         required: false
         type: string
   workflow_dispatch:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
       jira-ticket:
         required: false
         type: string
@@ -15,7 +24,7 @@ on:
 jobs:
   send-slack:
     name: Send slack message
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
     - name: Checkout
       uses: actions/checkout@v4

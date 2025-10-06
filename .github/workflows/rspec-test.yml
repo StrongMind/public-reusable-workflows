@@ -3,6 +3,10 @@ name: "rspec test"
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest-m"
+        type: string
       ruby-version:
         description: "Ruby version"
         required: false
@@ -27,7 +31,7 @@ on:
 jobs:
   list-folders:
     name: List folders
-    runs-on: ubuntu-latest-m
+    runs-on: ${{ inputs.runner }}
     if: ${{ inputs.run-job-per-folder == true }}
     outputs:
       matrix: ${{ steps.get-folders.outputs.matrix }}
@@ -118,7 +122,7 @@ jobs:
 
   run-tests-in-folder:
     name: Run tests in folder
-    runs-on: ubuntu-latest-m
+    runs-on: ${{ inputs.runner }}
     needs: list-folders
     if: ${{ inputs.run-job-per-folder == true }}
     strategy:
@@ -255,7 +259,7 @@ jobs:
 
   run-tests:
     name: Run tests
-    runs-on: ubuntu-latest-m
+    runs-on: ${{ inputs.runner }}
     if: ${{ inputs.run-job-per-folder == false }}
     services:
       postgres:

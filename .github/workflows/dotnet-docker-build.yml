@@ -3,6 +3,10 @@ name: 'Build and publish docker container'
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
       dockerfile_path:
         required: true
         type: string
@@ -12,7 +16,7 @@ env:
   
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
 
       - name: Configure AWS credentials

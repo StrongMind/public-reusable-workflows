@@ -3,13 +3,17 @@ name: Publish Gem
 on:
   workflow_call:
     inputs:
+      runner:
+        required: false
+        default: "ubuntu-latest"
+        type: string
       ruby_version:
         required: true
         type: string
 
 jobs:
   bundle-and-test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
       - name: Set up Ruby
@@ -21,7 +25,7 @@ jobs:
   
   publish-gem:
     needs: bundle-and-test
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner }}
     steps:
       - uses: actions/checkout@v4
       #- name: Publish gem
