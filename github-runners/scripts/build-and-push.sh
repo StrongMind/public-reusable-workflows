@@ -46,10 +46,10 @@ aws ecr describe-repositories --repository-names $IMAGE_NAME --region $AWS_REGIO
         --image-scanning-configuration scanOnPush=true \
         --tags Key=service,Value=github-runners Key=environment,Value=stage
 
-# Build the image
-echo -e "${YELLOW}Building Docker image...${NC}"
+# Build the image for linux/amd64 platform (ECS Fargate requirement)
+echo -e "${YELLOW}Building Docker image for linux/amd64...${NC}"
 cd "$(dirname "$0")/../.."  # Go to repo root
-docker build -t $IMAGE_NAME:$IMAGE_TAG -f Dockerfile .
+docker build --platform linux/amd64 -t $IMAGE_NAME:$IMAGE_TAG -f github-runners/Dockerfile.fargate .
 
 # Tag for ECR
 ECR_IMAGE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${IMAGE_NAME}:${IMAGE_TAG}"
