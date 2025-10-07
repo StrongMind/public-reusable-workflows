@@ -42,6 +42,10 @@ on:
         required: false
         default: false
         type: boolean
+      postgres-host-port:
+        required: false
+        default: 5432
+        type: number
 
 env:
   AWS_REGION: us-west-2
@@ -69,7 +73,7 @@ jobs:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
         ports:
-          - 5432:5432
+          - ${{ inputs.postgres-host-port }}:5432
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -127,4 +131,5 @@ jobs:
       run-parallel: ${{ inputs.run-parallel-tests }}
       run-job-per-folder: ${{ inputs.run-job-per-folder }}
       runner: ${{ inputs.runner }}
+      postgres-host-port: ${{ inputs.postgres-host-port }}
     secrets: inherit
