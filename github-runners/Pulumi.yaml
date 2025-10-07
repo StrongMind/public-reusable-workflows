@@ -1,0 +1,20 @@
+name: github-runners
+runtime: python
+description: Self-hosted GitHub runners on ECS for strongmind organization
+config:
+  github-runners:github_token:
+    description: GitHub Personal Access Token for registering runners
+    secret: true
+  github-runners:runner_count:
+    description: Number of GitHub runner tasks to run
+    default: 10
+  github-runners:cpu:
+    description: CPU units for each runner task (1024 = 1 vCPU)
+    default: 1024
+  github-runners:memory:
+    description: Memory in MiB for each runner task
+    default: 2048
+  github-runners:vpc_id:
+    description: VPC ID to deploy the runners in (defaults to vpc-0d01fd72b5fb9d965 for stage)
+    default: vpc-0d01fd72b5fb9d965
+

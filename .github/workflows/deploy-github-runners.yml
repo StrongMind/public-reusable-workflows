@@ -1,0 +1,172 @@
+name: Deploy GitHub Runners to ECS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - stage
+          - prod
+        default: stage
+      runner_count:
+        description: 'Number of runners to deploy'
+        required: true
+        type: number
+        default: 100
+  push:
+    branches:
+      - main
+    paths:
+      - 'github-runners/**'
+      - 'Dockerfile'
+      - '.github/workflows/deploy-github-runners.yml'
+
+env:
+  AWS_REGION: us-west-2
+  PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  build-and-push-image:
+    name: Build and Push Docker Image
+    runs-on: ubuntu-latest
+    outputs:
+      image_uri: ${{ steps.build.outputs.image_uri }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          ECR_REPOSITORY: github-runners
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Build and push image
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          
+          # Also tag as latest
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:latest" >> $GITHUB_OUTPUT
+
+  deploy-infrastructure:
+    name: Deploy Infrastructure with Pulumi
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'stage' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Install dependencies
+        run: |
+          cd github-runners
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          # Install the strongmind_deployment package from parent directory
+          cd ../deployment
+          pip install -e .
+
+      - name: Select Pulumi stack
+        run: |
+          cd github-runners
+          pulumi stack select ${{ github.event.inputs.environment || 'stage' }} || pulumi stack init ${{ github.event.inputs.environment || 'stage' }}
+
+      - name: Configure Pulumi
+        run: |
+          cd github-runners
+          pulumi config set aws:region ${{ env.AWS_REGION }}
+          pulumi config set --secret github-runners:github_token "${{ secrets.GITHUB_RUNNER_TOKEN }}"
+          pulumi config set github-runners:runner_count ${{ github.event.inputs.runner_count || 100 }}
+
+      - name: Deploy with Pulumi
+        env:
+          ENVIRONMENT_NAME: ${{ github.event.inputs.environment || 'stage' }}
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          cd github-runners
+          pulumi up --yes
+
+      - name: Export stack outputs
+        run: |
+          cd github-runners
+          pulumi stack output --json > stack-outputs.json
+          cat stack-outputs.json
+
+      - name: Upload stack outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: stack-outputs
+          path: github-runners/stack-outputs.json
+
+  verify-deployment:
+    name: Verify Deployment
+    needs: deploy-infrastructure
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Download stack outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: stack-outputs
+
+      - name: Check ECS service status
+        run: |
+          CLUSTER_NAME=$(jq -r '.ecs_cluster_name' stack-outputs.json)
+          SERVICE_NAME=$(jq -r '.ecs_service_name' stack-outputs.json)
+          
+          echo "Checking ECS service: $SERVICE_NAME in cluster: $CLUSTER_NAME"
+          
+          aws ecs describe-services \
+            --cluster $CLUSTER_NAME \
+            --services $SERVICE_NAME \
+            --query 'services[0].[serviceName,status,runningCount,desiredCount]' \
+            --output table
+
+      - name: Check recent logs
+        run: |
+          echo "Recent logs from GitHub runners:"
+          aws logs tail /aws/ecs/github-runners --since 5m --format short | head -n 50
+

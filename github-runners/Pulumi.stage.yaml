@@ -1,0 +1,8 @@
+config:
+  aws:region: us-west-2
+  github-runners:runner_count: "10"
+  github-runners:cpu: "1024"
+  github-runners:memory: "2048"
+  github-runners:github_token:
+    secure: v1:LQ0H4pGemqT+CJDv:rONZslHhxj8ib286WL3qhOoBEA7OD+4gPRLyRjIE/MPj1LTXCS5ZthU6nsWEehMxm+LRAC6ihlg=
+encryptionsalt: v1:iU1xVG3udOQ=:v1:NOvoiYRh0lby4bEo:e2B2radYD2IJVPTO0y11r76OvzKopQ==

@@ -4,6 +4,27 @@
 
 Public github actions workflows that are reusable within StrongMind.
 
+## GitHub Self-Hosted Runners
+
+🚀 **NEW**: Deploy 100 self-hosted GitHub runners to AWS ECS!
+
+This repository now includes infrastructure to deploy self-hosted GitHub Actions runners with Ruby 3.2.6 pre-installed.
+
+**Quick Start**: See [github-runners/QUICKSTART.md](./github-runners/QUICKSTART.md)
+
+**Features**:
+- 100 ephemeral runners on AWS ECS Fargate
+- Pre-configured with Ruby 3.2.6
+- Label: `ecs` for workflow targeting
+- Auto-scaling and monitoring ready
+
+**Use in workflows**:
+```yaml
+jobs:
+  test:
+    runs-on: ecs  # Use self-hosted runners
+```
+
 ## How to deploy a rails app
 See [Rails App Deployment](./docs/rails-app-deployment.md)
 

@@ -248,29 +248,32 @@ class ContainerComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self),
         )
 
-        self.s3_policy = aws.iam.Policy(
-            f"{self.namespace}-s3-policy",
-            name=f"{self.namespace}-s3Policy",
-            policy=json.dumps({
-                "Version": "2012-10-17",
-                "Statement": [{
-                    "Effect": "Allow",
-                    "Action": [
-                        "s3:GetObject",
-                        "s3:PutObject",
-                        "s3:DeleteObject"
-                    ],
-                    "Resource": "*"
-                }]
-            }),
-            tags=self.tags
-        )
+        # Only create S3 policy if requested (default True for backward compatibility)
+        needs_s3_access = kwargs.get('needs_s3_access', True)
+        if needs_s3_access:
+            self.s3_policy = aws.iam.Policy(
+                f"{self.namespace}-s3-policy",
+                name=f"{self.namespace}-s3Policy",
+                policy=json.dumps({
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                        "Effect": "Allow",
+                        "Action": [
+                            "s3:GetObject",
+                            "s3:PutObject",
+                            "s3:DeleteObject"
+                        ],
+                        "Resource": "*"
+                    }]
+                }),
+                tags=self.tags
+            )
 
-        self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
-            f"{self.namespace}-s3PolicyAttachment",
-            role=self.task_role.id,
-            policy_arn=self.s3_policy.arn,
-        )
+            self.s3_policy_attachement = aws.iam.RolePolicyAttachment(
+                f"{self.namespace}-s3PolicyAttachment",
+                role=self.task_role.id,
+                policy_arn=self.s3_policy.arn,
+            )
 
         self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
             execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
@@ -301,20 +304,36 @@ class ContainerComponent(pulumi.ComponentResource):
         service_name = 'service'
         if name != 'container':
             service_name = f'{name}-service'
+        
+        # Build FargateService arguments
+        fargate_service_args = {
+            "name": self.namespace,
+            "desired_count": self.desired_count,
+            "cluster": self.ecs_cluster_arn,
+            "continue_before_steady_state": True,
+            "health_check_grace_period_seconds": 600 if self.need_load_balancer else None,
+            "propagate_tags": "SERVICE",
+            "enable_execute_command": True,
+            "task_definition_args": self.task_definition_args,
+            "deployment_maximum_percent": self.deployment_maximum_percent,
+            "tags": self.tags,
+            "opts": pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"]),
+        }
+        
+        # If subnet_ids are provided (for cases without load balancer), pass them explicitly
+        # Otherwise, use the default assign_public_ip behavior
+        subnet_ids = kwargs.get('subnet_ids')
+        if subnet_ids:
+            fargate_service_args["network_configuration"] = aws.ecs.ServiceNetworkConfigurationArgs(
+                subnets=subnet_ids,
+                assign_public_ip=True,
+            )
+        else:
+            fargate_service_args["assign_public_ip"] = True
+        
         self.fargate_service = awsx.ecs.FargateService(
             qualify_component_name(f'{service_name}', self.kwargs),
-            name=self.namespace,
-            desired_count=self.desired_count,
-            cluster=self.ecs_cluster_arn,
-            continue_before_steady_state=True,
-            assign_public_ip=True,
-            health_check_grace_period_seconds=600 if self.need_load_balancer else None,
-            propagate_tags="SERVICE",
-            enable_execute_command=True,
-            task_definition_args=self.task_definition_args,
-            deployment_maximum_percent=self.deployment_maximum_percent,
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"]),
+            **fargate_service_args
         )
 
         if self.kwargs.get('autoscale'):

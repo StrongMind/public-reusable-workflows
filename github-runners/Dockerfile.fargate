@@ -1,0 +1,64 @@
+FROM myoung34/github-runner:latest
+
+# Switch to root to install Ruby
+USER root
+
+# Install dependencies for Ruby build
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libssl-dev \
+    libreadline-dev \
+    zlib1g-dev \
+    libyaml-dev \
+    libffi-dev \
+    libgdbm-dev \
+    libncurses5-dev \
+    libgdbm-compat-dev \
+    libbz2-dev \
+    libreadline6-dev \
+    libyaml-dev \
+    libsqlite3-dev \
+    sqlite3 \
+    libxml2-dev \
+    libxslt1-dev \
+    libcurl4-openssl-dev \
+    software-properties-common \
+    git \
+    curl \
+    wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rbenv and ruby-build
+RUN git clone https://github.com/rbenv/rbenv.git /opt/rbenv \
+    && git clone https://github.com/rbenv/ruby-build.git /opt/ruby-build \
+    && ln -s /opt/ruby-build/bin/ruby-build /usr/local/bin/ruby-build
+
+# Set up environment for rbenv
+ENV RBENV_ROOT=/opt/rbenv
+ENV PATH="$RBENV_ROOT/bin:$PATH"
+ENV PATH="$RBENV_ROOT/shims:$PATH"
+
+# Create the tool cache directory structure
+RUN mkdir -p /opt/hostedtoolcache/Ruby/3.2.6/arm64
+
+# Install Ruby 3.2.6 for ARM64 with memory-optimized build flags
+RUN RUBY_CONFIGURE_OPTS="--disable-install-doc --disable-install-rdoc --disable-install-capi" \
+    /opt/ruby-build/bin/ruby-build 3.2.6 /opt/hostedtoolcache/Ruby/3.2.6/arm64
+
+# Mark Ruby installation as complete
+RUN touch /opt/hostedtoolcache/Ruby/3.2.6/arm64.complete
+
+# Set proper permissions for the runner user (but keep running as root)
+RUN chown -R runner:runner /opt/hostedtoolcache
+
+# Set up Ruby environment for the runner user
+RUN echo 'export RBENV_ROOT=/opt/rbenv' >> /home/runner/.bashrc \
+    && echo 'export PATH="$RBENV_ROOT/bin:$PATH"' >> /home/runner/.bashrc \
+    && echo 'export PATH="$RBENV_ROOT/shims:$PATH"' >> /home/runner/.bashrc
+
+# Verify Ruby installation
+RUN /opt/hostedtoolcache/Ruby/3.2.6/arm64/bin/ruby --version
+
+# Note: This Dockerfile is optimized for Fargate and does NOT mount /var/run/docker.sock
+# For Docker-in-Docker support, use the EC2-backed ECS option with the original Dockerfile
+
