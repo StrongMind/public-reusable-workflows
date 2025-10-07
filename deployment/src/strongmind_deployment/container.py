@@ -43,7 +43,7 @@ class ContainerComponent(pulumi.ComponentResource):
         :key pre_scale_time: MST time to start peak hours (format: "HH:MM"). Required if scheduled_scaling is True.
         :key post_scale_time: MST time to end peak hours (format: "HH:MM"). Required if scheduled_scaling is True.
         :key peak_min_capacity: Minimum capacity during peak hours. Required if scheduled_scaling is True.
-        :key desired_web_count: Minimum capacity during off-peak hours. Defaults to 2.
+        :key desired_web_count: Minimum capacity during off-peak hours. Defaults to 1.
         :key additional_domain_aliases: Optional list of additional domain names to be included in the CloudFront distribution's 
                                       certificate and aliases. Each domain should be a full domain name 
                                       (e.g., ["enrollment.strongmind.com"]). These domains will be added to the certificate's 
@@ -85,9 +85,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self.autoscaling_target = None
         self.autoscaling_out_policy = None
         self.autoscale_threshold = kwargs.get('autoscale_threshold', 5)
-        self.desired_count = kwargs.get('desired_count', 2)
+        self.desired_count = kwargs.get('desired_count', 1)
         self.max_capacity = 100
-        self.min_capacity = kwargs.get('desired_web_count', 2)
+        self.min_capacity = kwargs.get('desired_web_count', 1)
         self.sns_topic_arn = kwargs.get('sns_topic_arn')
         self.binary_sns_topic_arn = os.environ.get('BINARY_SNS_TOPIC_ARN')
         self.strongmind_service_updates_topic_arn = os.environ.get('STRONGMIND_SERVICE_UPDATES_TOPIC_ARN')
