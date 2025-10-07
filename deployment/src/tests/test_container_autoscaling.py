@@ -35,7 +35,7 @@ def describe_autoscaling():
 
         @pulumi.runtime.test
         def it_has_a_default_min_capacity(sut):
-            return assert_output_equals(sut.autoscaling_target.min_capacity, 2)
+            return assert_output_equals(sut.autoscaling_target.min_capacity, 1)
 
         @pulumi.runtime.test
         def it_has_a_default_scalable_dimension_of_desired_count(sut):
@@ -542,7 +542,7 @@ def describe_autoscaling():
             def it_sets_correct_off_peak_min_capacity(sut):
                 return assert_output_equals(
                     sut.peak_scale_down.scalable_target_action.min_capacity,
-                    2  # default min_capacity
+                    1  # default min_capacity
                 )
 
             @pulumi.runtime.test
