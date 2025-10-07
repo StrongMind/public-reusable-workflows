@@ -75,15 +75,9 @@ RUN su - postgres -c "/usr/lib/postgresql/*/bin/initdb -D /var/lib/postgresql/da
 RUN echo "host all all 0.0.0.0/0 trust" >> /var/lib/postgresql/data/pg_hba.conf
 RUN echo "listen_addresses='*'" >> /var/lib/postgresql/data/postgresql.conf
 
-# Create a startup script that will start PostgreSQL in the background
-RUN echo '#!/bin/bash\n\
-if [ ! -f /var/run/postgresql/.started ]; then\n\
-    su - postgres -c "/usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/log/postgresql/postgresql.log start"\n\
-    sleep 2\n\
-    su - postgres -c "psql -c \\"ALTER USER postgres WITH PASSWORD '\''postgres'\'';\\""\n\
-    su - postgres -c "psql -c \\"CREATE DATABASE app;\\""\n\
-    touch /var/run/postgresql/.started\n\
-fi\n' > /usr/local/bin/start-postgres.sh && chmod +x /usr/local/bin/start-postgres.sh
+# Copy and install the PostgreSQL startup script
+COPY github-runners/start-postgres.sh /usr/local/bin/start-postgres.sh
+RUN chmod +x /usr/local/bin/start-postgres.sh
 
 # Set PostgreSQL environment variables for Rails
 ENV PGHOST=localhost
