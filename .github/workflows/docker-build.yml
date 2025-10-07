@@ -7,16 +7,6 @@ on:
         required: false
         default: "ubuntu-latest-m"
         type: string
-      test_docker_run_extra_params:
-        description: List of extra params to pass to docker run (for things like environment variables that are required to start)
-        required: false
-        type: string
-        default: "-e RAILS_ENV=test"
-      test_docker_timeout:
-        description: Number of seconds to wait for docker to start
-        required: false
-        type: number
-        default: 30
       build_args:
         description: List of build args to pass to docker build
         required: false
@@ -59,17 +49,8 @@ jobs:
       runner: ${{ inputs.runner }}
     secrets: inherit
 
-  test-docker:
+  push-docker:
     runs-on: ${{ inputs.runner }}
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_DB: app
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - 5432:5432
     steps:
       - name: Checkout
         uses: actions/checkout@v4
