@@ -3,7 +3,7 @@ FROM myoung34/github-runner:latest
 # Switch to root to install Ruby
 USER root
 
-# Install dependencies for Ruby build
+# Install dependencies for Ruby build and PostgreSQL
 RUN apt-get update && apt-get install -y \
     build-essential \
     libssl-dev \
@@ -26,6 +26,9 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     wget \
+    postgresql \
+    postgresql-contrib \
+    libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Install rbenv and ruby-build
@@ -58,6 +61,40 @@ RUN echo 'export RBENV_ROOT=/opt/rbenv' >> /home/runner/.bashrc \
 
 # Verify Ruby installation
 RUN /opt/hostedtoolcache/Ruby/3.2.6/x64/bin/ruby --version
+
+# Configure PostgreSQL
+# Set up postgres user and initialize the database
+RUN mkdir -p /var/run/postgresql && chown -R postgres:postgres /var/run/postgresql
+RUN mkdir -p /var/lib/postgresql/data && chown -R postgres:postgres /var/lib/postgresql
+RUN mkdir -p /var/log/postgresql && chown -R postgres:postgres /var/log/postgresql
+
+# Initialize PostgreSQL database cluster as postgres user
+RUN su - postgres -c "/usr/lib/postgresql/*/bin/initdb -D /var/lib/postgresql/data"
+
+# Configure PostgreSQL to accept local connections
+RUN echo "host all all 0.0.0.0/0 trust" >> /var/lib/postgresql/data/pg_hba.conf
+RUN echo "listen_addresses='*'" >> /var/lib/postgresql/data/postgresql.conf
+
+# Create a startup script that will start PostgreSQL in the background
+RUN echo '#!/bin/bash\n\
+if [ ! -f /var/run/postgresql/.started ]; then\n\
+    su - postgres -c "/usr/lib/postgresql/*/bin/pg_ctl -D /var/lib/postgresql/data -l /var/log/postgresql/postgresql.log start"\n\
+    sleep 2\n\
+    su - postgres -c "psql -c \\"ALTER USER postgres WITH PASSWORD '\''postgres'\'';\\""\n\
+    su - postgres -c "psql -c \\"CREATE DATABASE app;\\""\n\
+    touch /var/run/postgresql/.started\n\
+fi\n' > /usr/local/bin/start-postgres.sh && chmod +x /usr/local/bin/start-postgres.sh
+
+# Set PostgreSQL environment variables for Rails
+ENV PGHOST=localhost
+ENV PGPORT=5432
+ENV PGUSER=postgres
+ENV PGPASSWORD=postgres
+ENV POSTGRES_HOST=localhost
+ENV POSTGRES_PORT=5432
+ENV POSTGRES_USER=postgres
+ENV POSTGRES_PASSWORD=postgres
+ENV POSTGRES_DB=app
 
 # Note: This Dockerfile is optimized for Fargate and does NOT mount /var/run/docker.sock
 # For Docker-in-Docker support, use the EC2-backed ECS option with the original Dockerfile
