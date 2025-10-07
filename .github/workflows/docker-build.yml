@@ -42,10 +42,6 @@ on:
         required: false
         default: false
         type: boolean
-      postgres-host-port:
-        required: false
-        default: 5432
-        type: number
 
 env:
   AWS_REGION: us-west-2
@@ -65,16 +61,47 @@ jobs:
 
   test-docker:
     runs-on: ${{ inputs.runner }}
-    services:
-      postgres:
-        image: postgres
-        env:
-          POSTGRES_DB: app
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-        ports:
-          - ${{ inputs.postgres-host-port }}:5432
     steps:
+      - name: Calculate Postgres port based on runner
+        id: postgres-port
+        run: |
+          RUNNER_NAME="${{ runner.name }}"
+          # Extract the last digit from the runner name (e.g., shippy-m4-3 -> 3)
+          if [[ $RUNNER_NAME =~ ([0-9])$ ]]; then
+            RUNNER_NUM="${BASH_REMATCH[1]}"
+            POSTGRES_PORT="5432${RUNNER_NUM}"
+          else
+            # Fallback to default
+            POSTGRES_PORT="5432"
+          fi
+          echo "port=$POSTGRES_PORT" >> $GITHUB_OUTPUT
+          echo "Using PostgreSQL port: $POSTGRES_PORT"
+
+      - name: Start PostgreSQL container
+        run: |
+          docker run -d \
+            --name postgres \
+            -e POSTGRES_USER=postgres \
+            -e POSTGRES_PASSWORD=postgres \
+            -e POSTGRES_DB=app \
+            -p ${{ steps.postgres-port.outputs.port }}:5432 \
+            --health-cmd pg_isready \
+            --health-interval 10s \
+            --health-timeout 5s \
+            --health-retries 5 \
+            postgres:latest
+          
+          # Wait for PostgreSQL to be healthy
+          echo "Waiting for PostgreSQL to be ready..."
+          for i in {1..30}; do
+            if docker exec postgres pg_isready -U postgres; then
+              echo "PostgreSQL is ready!"
+              break
+            fi
+            echo "Waiting... ($i/30)"
+            sleep 2
+          done
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -131,5 +158,4 @@ jobs:
       run-parallel: ${{ inputs.run-parallel-tests }}
       run-job-per-folder: ${{ inputs.run-job-per-folder }}
       runner: ${{ inputs.runner }}
-      postgres-host-port: ${{ inputs.postgres-host-port }}
     secrets: inherit
