@@ -287,8 +287,7 @@ jobs:
       - name: Test in parallel
         if: ${{ inputs.run-parallel == true }}
         run: |
-          bundle exec rails parallel:create
-          bundle exec rails parallel:migrate
+          rake parallel:setup
           RAILS_ENV=test bundle exec rails parallel:spec
 
       - name: Test
