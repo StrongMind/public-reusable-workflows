@@ -59,49 +59,8 @@ jobs:
       runner: ${{ inputs.runner }}
     secrets: inherit
 
-  test-docker:
+  push-docker:
     runs-on: ${{ inputs.runner }}
-    steps:
-      - name: Calculate Postgres port based on runner
-        id: postgres-port
-        run: |
-          RUNNER_NAME="${{ runner.name }}"
-          # Extract the last digit from the runner name (e.g., shippy-m4-3 -> 3)
-          if [[ $RUNNER_NAME =~ ([0-9])$ ]]; then
-            RUNNER_NUM="${BASH_REMATCH[1]}"
-            POSTGRES_PORT="5432${RUNNER_NUM}"
-          else
-            # Fallback to default
-            POSTGRES_PORT="5432"
-          fi
-          echo "port=$POSTGRES_PORT" >> $GITHUB_OUTPUT
-          echo "Using PostgreSQL port: $POSTGRES_PORT"
-
-      - name: Start PostgreSQL container
-        run: |
-          docker run -d \
-            --name postgres \
-            -e POSTGRES_USER=postgres \
-            -e POSTGRES_PASSWORD=postgres \
-            -e POSTGRES_DB=app \
-            -p ${{ steps.postgres-port.outputs.port }}:5432 \
-            --health-cmd pg_isready \
-            --health-interval 10s \
-            --health-timeout 5s \
-            --health-retries 5 \
-            postgres:latest
-          
-          # Wait for PostgreSQL to be healthy
-          echo "Waiting for PostgreSQL to be ready..."
-          for i in {1..30}; do
-            if docker exec postgres pg_isready -U postgres; then
-              echo "PostgreSQL is ready!"
-              break
-            fi
-            echo "Waiting... ($i/30)"
-            sleep 2
-          done
-
       - name: Checkout
         uses: actions/checkout@v4
         with:
@@ -135,7 +94,7 @@ jobs:
         with:
           repository: ${{ github.event.repository.name }}
 
-      - name: Test docker and upload to ECR
+      - name: Upload to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ github.event.repository.name }}
