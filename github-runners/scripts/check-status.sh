@@ -5,8 +5,8 @@ set -e
 
 AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-058264302180}
 AWS_REGION=${AWS_REGION:-us-west-2}
-CLUSTER_NAME="github-runners"
-SERVICE_NAME="github-runners"
+CLUSTER_NAME="github-runners-github-runners"
+SERVICE_NAME="github-runners-github-runners"
 
 # Colors for output
 GREEN='\033[0;32m'
