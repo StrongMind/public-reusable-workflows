@@ -1,6 +1,6 @@
 config:
   aws:region: us-west-2
-  github-runners:runner_count: "10"
+  github-runners:runner_count: "5"
   github-runners:cpu: "1024"
   github-runners:memory: "2048"
   github-runners:github_token:
