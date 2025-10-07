@@ -3,6 +3,10 @@ name: Build docker and Upload to ECR
 on:
   workflow_call:
     inputs:
+      docker-runner:
+        required: false
+        default: "ubuntu-latest-m"
+        type: string
       runner:
         required: false
         default: "ubuntu-latest-m"
@@ -50,7 +54,7 @@ jobs:
     secrets: inherit
 
   push-docker:
-    runs-on: ${{ inputs.runner }}
+    runs-on: ${{ inputs.docker-runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
