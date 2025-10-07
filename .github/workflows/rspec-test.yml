@@ -147,6 +147,9 @@ jobs:
 
       - name: Start PostgreSQL container
         run: |
+          # Clean up any existing container with the same name
+          docker rm -f ${{ runner.name }}-postgres 2>/dev/null || true
+          
           docker run -d \
             --name ${{ runner.name }}-postgres \
             -e POSTGRES_USER=postgres \
@@ -310,6 +313,9 @@ jobs:
 
       - name: Start PostgreSQL container
         run: |
+          # Clean up any existing container with the same name
+          docker rm -f ${{ runner.name }}-postgres 2>/dev/null || true
+          
           docker run -d \
             --name ${{ runner.name }}-postgres \
             -e POSTGRES_USER=postgres \
