@@ -111,7 +111,7 @@ jobs:
 
   rspec-test:
     name: Rspec test to code coverage
-    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
+    uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@RD-1810
     with:
       bundle-no-assets: ${{ inputs.bundle-no-assets }}
       ruby-version: ${{ inputs.ruby-version }}
