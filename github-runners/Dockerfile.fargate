@@ -68,8 +68,8 @@ RUN mkdir -p /var/run/postgresql && chown -R postgres:postgres /var/run/postgres
 RUN mkdir -p /var/lib/postgresql/data && chown -R postgres:postgres /var/lib/postgresql
 RUN mkdir -p /var/log/postgresql && chown -R postgres:postgres /var/log/postgresql
 
-# Initialize PostgreSQL database cluster as postgres user
-RUN su - postgres -c "/usr/lib/postgresql/*/bin/initdb -D /var/lib/postgresql/data"
+# Initialize PostgreSQL database cluster as postgres user with UTF8 encoding
+RUN su - postgres -c "/usr/lib/postgresql/*/bin/initdb -D /var/lib/postgresql/data --encoding=UTF8 --locale=C.UTF-8"
 
 # Configure PostgreSQL to accept local connections
 RUN echo "host all all 0.0.0.0/0 trust" >> /var/lib/postgresql/data/pg_hba.conf
