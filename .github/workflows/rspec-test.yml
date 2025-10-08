@@ -228,22 +228,12 @@ jobs:
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
-      - name: Assets and DB setup
-        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
-        run: |
-          bundle exec rails assets:precompile
-          bundle exec rails parallel:create
-          bundle exec rails parallel:migrate
-        env:
-          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
-          RAILS_ENV: test
-
       - name: Test
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
           FOLDER=${{ matrix.folder }}
           FOLDER=${FOLDER#./}
-          RAILS_ENV=test bundle exec rails "parallel:spec[^$FOLDER]"
+          RAILS_ENV=test bundle exec rspec $FOLDER
         env:
           RAILS_ENV: test
 
