@@ -16,11 +16,6 @@ on:
         required: false
         type: string
         default: ""
-      bundle-no-assets:
-        description: Whether to skip assets precompilation
-        required: false
-        type: string
-        default: bundle exec rails db:prepare db:migrate assets:precompile
       ruby-version:
         description: Rails environment to run the tests in
         required: false
@@ -107,7 +102,6 @@ jobs:
     name: Rspec test to code coverage
     uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@RD-1810-ecs
     with:
-      bundle-no-assets: ${{ inputs.bundle-no-assets }}
       ruby-version: ${{ inputs.ruby-version }}
       run-parallel: ${{ inputs.run-parallel-tests }}
       run-job-per-folder: ${{ inputs.run-job-per-folder }}

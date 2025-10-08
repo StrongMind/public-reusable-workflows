@@ -12,11 +12,6 @@ on:
         required: false
         default: "3.2.6"
         type: string
-      bundle-no-assets:
-        description: "Bundle assets"
-        required: false
-        default: bundle exec rails db:prepare db:migrate assets:precompile
-        type: string
       run-parallel:
         description: "Run parallel tests"
         required: false
@@ -228,6 +223,14 @@ jobs:
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
+      - name: Setup DB and precompile assets
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
+        run: |
+          RAILS_ENV=test bundle exec rails db:prepare assets:precompile
+        env:
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          RAILS_ENV: test
+
       - name: Test
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
@@ -254,8 +257,10 @@ jobs:
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
-      - run: |
-          ${{ inputs.bundle-no-assets }}
+      - name: Setup DB and precompile assets
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
+        run: |
+          RAILS_ENV=test bundle exec rails db:prepare assets:precompile
         env:
           RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
           RAILS_ENV: test
