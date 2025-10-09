@@ -3,6 +3,9 @@ set -e
 
 # Script to check the status of the GitHub runners deployment
 
+# Disable AWS CLI pager
+export AWS_PAGER=""
+
 AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID:-058264302180}
 AWS_REGION=${AWS_REGION:-us-west-2}
 CLUSTER_NAME="github-runners-github-runners"
