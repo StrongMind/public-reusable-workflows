@@ -208,6 +208,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "user_id": "AIDAJDPLRKLG7UEXAMPLE",
                 }
 
+            if args.token == "aws:iam/getPolicyDocument:getPolicyDocument":
+                # Mock for IAM policy document (used by RDS Proxy)
+                return {
+                    "json": '{"Version":"2012-10-17","Statement":[{"Effect":"Allow","Action":"sts:AssumeRole","Principal":{"Service":"rds.amazonaws.com"}}]}'
+                }
+
             raise NotImplementedError(
                 "No mock for: " + args.token + " - change PulimiMocks.call"
             )

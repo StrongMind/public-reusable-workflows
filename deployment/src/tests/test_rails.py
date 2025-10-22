@@ -607,6 +607,23 @@ def describe_a_pulumi_rails_component():
                 def it_should_set_the_db_username(sut, db_username):
                     return assert_output_equals(sut.rds_serverless_cluster.master_username, db_username)
 
+        def describe_with_reader_instances():
+            @pytest.fixture
+            def reader_count():
+                return 2
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, reader_count):
+                component_kwargs['reader_instance_count'] = reader_count
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_the_specified_number_of_readers(sut, reader_count):
+                # Verify the primary instance exists
+                assert sut.rds_serverless_cluster_instance is not None
+                # Verify the correct number of reader instances
+                assert len(sut.reader_instances) == reader_count
+
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
         def kms_key(faker):
@@ -1017,3 +1034,68 @@ def describe_a_pulumi_rails_component():
             assert sut.current_desired_count == desired_count
             return True
         return pulumi.Output.all(sut.web_container.fargate_service.desired_count).apply(check_desired_count)
+
+    def describe_with_rds_proxy_enabled():
+        @pytest.fixture
+        def component_kwargs(component_kwargs):
+            component_kwargs['enable_rds_proxy'] = True
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_creates_an_rds_proxy(sut):
+            assert sut.rds_proxy is not None
+
+        @pulumi.runtime.test
+        def it_creates_proxy_secret(sut):
+            assert sut.proxy_secret is not None
+
+        @pulumi.runtime.test
+        def it_creates_proxy_role(sut):
+            assert sut.proxy_role is not None
+
+        @pulumi.runtime.test
+        def it_creates_proxy_target_group(sut):
+            assert sut.proxy_default_target_group is not None
+
+        @pulumi.runtime.test
+        def it_creates_proxy_target(sut):
+            assert sut.proxy_target is not None
+
+        @pulumi.runtime.test
+        def it_adds_proxy_endpoint_to_env_vars(sut):
+            assert 'RDS_PROXY_ENDPOINT' in sut.web_container.env_vars
+
+        @pulumi.runtime.test
+        def it_does_not_create_readonly_endpoint_without_readers(sut):
+            assert sut.proxy_readonly_endpoint is None
+
+        @pulumi.runtime.test
+        def it_does_not_add_readonly_endpoint_to_env_vars_without_readers(sut):
+            assert 'RDS_PROXY_READONLY_ENDPOINT' not in sut.web_container.env_vars
+
+        def describe_with_reader_instances():
+            @pytest.fixture
+            def reader_count():
+                return 2
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, reader_count):
+                component_kwargs['reader_instance_count'] = reader_count
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_reader_instances(sut, reader_count):
+                assert len(sut.reader_instances) == reader_count
+
+            @pulumi.runtime.test
+            def it_creates_readonly_endpoint(sut):
+                assert sut.proxy_readonly_endpoint is not None
+
+            @pulumi.runtime.test
+            def it_adds_readonly_endpoint_to_env_vars(sut):
+                assert 'RDS_PROXY_READONLY_ENDPOINT' in sut.web_container.env_vars
+
+            @pulumi.runtime.test
+            def it_adds_both_proxy_endpoints_to_env_vars(sut):
+                assert 'RDS_PROXY_ENDPOINT' in sut.web_container.env_vars
+                assert 'RDS_PROXY_READONLY_ENDPOINT' in sut.web_container.env_vars
