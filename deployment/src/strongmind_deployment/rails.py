@@ -69,6 +69,11 @@ class RailsComponent(pulumi.ComponentResource):
         :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to StrongmindStageAccessRole.
         :key reader_instance_count: The number of reader instances for the RDS cluster. Defaults to 0.
         :key enable_rds_proxy: Whether to enable RDS Proxy for connection pooling. Defaults to False.
+                               When enabled, creates a read/write proxy endpoint (exported as 'rds_proxy_endpoint').
+                               If reader_instance_count > 0, also creates a read-only proxy endpoint (exported as 'rds_proxy_readonly_endpoint').
+                               The following environment variables are automatically added to containers:
+                               - RDS_PROXY_ENDPOINT: The read/write proxy endpoint
+                               - RDS_PROXY_READONLY_ENDPOINT: The read-only proxy endpoint (only if reader instances exist)
         :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC public subnets.
         :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
         """
@@ -241,6 +246,12 @@ class RailsComponent(pulumi.ComponentResource):
             'RAILS_ENV': 'production',
             'NAMESPACE': self.namespace
         }
+
+        # Add RDS Proxy endpoints if enabled
+        if self.kwargs.get('enable_rds_proxy', False):
+            additional_env_vars['RDS_PROXY_ENDPOINT'] = self.rds_proxy.endpoint
+            if hasattr(self, 'proxy_readonly_endpoint') and self.proxy_readonly_endpoint:
+                additional_env_vars['RDS_PROXY_READONLY_ENDPOINT'] = self.proxy_readonly_endpoint.endpoint
 
         self.env_vars.update(additional_env_vars)
         self.kwargs['env_vars'] = self.env_vars
@@ -454,6 +465,10 @@ class RailsComponent(pulumi.ComponentResource):
         enable_rds_proxy = self.kwargs.get('enable_rds_proxy', False)
         if enable_rds_proxy:
             self._create_rds_proxy()
+            # Export proxy endpoints
+            export("rds_proxy_endpoint", self.rds_proxy.endpoint)
+            if self.proxy_readonly_endpoint:
+                export("rds_proxy_readonly_endpoint", self.proxy_readonly_endpoint.endpoint)
 
         export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
 
@@ -579,6 +594,23 @@ class RailsComponent(pulumi.ComponentResource):
             db_cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
             opts=pulumi.ResourceOptions(parent=self.proxy_default_target_group)
         )
+
+        # Create a read-only endpoint for the proxy if there are reader instances
+        if self.reader_instances:
+            self.proxy_readonly_endpoint = aws.rds.ProxyEndpoint(
+                qualify_component_name('rds_proxy_readonly_endpoint', self.kwargs),
+                db_proxy_name=self.rds_proxy.name,
+                db_proxy_endpoint_name=f"{self.namespace}-readonly",
+                vpc_subnet_ids=vpc_subnet_ids,
+                target_role="READ_ONLY",
+                tags=self.tags,
+                opts=pulumi.ResourceOptions(
+                    parent=self.rds_proxy,
+                    depends_on=[self.proxy_target]
+                )
+            )
+        else:
+            self.proxy_readonly_endpoint = None
 
     def get_database_url(self):
         return Output.concat('postgres://',
