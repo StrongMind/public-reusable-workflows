@@ -69,7 +69,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to StrongmindStageAccessRole.
         :key reader_instance_count: The number of reader instances for the RDS cluster. Defaults to 0.
         :key enable_rds_proxy: Whether to enable RDS Proxy for connection pooling. Defaults to False.
-        :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC private subnets.
+        :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC public subnets.
         :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
@@ -465,7 +465,7 @@ class RailsComponent(pulumi.ComponentResource):
         # If no VPC IDs are provided, use the default VPC
         if not vpc_subnet_ids:
             default_vpc = awsx.ec2.DefaultVpc(qualify_component_name("default_vpc_for_proxy", self.kwargs))
-            vpc_subnet_ids = default_vpc.private_subnet_ids
+            vpc_subnet_ids = default_vpc.public_subnet_ids
             # If no security groups specified, we'll let AWS use the default VPC security group
             # by not specifying vpc_security_group_ids parameter
         
