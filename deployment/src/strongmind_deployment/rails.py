@@ -4,6 +4,7 @@ import subprocess
 
 import pulumi
 import pulumi_aws as aws
+import pulumi_awsx as awsx
 import pulumi_random as random
 from pulumi import export, Output
 import boto3
@@ -68,6 +69,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to StrongmindStageAccessRole.
         :key reader_instance_count: The number of reader instances for the RDS cluster. Defaults to 0.
         :key enable_rds_proxy: Whether to enable RDS Proxy for connection pooling. Defaults to False.
+        :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC private subnets.
+        :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -449,7 +452,7 @@ class RailsComponent(pulumi.ComponentResource):
         
         # Create RDS Proxy if enabled
         enable_rds_proxy = self.kwargs.get('enable_rds_proxy', False)
-        if enable_rds_proxy and 'vpc_subnet_ids' in self.kwargs:
+        if enable_rds_proxy:
             self._create_rds_proxy()
 
         export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
@@ -458,6 +461,13 @@ class RailsComponent(pulumi.ComponentResource):
         """Create an RDS Proxy for connection pooling."""
         vpc_subnet_ids = self.kwargs.get('vpc_subnet_ids')
         vpc_security_group_ids = self.kwargs.get('vpc_security_group_ids')
+        
+        # If no VPC IDs are provided, use the default VPC
+        if not vpc_subnet_ids:
+            default_vpc = awsx.ec2.DefaultVpc(qualify_component_name("default_vpc_for_proxy", self.kwargs))
+            vpc_subnet_ids = default_vpc.private_subnet_ids
+            # If no security groups specified, we'll let AWS use the default VPC security group
+            # by not specifying vpc_security_group_ids parameter
         
         # Create a secret for the proxy to use
         self.proxy_secret = aws.secretsmanager.Secret(
