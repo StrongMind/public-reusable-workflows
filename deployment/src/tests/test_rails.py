@@ -607,6 +607,21 @@ def describe_a_pulumi_rails_component():
                 def it_should_set_the_db_username(sut, db_username):
                     return assert_output_equals(sut.rds_serverless_cluster.master_username, db_username)
 
+        def describe_with_reader_instances():
+            @pytest.fixture
+            def reader_count():
+                return 2
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, reader_count):
+                component_kwargs['reader_instance_count'] = reader_count
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_the_specified_number_of_readers(sut, reader_count):
+                # 1 writer + reader_count readers
+                assert len(sut.database.cluster_instances) == 1 + reader_count
+
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
         def kms_key(faker):

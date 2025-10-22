@@ -67,6 +67,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key cross_account_assume_roles: A list of additional cross-account role ARNs that containers can assume. Defaults to [].
                                         Note: All containers automatically have access to assume the StrongmindStageAccessRole.
         :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to StrongmindStageAccessRole.
+        :key reader_instance_count: The number of reader instances for the RDS cluster. Defaults to 0.
+        :key enable_rds_proxy: Whether to enable RDS Proxy for connection pooling. Defaults to False.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -346,20 +348,34 @@ class RailsComponent(pulumi.ComponentResource):
 
     def rds(self):
         # Create the database component with the necessary configuration
+        reader_instance_count = self.kwargs.get('reader_instance_count', 0)
+        enable_rds_proxy = self.kwargs.get('enable_rds_proxy', False)
+        
+        database_kwargs = {
+            'namespace': self.namespace,
+            'db_name': self.kwargs.get("db_name", "app"),
+            'db_username': self.kwargs.get("db_username", self.namespace.replace('-', '_')),
+            'db_engine_version': self.engine_version,
+            'rds_minimum_capacity': self.rds_minimum_capacity,
+            'rds_maximum_capacity': self.rds_maximum_capacity,
+            'snapshot_identifier': self.snapshot_identifier,
+            'kms_key_id': self.kms_key_id,
+            'md5_hash_db_password': self.kwargs.get('md5_hash_db_password', False),
+            'writer_instance_count': 1,
+            'reader_instance_count': reader_instance_count,
+        }
+        
+        # Only add VPC configuration if RDS Proxy is enabled
+        if enable_rds_proxy:
+            if 'vpc_subnet_ids' in self.kwargs:
+                database_kwargs['vpc_subnet_ids'] = self.kwargs['vpc_subnet_ids']
+            if 'vpc_security_group_ids' in self.kwargs:
+                database_kwargs['vpc_security_group_ids'] = self.kwargs['vpc_security_group_ids']
+        
         self.database = DatabaseComponent(
             qualify_component_name("database", self.kwargs),
             opts=pulumi.ResourceOptions(parent=self),
-            namespace=self.namespace,
-            db_name=self.kwargs.get("db_name", "app"),
-            db_username=self.kwargs.get("db_username", self.namespace.replace('-', '_')),
-            db_engine_version=self.engine_version,
-            rds_minimum_capacity=self.rds_minimum_capacity,
-            rds_maximum_capacity=self.rds_maximum_capacity,
-            snapshot_identifier=self.snapshot_identifier,
-            kms_key_id=self.kms_key_id,
-            md5_hash_db_password=self.kwargs.get('md5_hash_db_password', False),
-            writer_instance_count=1,
-            reader_instance_count=2,
+            **database_kwargs
         )
         
         # Maintain backward compatibility by exposing database properties

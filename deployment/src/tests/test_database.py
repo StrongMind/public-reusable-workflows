@@ -155,7 +155,7 @@ def describe_database_component():
 
     @pulumi.runtime.test
     def it_creates_cluster_instances(sut):
-        assert len(sut.cluster_instances) == 3  # 1 writer + 2 readers
+        assert len(sut.cluster_instances) == 1  # 1 writer + 0 readers (default)
 
     @pulumi.runtime.test
     def it_has_writer_instances(sut):
@@ -163,9 +163,9 @@ def describe_database_component():
         assert sut.cluster_instances[0]
 
     @pulumi.runtime.test
-    def it_has_reader_instances(sut):
-        # Should have 2 reader instances
-        assert len(sut.cluster_instances) >= 3
+    def it_has_only_one_instance_by_default(sut):
+        # Should have only 1 instance by default (no readers)
+        assert len(sut.cluster_instances) == 1
 
     @pulumi.runtime.test
     def it_keeps_backward_compatibility_for_cluster_instance(sut):

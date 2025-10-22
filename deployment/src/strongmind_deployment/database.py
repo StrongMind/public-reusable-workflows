@@ -27,7 +27,7 @@ class DatabaseComponent(pulumi.ComponentResource):
         :key kms_key_id: The KMS key ID to use for the RDS cluster. Defaults to None.
         :key md5_hash_db_password: Whether to MD5 hash the database password. Defaults to False.
         :key writer_instance_count: Number of writer instances. Defaults to 1.
-        :key reader_instance_count: Number of reader instances. Defaults to 2.
+        :key reader_instance_count: Number of reader instances. Defaults to 0.
         :key vpc_subnet_ids: List of VPC subnet IDs for the RDS Proxy. Optional.
         :key vpc_security_group_ids: List of VPC security group IDs for the RDS Proxy. Optional.
         """
@@ -64,7 +64,7 @@ class DatabaseComponent(pulumi.ComponentResource):
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
         self.kms_key_id = self.kwargs.get('kms_key_id', None)
         self.writer_instance_count = self.kwargs.get('writer_instance_count', 1)
-        self.reader_instance_count = self.kwargs.get('reader_instance_count', 2)
+        self.reader_instance_count = self.kwargs.get('reader_instance_count', 0)
         
         # Generate password
         self.db_password = random.RandomPassword(
