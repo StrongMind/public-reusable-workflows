@@ -16,6 +16,7 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
+from strongmind_deployment.database import DatabaseComponent
 from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 
 
@@ -79,15 +80,10 @@ class RailsComponent(pulumi.ComponentResource):
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
-        self.db_username = None
-        self.db_password = None
-        self.db_name = None
-        self.hashed_password = None
         self.web_container = None
         self.worker_container = None
         self.secret = None
-        self.rds_serverless_cluster_instance = None
-        self.rds_serverless_cluster = None
+        self.database = None
         self.kwargs = kwargs
         self.worker_log_metric_filters = self.kwargs.get('worker_log_metric_filters', [])
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
@@ -348,79 +344,31 @@ class RailsComponent(pulumi.ComponentResource):
                                        **self.kwargs
                                        )
 
-    def salt_and_hash_password(self, pwd):
-        string_to_hash = f'{pwd}{self.db_username}'
-        hashed = hashlib.md5(string_to_hash.encode('utf-8')).hexdigest()
-        return f'md5{hashed}'
-
     def rds(self):
-        self.db_username = self.kwargs.get("db_username", self.namespace.replace('-', '_'))
-        self.db_password = random.RandomPassword(qualify_component_name("password", self.kwargs),
-                                                                 length=30,
-                                                                 special=False,)
-        self.db_name = self.kwargs.get("db_name", "app")
-
-        self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)
-
-        master_db_password = self.db_password.result
-        if self.kwargs.get('md5_hash_db_password'):
-            master_db_password = self.hashed_password
-
-        self.rds_serverless_cluster = aws.rds.Cluster(
-            qualify_component_name('rds_serverless_cluster', self.kwargs),
-            cluster_identifier=self.namespace,
-            engine='aurora-postgresql',
-            engine_mode='provisioned',
-            engine_version=self.engine_version,
-            database_name=self.db_name,
-            master_username=self.db_username,
-            master_password=master_db_password,
-            apply_immediately=True,
-            deletion_protection=True,
-            skip_final_snapshot=False,
-            final_snapshot_identifier=f'{self.namespace}-final-snapshot',
-            backup_retention_period=14,
-            serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
-                min_capacity=self.rds_minimum_capacity,
-                max_capacity=self.rds_maximum_capacity,
-            ),
+        # Create the database component with the necessary configuration
+        self.database = DatabaseComponent(
+            qualify_component_name("database", self.kwargs),
+            opts=pulumi.ResourceOptions(parent=self),
+            namespace=self.namespace,
+            db_name=self.kwargs.get("db_name", "app"),
+            db_username=self.kwargs.get("db_username", self.namespace.replace('-', '_')),
+            db_engine_version=self.engine_version,
+            rds_minimum_capacity=self.rds_minimum_capacity,
+            rds_maximum_capacity=self.rds_maximum_capacity,
             snapshot_identifier=self.snapshot_identifier,
             kms_key_id=self.kms_key_id,
-            storage_encrypted=bool(self.kms_key_id),
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
-                                        protect=True,
-                                        ignore_changes=[
-                                                        'masterPassword', ## Don't change
-                                                        'snapshotIdentifier', #* results in replace
-                                                        'clusterIdentifier', #*
-                                                        'engineVersion', ### results in an outage
-                                                        'masterUsername', #*,
-                                                        'storageEncrypted'
-                                                        ])
+            md5_hash_db_password=self.kwargs.get('md5_hash_db_password', False),
+            writer_instance_count=1,
+            reader_instance_count=2,
         )
-        self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
-            qualify_component_name('rds_serverless_cluster_instance', self.kwargs),
-            identifier=self.namespace,
-            cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
-            instance_class='db.serverless',
-            engine=self.rds_serverless_cluster.engine,
-            engine_version=self.rds_serverless_cluster.engine_version,
-            apply_immediately=True,
-            publicly_accessible=True,
-            tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self,
-                                        depends_on=[self.rds_serverless_cluster],
-                                        protect=True,
-                                        ignore_changes=[
-                                            'masterPassword', ##
-                                            'snapshotIdentifier', #*
-                                            'clusterIdentifier', #*
-                                            'identifier', #*
-                                        ]),
-        )
-
-        export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
+        
+        # Maintain backward compatibility by exposing database properties
+        self.rds_serverless_cluster = self.database.rds_serverless_cluster
+        self.rds_serverless_cluster_instance = self.database.rds_serverless_cluster_instance
+        self.db_username = self.database.db_username
+        self.db_password = self.database.db_password
+        self.db_name = self.database.db_name
+        self.hashed_password = self.database.hashed_password
 
     def get_database_url(self):
         return Output.concat('postgres://',
