@@ -16,7 +16,6 @@ from strongmind_deployment.redis import RedisComponent, QueueComponent, CacheCom
 from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
-from strongmind_deployment.database import DatabaseComponent
 from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 
 
@@ -85,7 +84,6 @@ class RailsComponent(pulumi.ComponentResource):
         self.web_container = None
         self.worker_container = None
         self.secret = None
-        self.database = None
         self.kwargs = kwargs
         self.worker_log_metric_filters = self.kwargs.get('worker_log_metric_filters', [])
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
@@ -346,45 +344,231 @@ class RailsComponent(pulumi.ComponentResource):
                                        **self.kwargs
                                        )
 
+    def salt_and_hash_password(self, pwd):
+        string_to_hash = f'{pwd}{self.db_username}'
+        hashed = hashlib.md5(string_to_hash.encode('utf-8')).hexdigest()
+        return f'md5{hashed}'
+
     def rds(self):
-        # Create the database component with the necessary configuration
-        reader_instance_count = self.kwargs.get('reader_instance_count', 0)
-        enable_rds_proxy = self.kwargs.get('enable_rds_proxy', False)
-        
-        database_kwargs = {
-            'namespace': self.namespace,
-            'db_name': self.kwargs.get("db_name", "app"),
-            'db_username': self.kwargs.get("db_username", self.namespace.replace('-', '_')),
-            'db_engine_version': self.engine_version,
-            'rds_minimum_capacity': self.rds_minimum_capacity,
-            'rds_maximum_capacity': self.rds_maximum_capacity,
-            'snapshot_identifier': self.snapshot_identifier,
-            'kms_key_id': self.kms_key_id,
-            'md5_hash_db_password': self.kwargs.get('md5_hash_db_password', False),
-            'writer_instance_count': 1,
-            'reader_instance_count': reader_instance_count,
-        }
-        
-        # Only add VPC configuration if RDS Proxy is enabled
-        if enable_rds_proxy:
-            if 'vpc_subnet_ids' in self.kwargs:
-                database_kwargs['vpc_subnet_ids'] = self.kwargs['vpc_subnet_ids']
-            if 'vpc_security_group_ids' in self.kwargs:
-                database_kwargs['vpc_security_group_ids'] = self.kwargs['vpc_security_group_ids']
-        
-        self.database = DatabaseComponent(
-            qualify_component_name("database", self.kwargs),
-            opts=pulumi.ResourceOptions(parent=self),
-            **database_kwargs
+        self.db_username = self.kwargs.get("db_username", self.namespace.replace('-', '_'))
+        self.db_password = random.RandomPassword(qualify_component_name("password", self.kwargs),
+                                                                 length=30,
+                                                                 special=False,)
+        self.db_name = self.kwargs.get("db_name", "app")
+
+        self.hashed_password = self.db_password.result.apply(self.salt_and_hash_password)
+
+        master_db_password = self.db_password.result
+        if self.kwargs.get('md5_hash_db_password'):
+            master_db_password = self.hashed_password
+
+        self.rds_serverless_cluster = aws.rds.Cluster(
+            qualify_component_name('rds_serverless_cluster', self.kwargs),
+            cluster_identifier=self.namespace,
+            engine='aurora-postgresql',
+            engine_mode='provisioned',
+            engine_version=self.engine_version,
+            database_name=self.db_name,
+            master_username=self.db_username,
+            master_password=master_db_password,
+            apply_immediately=True,
+            deletion_protection=True,
+            skip_final_snapshot=False,
+            final_snapshot_identifier=f'{self.namespace}-final-snapshot',
+            backup_retention_period=14,
+            serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
+                min_capacity=self.rds_minimum_capacity,
+                max_capacity=self.rds_maximum_capacity,
+            ),
+            snapshot_identifier=self.snapshot_identifier,
+            kms_key_id=self.kms_key_id,
+            storage_encrypted=bool(self.kms_key_id),
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
+                                        protect=True,
+                                        ignore_changes=[
+                                                        'masterPassword', ## Don't change
+                                                        'snapshotIdentifier', #* results in replace
+                                                        'clusterIdentifier', #*
+                                                        'engineVersion', ### results in an outage
+                                                        'masterUsername', #*,
+                                                        'storageEncrypted'
+                                                        ])
         )
         
-        # Maintain backward compatibility by exposing database properties
-        self.rds_serverless_cluster = self.database.rds_serverless_cluster
-        self.rds_serverless_cluster_instance = self.database.rds_serverless_cluster_instance
-        self.db_username = self.database.db_username
-        self.db_password = self.database.db_password
-        self.db_name = self.database.db_name
-        self.hashed_password = self.database.hashed_password
+        # Create the primary instance (backward compatible)
+        self.rds_serverless_cluster_instance = aws.rds.ClusterInstance(
+            qualify_component_name('rds_serverless_cluster_instance', self.kwargs),
+            identifier=self.namespace,
+            cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
+            instance_class='db.serverless',
+            engine=self.rds_serverless_cluster.engine,
+            engine_version=self.rds_serverless_cluster.engine_version,
+            apply_immediately=True,
+            publicly_accessible=True,
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[self.rds_serverless_cluster],
+                                        protect=True,
+                                        ignore_changes=[
+                                            'masterPassword', ##
+                                            'snapshotIdentifier', #*
+                                            'clusterIdentifier', #*
+                                            'identifier', #*
+                                        ]),
+        )
+        
+        # Create additional reader instances if specified
+        reader_instance_count = self.kwargs.get('reader_instance_count', 0)
+        self.reader_instances = []
+        for i in range(reader_instance_count):
+            reader_instance = aws.rds.ClusterInstance(
+                qualify_component_name(f'rds_reader_instance_{i}', self.kwargs),
+                identifier=f"{self.namespace}-reader-{i}",
+                cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
+                instance_class='db.serverless',
+                engine=self.rds_serverless_cluster.engine,
+                engine_version=self.rds_serverless_cluster.engine_version,
+                apply_immediately=True,
+                publicly_accessible=True,
+                promotion_tier=i + 2,  # Higher tier = lower priority for promotion
+                tags=self.tags,
+                opts=pulumi.ResourceOptions(
+                    parent=self,
+                    depends_on=[self.rds_serverless_cluster],
+                    protect=True,
+                    ignore_changes=[
+                        'masterPassword',
+                        'snapshotIdentifier',
+                        'clusterIdentifier',
+                        'identifier',
+                    ]
+                ),
+            )
+            self.reader_instances.append(reader_instance)
+        
+        # Create RDS Proxy if enabled
+        enable_rds_proxy = self.kwargs.get('enable_rds_proxy', False)
+        if enable_rds_proxy and 'vpc_subnet_ids' in self.kwargs:
+            self._create_rds_proxy()
+
+        export("db_endpoint", Output.concat(self.rds_serverless_cluster.endpoint))
+
+    def _create_rds_proxy(self):
+        """Create an RDS Proxy for connection pooling."""
+        vpc_subnet_ids = self.kwargs.get('vpc_subnet_ids')
+        vpc_security_group_ids = self.kwargs.get('vpc_security_group_ids')
+        
+        # Create a secret for the proxy to use
+        self.proxy_secret = aws.secretsmanager.Secret(
+            qualify_component_name('rds_proxy_secret', self.kwargs),
+            name=f"{self.namespace}-rds-proxy-secret",
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self)
+        )
+
+        # Store the database credentials in the secret
+        self.proxy_secret_version = aws.secretsmanager.SecretVersion(
+            qualify_component_name('rds_proxy_secret_version', self.kwargs),
+            secret_id=self.proxy_secret.id,
+            secret_string=Output.all(
+                self.db_username,
+                self.db_password.result
+            ).apply(lambda args: f'{{"username":"{args[0]}","password":"{args[1]}"}}'),
+            opts=pulumi.ResourceOptions(parent=self.proxy_secret)
+        )
+
+        # Create IAM role for RDS Proxy
+        assume_role_policy = aws.iam.get_policy_document(
+            statements=[aws.iam.GetPolicyDocumentStatementArgs(
+                actions=["sts:AssumeRole"],
+                principals=[aws.iam.GetPolicyDocumentStatementPrincipalArgs(
+                    type="Service",
+                    identifiers=["rds.amazonaws.com"],
+                )],
+            )]
+        )
+
+        self.proxy_role = aws.iam.Role(
+            qualify_component_name('rds_proxy_role', self.kwargs),
+            name=f"{self.namespace}-rds-proxy-role",
+            assume_role_policy=assume_role_policy.json,
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self)
+        )
+
+        # Create policy for the proxy role to access secrets
+        self.proxy_policy = aws.iam.RolePolicy(
+            qualify_component_name('rds_proxy_policy', self.kwargs),
+            role=self.proxy_role.id,
+            policy=self.proxy_secret.arn.apply(
+                lambda arn: f'''{{
+                    "Version": "2012-10-17",
+                    "Statement": [
+                        {{
+                            "Effect": "Allow",
+                            "Action": [
+                                "secretsmanager:GetSecretValue"
+                            ],
+                            "Resource": "{arn}"
+                        }}
+                    ]
+                }}'''
+            ),
+            opts=pulumi.ResourceOptions(parent=self.proxy_role)
+        )
+
+        # Collect all instances to depend on
+        all_instances = [self.rds_serverless_cluster_instance] + self.reader_instances
+
+        # Create the RDS Proxy
+        proxy_args = {
+            'name': f"{self.namespace}-rds-proxy",
+            'engine_family': "POSTGRESQL",
+            'auths': [aws.rds.ProxyAuthArgs(
+                auth_scheme="SECRETS",
+                iam_auth="DISABLED",
+                secret_arn=self.proxy_secret.arn,
+            )],
+            'role_arn': self.proxy_role.arn,
+            'vpc_subnet_ids': vpc_subnet_ids,
+            'require_tls': False,
+            'tags': self.tags,
+        }
+
+        # Add security groups if provided
+        if vpc_security_group_ids:
+            proxy_args['vpc_security_group_ids'] = vpc_security_group_ids
+
+        self.rds_proxy = aws.rds.Proxy(
+            qualify_component_name('rds_proxy', self.kwargs),
+            **proxy_args,
+            opts=pulumi.ResourceOptions(
+                parent=self,
+                depends_on=[self.proxy_secret_version, self.proxy_policy] + all_instances
+            )
+        )
+
+        # Create proxy target group
+        self.proxy_default_target_group = aws.rds.ProxyDefaultTargetGroup(
+            qualify_component_name('rds_proxy_target_group', self.kwargs),
+            db_proxy_name=self.rds_proxy.name,
+            connection_pool_config=aws.rds.ProxyDefaultTargetGroupConnectionPoolConfigArgs(
+                max_connections_percent=100,
+                max_idle_connections_percent=50,
+                connection_borrow_timeout=120,
+            ),
+            opts=pulumi.ResourceOptions(parent=self.rds_proxy)
+        )
+
+        # Attach the cluster to the proxy
+        self.proxy_target = aws.rds.ProxyTarget(
+            qualify_component_name('rds_proxy_target', self.kwargs),
+            db_proxy_name=self.rds_proxy.name,
+            target_group_name=self.proxy_default_target_group.name,
+            db_cluster_identifier=self.rds_serverless_cluster.cluster_identifier,
+            opts=pulumi.ResourceOptions(parent=self.proxy_default_target_group)
+        )
 
     def get_database_url(self):
         return Output.concat('postgres://',

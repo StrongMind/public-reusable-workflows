@@ -619,8 +619,10 @@ def describe_a_pulumi_rails_component():
 
             @pulumi.runtime.test
             def it_creates_the_specified_number_of_readers(sut, reader_count):
-                # 1 writer + reader_count readers
-                assert len(sut.database.cluster_instances) == 1 + reader_count
+                # Verify the primary instance exists
+                assert sut.rds_serverless_cluster_instance is not None
+                # Verify the correct number of reader instances
+                assert len(sut.reader_instances) == reader_count
 
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
