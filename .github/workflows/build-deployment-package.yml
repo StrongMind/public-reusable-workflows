@@ -2,20 +2,20 @@ name: Build Python Package for Deployment Components
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - 'deployment/**'
     inputs:
       runner:
         required: false
         default: "ubuntu-latest"
         type: string
+  push:
+    branches:
+      - main
+    paths:
+      - 'deployment/**'
 jobs:
   build:
     name: Build and Publish
     uses: strongmind/public-reusable-workflows/.github/workflows/python-package-build.yml@main
     with:
-      runner: ${{ inputs.runner }}
+      runner: ${{ inputs.runner || 'ubuntu-latest' }}
     secrets: inherit
