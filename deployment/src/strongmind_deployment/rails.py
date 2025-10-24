@@ -242,7 +242,6 @@ class RailsComponent(pulumi.ComponentResource):
             'DB_PASS': self.db_password.result,
             'DB_NAME': self.db_name,
             'DB_PORT': '5432',
-            'DATABASE_URL': self.get_database_url(),
             'RAILS_ENV': 'production',
             'NAMESPACE': self.namespace
         }
@@ -611,16 +610,6 @@ class RailsComponent(pulumi.ComponentResource):
             )
         else:
             self.proxy_readonly_endpoint = None
-
-    def get_database_url(self):
-        return Output.concat('postgres://',
-                             self.db_username,
-                             ':',
-                             self.db_password.result,
-                             '@',
-                             self.rds_serverless_cluster.endpoint,
-                             ':5432/',
-                             self.db_name)
 
     def setup_dynamo(self):
         for table_component in self.dynamo_tables:

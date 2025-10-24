@@ -472,22 +472,6 @@ def describe_a_pulumi_rails_component():
             ).apply(check_rds_cluster_scaling_configuration)
 
         @pulumi.runtime.test
-        def it_sends_the_cluster_url_to_the_ecs_environment(sut):
-            def check_ecs_environment(args):
-                postgres_url, endpoint, master_username, master_password, db_name = args
-                expected_postgres_url = f'postgres://{master_username}:{master_password}@{endpoint}:5432/{db_name}'
-
-                assert postgres_url == expected_postgres_url
-
-            return pulumi.Output.all(
-                sut.web_container.env_vars["DATABASE_URL"],
-                sut.rds_serverless_cluster.endpoint,
-                sut.rds_serverless_cluster.master_username,
-                sut.db_password.result,
-                sut.rds_serverless_cluster.database_name
-            ).apply(check_ecs_environment)
-
-        @pulumi.runtime.test
         def it_sets_the_rails_environment(sut):
             assert sut.web_container.env_vars["RAILS_ENV"] == "production"
 
@@ -595,13 +579,6 @@ def describe_a_pulumi_rails_component():
                 @pulumi.runtime.test
                 def it_should_set_the_db_name(sut, db_name):
                     return assert_output_equals(sut.rds_serverless_cluster.database_name, db_name)
-
-                @pulumi.runtime.test
-                def it_should_put_the_db_name_in_the_url(sut, db_name):
-                    def check_the_db_url(db_url):
-                        assert db_url.split('/')[-1] == db_name
-
-                    return sut.get_database_url().apply(check_the_db_url)
 
                 @pulumi.runtime.test
                 def it_should_set_the_db_username(sut, db_username):
