@@ -85,7 +85,15 @@ jobs:
         with:
           role-to-assume: ${{inputs.role_to_assume}}
           aws-region: ${{inputs.aws_region}}
-      - uses: pulumi/actions@v5
+      
+      # Track if Pulumi operation has started (lock file created)
+      - name: Set lock tracking flag
+        id: lock-tracker
+        run: echo "LOCK_CREATED=false" >> $GITHUB_ENV
+      
+      - name: Run Pulumi
+        id: pulumi-run
+        uses: pulumi/actions@v5
         with:
           command: ${{inputs.pulumi_command}}
           stack-name: ${{ inputs.pulumi_stack }}
@@ -96,3 +104,31 @@ jobs:
           config-map: ${{inputs.config_map}}
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{secrets.pulumi_config_passphrase}}
+      
+      # Mark that Pulumi has started (lock exists)
+      - name: Mark lock as created
+        if: always() && steps.pulumi-run.outcome != 'skipped'
+        run: echo "LOCK_CREATED=true" >> $GITHUB_ENV
+      
+      # Cleanup lock file if workflow is cancelled and lock was created
+      - name: Cleanup Pulumi lock on cancellation
+        if: cancelled() && env.LOCK_CREATED == 'true'
+        run: |
+          echo "Workflow cancelled - attempting to release Pulumi lock..."
+          
+          # The lock file path in S3 follows this pattern:
+          # s3://<bucket>/.pulumi/locks/<stack-name>
+          LOCK_PATH=".pulumi/locks/${{ inputs.pulumi_stack }}"
+          
+          echo "Checking for lock file at: s3://${{inputs.state_bucket}}/${LOCK_PATH}"
+          
+          # Check if lock file exists
+          if aws s3 ls "s3://${{inputs.state_bucket}}/${LOCK_PATH}" 2>/dev/null; then
+            echo "Lock file found. Deleting..."
+            aws s3 rm "s3://${{inputs.state_bucket}}/${LOCK_PATH}" --recursive
+            echo "Lock file deleted successfully"
+          else
+            echo "No lock file found or already released"
+          fi
+          
+          echo "Lock cleanup completed"
