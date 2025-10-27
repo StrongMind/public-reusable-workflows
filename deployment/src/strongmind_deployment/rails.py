@@ -76,6 +76,9 @@ class RailsComponent(pulumi.ComponentResource):
                                - RDS_PROXY_READONLY_ENDPOINT: The read-only proxy endpoint (only if reader instances exist)
         :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC public subnets.
         :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
+        :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
+                                        When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
+                                        This enables monitoring of slow queries, connections, errors, and DDL statements.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -105,6 +108,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.desired_worker_count = self.kwargs.get('desired_worker_count', 1)
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 1)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
+        self.enable_db_cloudwatch_logs = self.kwargs.get('enable_db_cloudwatch_logs', True)
         self.kwargs['sns_topic_arn'] = self.kwargs.get('sns_topic_arn',
                                                        operations.get_opsgenie_sns_topic_arn())
         
@@ -389,6 +393,7 @@ class RailsComponent(pulumi.ComponentResource):
             skip_final_snapshot=False,
             final_snapshot_identifier=f'{self.namespace}-final-snapshot',
             backup_retention_period=14,
+            enabled_cloudwatch_logs_exports=["postgresql"] if self.enable_db_cloudwatch_logs else [],
             serverlessv2_scaling_configuration=aws.rds.ClusterServerlessv2ScalingConfigurationArgs(
                 min_capacity=self.rds_minimum_capacity,
                 max_capacity=self.rds_maximum_capacity,
