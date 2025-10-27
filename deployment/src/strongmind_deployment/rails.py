@@ -76,6 +76,8 @@ class RailsComponent(pulumi.ComponentResource):
                                - RDS_PROXY_READONLY_ENDPOINT: The read-only proxy endpoint (only if reader instances exist)
         :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC public subnets.
         :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
+        :key sidecar_containers: Optional list of additional container definitions to run alongside Rails containers (e.g., Datadog agent, logging sidecars).
+                                Each should be a TaskDefinitionContainerDefinitionArgs object. Applied to web and worker containers. Defaults to [].
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None

@@ -53,6 +53,8 @@ class ContainerComponent(pulumi.ComponentResource):
         :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
         :key port_mappings: Custom port mappings for the container. If provided, overrides automatic port mapping logic.
                            Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to None.
+        :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
+                                Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -80,6 +82,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.command = kwargs.get('command')
         self.env_vars = kwargs.get('env_vars', {})
         self.secrets = kwargs.get('secrets', [])
+        self.sidecar_containers = kwargs.get('sidecar_containers', [])
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
@@ -272,32 +275,45 @@ class ContainerComponent(pulumi.ComponentResource):
             policy_arn=self.s3_policy.arn,
         )
 
-        self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
-            execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
-            task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
-            skip_destroy=True,
-            family=self.namespace,
-            container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=self.namespace,
-                log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
-                    log_driver="awslogs",
-                    options={
-                        "awslogs-group": self.logs.name,
-                        "awslogs-region": "us-west-2",
-                        "awslogs-stream-prefix": "container",
-                    },
-                ),
-                image=self.container_image,
-                cpu=self.cpu,
-                memory=self.memory,
-                entry_point=self.entry_point,
-                command=self.command,
-                essential=True,
-                port_mappings=port_mappings,
-                secrets=self.secrets,
-                environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
-            )
+        # Build primary container definition
+        primary_container = awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+            name=self.namespace,
+            log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+                log_driver="awslogs",
+                options={
+                    "awslogs-group": self.logs.name,
+                    "awslogs-region": "us-west-2",
+                    "awslogs-stream-prefix": "container",
+                },
+            ),
+            image=self.container_image,
+            cpu=self.cpu,
+            memory=self.memory,
+            entry_point=self.entry_point,
+            command=self.command,
+            essential=True,
+            port_mappings=port_mappings,
+            secrets=self.secrets,
+            environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
         )
+
+        # Build task definition args - use 'containers' (plural) if we have sidecars, else 'container' (singular)
+        task_def_kwargs = {
+            "execution_role": DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
+            "task_role": DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
+            "skip_destroy": True,
+            "family": self.namespace,
+        }
+        
+        # If we have sidecar containers, use 'containers' (plural), otherwise 'container' (singular)
+        if self.sidecar_containers:
+            # Combine primary container with sidecars
+            all_containers = [primary_container] + list(self.sidecar_containers)
+            task_def_kwargs["containers"] = all_containers
+        else:
+            task_def_kwargs["container"] = primary_container
+            
+        self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(**task_def_kwargs)
         service_name = 'service'
         if name != 'container':
             service_name = f'{name}-service'
