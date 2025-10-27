@@ -492,6 +492,10 @@ def describe_a_pulumi_rails_component():
             assert sut.web_container.env_vars["DB_PORT"] == "5432"
 
         @pulumi.runtime.test
+        def it_sets_process_type_env_var_for_web_container(sut):
+            assert sut.web_container.env_vars["PROCESS_TYPE"] == "web"
+
+        @pulumi.runtime.test
         def it_sends_the_cluster_username_to_the_ecs_environment(sut):
             def check_ecs_environment(args):
                 actual_username, actual_user, expected_username = args
@@ -802,6 +806,10 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_has_same_container_image(sut):
             return assert_outputs_equal(sut.worker_container.container_image, sut.web_container.container_image)
+
+        @pulumi.runtime.test
+        def it_sets_process_type_env_var_for_worker_container(sut):
+            assert sut.worker_container.env_vars["PROCESS_TYPE"] == "worker"
 
         def describe_with_different_worker_container():
             @pytest.fixture

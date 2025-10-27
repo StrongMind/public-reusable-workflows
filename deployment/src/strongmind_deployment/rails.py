@@ -305,6 +305,9 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['secrets'] = self.secret.get_secrets()  # pragma: no cover
         self.kwargs['entry_point'] = web_entry_point
         self.kwargs['command'] = web_command
+        self.kwargs['env_vars'].update({
+            'PROCESS_TYPE': 'web'
+        })
         self.kwargs['desired_count'] = self.current_desired_count
         self.kwargs['autoscale'] = self.autoscale
         self.kwargs['worker_autoscale'] = False
@@ -342,6 +345,9 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['autoscale'] = False
         self.kwargs['worker_autoscale'] = self.worker_autoscale
         self.kwargs['deployment_maximum_percent'] = 200
+        self.kwargs['env_vars'].update({
+            'PROCESS_TYPE': 'worker'
+        })
 
         self.worker_container = ContainerComponent(qualify_component_name("worker", self.kwargs),
                                                    pulumi.ResourceOptions(parent=self,
