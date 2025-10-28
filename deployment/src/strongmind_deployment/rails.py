@@ -590,7 +590,7 @@ class RailsComponent(pulumi.ComponentResource):
             db_proxy_name=self.rds_proxy.name,
             connection_pool_config=aws.rds.ProxyDefaultTargetGroupConnectionPoolConfigArgs(
                 max_connections_percent=100,
-                max_idle_connections_percent=50,
+                max_idle_connections_percent=5,
                 connection_borrow_timeout=120,
             ),
             opts=pulumi.ResourceOptions(parent=self.rds_proxy)
