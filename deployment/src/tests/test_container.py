@@ -1002,6 +1002,62 @@ def describe_container():
                 return assert_output_equals(sut.log_metric_filters[1].metric_transformation.namespace,
                                             "Jobs")
 
+        def describe_with_sidecar_containers():
+            @pytest.fixture
+            def datadog_sidecar():
+                from pulumi_awsx import awsx
+                return awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+                    name="datadog-agent",
+                    image="gcr.io/datadoghq/agent:7",
+                    cpu=100,
+                    memory=256,
+                    essential=False,
+                    environment=[
+                        {"name": "DD_SITE", "value": "datadoghq.com"},
+                    ],
+                    log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+                        log_driver="awslogs",
+                        options={
+                            "awslogs-group": "/ecs/datadog-placeholder",  # Will be overridden
+                            "awslogs-region": "us-west-2",
+                            "awslogs-stream-prefix": "datadog-agent",
+                        }
+                    )
+                )
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, datadog_sidecar):
+                component_kwargs["sidecar_containers"] = [datadog_sidecar]
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_creates_log_groups_for_sidecars(sut, app_name, stack):
+                assert len(sut.sidecar_log_groups) == 1
+                # Log group name should be based on namespace and sidecar name
+                expected_name = f"/ecs/{app_name}-{stack}-datadog-agent"
+                return assert_output_equals(sut.sidecar_log_groups[0].name, expected_name)
+
+            @pulumi.runtime.test
+            def it_sets_retention_for_sidecar_logs(sut):
+                return assert_output_equals(sut.sidecar_log_groups[0].retention_in_days, 14)
+            
+            @pulumi.runtime.test
+            def it_updates_task_definition_with_service_specific_log_group(sut, app_name, stack):
+                # Verify the task definition uses the updated log group name
+                def check_log_group(args):
+                    task_def = args[0]
+                    containers = task_def.get('containers')
+                    if containers:
+                        datadog_container = containers.get('datadog-agent')
+                        if datadog_container:
+                            log_config = datadog_container.get('logConfiguration')
+                            if log_config:
+                                log_group = log_config['options']['awslogs-group']
+                                expected = f"/ecs/{app_name}-{stack}-datadog-agent"
+                                assert log_group == expected, f"Expected {expected}, got {log_group}"
+                
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_log_group)
+
     def describe_unhealthy_host_metric_alarm():
         @pulumi.runtime.test
         def it_exits(sut):

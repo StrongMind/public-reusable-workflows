@@ -11,11 +11,18 @@ Added support for sidecar containers in ECS Fargate deployments. This allows run
 **Changes:**
 - **Line 56-57**: Added `sidecar_containers` parameter to docstring
 - **Line 85**: Added `self.sidecar_containers = kwargs.get('sidecar_containers', [])`
-- **Lines 278-316**: Refactored task definition creation to support multiple containers
+- **Lines 141-177**: Automatic CloudWatch log group creation for sidecars
+- **Lines 278-318**: Refactored task definition creation to support multiple containers
+- **Lines 346-362**: Added dependencies to ensure log groups exist before service creation
 
 **What it does:**
 - Accepts a list of additional container definitions
 - Creates task definitions with multiple containers when sidecars are provided
+- Converts containers to dictionary format (required by pulumi-awsx 1.x)
+- **Automatically creates service-specific CloudWatch log groups for sidecars**
+- Updates sidecar log configuration with service-specific names (e.g., `/ecs/central-stage-web-datadog`)
+- Skips log group creation if `awslogs-create-group: "true"` is set
+- Prevents duplicate log groups across multiple containers
 - Maintains backward compatibility (single container when no sidecars)
 
 **Example Usage:**
@@ -157,6 +164,44 @@ component = RailsComponent(
 )
 ```
 
+## CloudWatch Log Groups
+
+### Automatic Creation
+
+When you define sidecars with logging configuration, the deployment library automatically:
+1. Creates CloudWatch log groups for each sidecar
+2. Names them based on the service type: `/ecs/{namespace}-{sidecar-name}`
+3. Sets retention to 14 days
+4. Applies appropriate tags
+5. Creates dependencies to ensure log groups exist before service starts
+
+### Example Log Group Names
+
+For a Rails application named "central" in "stage" environment with a Datadog sidecar:
+- Web service: `/ecs/central-stage-web-datadog-agent`
+- Worker service: `/ecs/central-stage-worker-datadog-agent`
+- Migration service: `/ecs/central-stage-migration-datadog-agent`
+
+This separation allows easier debugging and monitoring per service type.
+
+### Configuration
+
+```python
+datadog_agent = awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+    name="datadog-agent",
+    image="gcr.io/datadoghq/agent:7",
+    log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+        log_driver="awslogs",
+        options={
+            "awslogs-group": "/ecs/placeholder",  # Will be overridden with service-specific name
+            "awslogs-region": "us-west-2",
+            "awslogs-stream-prefix": "datadog-agent",
+            # Note: Do NOT set "awslogs-create-group": "true" - let the library manage it
+        },
+    ),
+)
+```
+
 ## Benefits
 
 1. **Resource Isolation**: Sidecars have independent CPU/memory limits
@@ -164,6 +209,7 @@ component = RailsComponent(
 3. **Failure Isolation**: Sidecar failure doesn't kill main container (if `essential=False`)
 4. **Reusability**: Same sidecar image across all services
 5. **Best Practice**: Industry-standard pattern for Kubernetes, ECS, etc.
+6. **Service-Specific Logging**: Separate log groups per service type for easier troubleshooting
 
 ## Notes
 
@@ -171,6 +217,7 @@ component = RailsComponent(
 - Sidecars share the same task lifecycle (start/stop together)
 - Set `essential=False` on sidecars to prevent them from killing the task if they fail
 - Total task CPU/memory = sum of all containers
+- **Version Requirement**: Compatible with `pulumi-awsx` 1.x (containers parameter expects a dictionary mapping)
 
 ## Deployment
 
