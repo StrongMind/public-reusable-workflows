@@ -460,6 +460,39 @@ def describe_a_pulumi_rails_component():
             return assert_output_equals(sut.rds_serverless_cluster.backup_retention_period, 14)
 
         @pulumi.runtime.test
+        def it_enables_cloudwatch_logs_exports_by_default(sut):
+            def check_cloudwatch_logs(logs):
+                assert logs == ["postgresql"]
+            
+            return sut.rds_serverless_cluster.enabled_cloudwatch_logs_exports.apply(check_cloudwatch_logs)
+
+        def describe_with_cloudwatch_logs_disabled():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['enable_db_cloudwatch_logs'] = False
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_disables_cloudwatch_logs_exports(sut):
+                def check_cloudwatch_logs(logs):
+                    assert logs == []
+                
+                return sut.rds_serverless_cluster.enabled_cloudwatch_logs_exports.apply(check_cloudwatch_logs)
+
+        def describe_with_cloudwatch_logs_explicitly_enabled():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['enable_db_cloudwatch_logs'] = True
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_enables_cloudwatch_logs_exports(sut):
+                def check_cloudwatch_logs(logs):
+                    assert logs == ["postgresql"]
+                
+                return sut.rds_serverless_cluster.enabled_cloudwatch_logs_exports.apply(check_cloudwatch_logs)
+
+        @pulumi.runtime.test
         def it_sets_a_serverlessv2_scaling_configuration(sut):
             def check_rds_cluster_scaling_configuration(args):
                 min_capacity, max_capacity = args
