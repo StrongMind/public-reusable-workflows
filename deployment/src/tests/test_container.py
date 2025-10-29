@@ -3,6 +3,7 @@ import os
 
 import boto3
 import pulumi.runtime
+import pulumi_awsx as awsx
 import pytest
 from moto import mock_aws
 from pytest_describe import behaves_like
@@ -1005,7 +1006,6 @@ def describe_container():
         def describe_with_sidecar_containers():
             @pytest.fixture
             def datadog_sidecar():
-                from pulumi_awsx import awsx
                 return awsx.ecs.TaskDefinitionContainerDefinitionArgs(
                     name="datadog-agent",
                     image="gcr.io/datadoghq/agent:7",
