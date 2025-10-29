@@ -147,3 +147,4 @@ test.*
 temp.file
 my.secrets
 .DS_Store
+WARP.md
