@@ -53,6 +53,8 @@ class ContainerComponent(pulumi.ComponentResource):
         :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
         :key port_mappings: Custom port mappings for the container. If provided, overrides automatic port mapping logic.
                            Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to None.
+        :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
+                                Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -80,6 +82,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.command = kwargs.get('command')
         self.env_vars = kwargs.get('env_vars', {})
         self.secrets = kwargs.get('secrets', [])
+        self.sidecar_containers = kwargs.get('sidecar_containers', [])
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
@@ -134,6 +137,34 @@ class ContainerComponent(pulumi.ComponentResource):
             name=f'/aws/ecs/{self.namespace}',
             tags=self.tags
         )
+        
+        # Create log groups for sidecar containers if they exist
+        self.sidecar_log_groups = []
+        self.sidecar_log_group_map = {}  # Map sidecar names to their log group names
+        
+        if self.sidecar_containers:
+            for idx, sidecar in enumerate(self.sidecar_containers):
+                # If sidecar has log configuration using awslogs, create a service-specific log group
+                if (hasattr(sidecar, 'log_configuration') and 
+                    sidecar.log_configuration and 
+                    sidecar.log_configuration.log_driver == 'awslogs'):
+                    
+                    # Get the sidecar name
+                    sidecar_name = sidecar.name if hasattr(sidecar, 'name') and sidecar.name else f'sidecar-{idx}'
+                    # Generate service-specific log group name
+                    log_group_name = f'/ecs/{self.namespace}-{sidecar_name}'
+                    
+                    # Only create if we haven't already created one with this name
+                    if log_group_name not in self.sidecar_log_group_map:
+                        sidecar_log = aws.cloudwatch.LogGroup(
+                            qualify_component_name(f'{name}-{sidecar_name}-log', self.kwargs),
+                            retention_in_days=14,
+                            name=log_group_name,
+                            tags=self.tags,
+                            opts=pulumi.ResourceOptions(parent=self)
+                        )
+                        self.sidecar_log_groups.append(sidecar_log)
+                        self.sidecar_log_group_map[sidecar_name] = log_group_name
         self.log_metric_filter_definitions = kwargs.get('log_metric_filters', [])
         for log_metric_filter in self.log_metric_filter_definitions:
             self.log_metric_filters.append(
@@ -272,35 +303,91 @@ class ContainerComponent(pulumi.ComponentResource):
             policy_arn=self.s3_policy.arn,
         )
 
-        self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(
-            execution_role=DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
-            task_role=DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
-            skip_destroy=True,
-            family=self.namespace,
-            container=awsx.ecs.TaskDefinitionContainerDefinitionArgs(
-                name=self.namespace,
-                log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
-                    log_driver="awslogs",
-                    options={
-                        "awslogs-group": self.logs.name,
-                        "awslogs-region": "us-west-2",
-                        "awslogs-stream-prefix": "container",
-                    },
-                ),
-                image=self.container_image,
-                cpu=self.cpu,
-                memory=self.memory,
-                entry_point=self.entry_point,
-                command=self.command,
-                essential=True,
-                port_mappings=port_mappings,
-                secrets=self.secrets,
-                environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
-            )
+        # Build primary container definition
+        primary_container = awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+            name=self.namespace,
+            log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+                log_driver="awslogs",
+                options={
+                    "awslogs-group": self.logs.name,
+                    "awslogs-region": "us-west-2",
+                    "awslogs-stream-prefix": "container",
+                },
+            ),
+            image=self.container_image,
+            cpu=self.cpu,
+            memory=self.memory,
+            entry_point=self.entry_point,
+            command=self.command,
+            essential=True,
+            port_mappings=port_mappings,
+            secrets=self.secrets,
+            environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
         )
+
+        # Build task definition args - use 'containers' (plural) if we have sidecars, else 'container' (singular)
+        task_def_kwargs = {
+            "execution_role": DefaultRoleWithPolicyArgs(role_arn=self.execution_role.arn),
+            "task_role": DefaultRoleWithPolicyArgs(role_arn=self.task_role.arn),
+            "skip_destroy": True,
+            "family": self.namespace,
+        }
+        
+        # If we have sidecar containers, use 'containers' (plural), otherwise 'container' (singular)
+        if self.sidecar_containers:
+            # Combine primary container with sidecars into a dictionary
+            all_containers = {primary_container.name: primary_container}
+            
+            for idx, sidecar in enumerate(self.sidecar_containers):
+                sidecar_name = sidecar.name if hasattr(sidecar, 'name') and sidecar.name else f'sidecar-{idx}'
+                
+                # If we created a log group for this sidecar, update its log configuration
+                if sidecar_name in self.sidecar_log_group_map:
+                    log_group_name = self.sidecar_log_group_map[sidecar_name]
+                    
+                    # Get existing options or create new ones
+                    existing_options = {}
+                    if hasattr(sidecar, 'log_configuration') and sidecar.log_configuration:
+                        if hasattr(sidecar.log_configuration, 'options') and sidecar.log_configuration.options:
+                            existing_options = dict(sidecar.log_configuration.options) if isinstance(sidecar.log_configuration.options, dict) else {}
+                    
+                    # Set the service-specific log group name
+                    existing_options['awslogs-group'] = log_group_name
+                    
+                    # Create updated sidecar with new log configuration
+                    updated_sidecar = awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+                        name=sidecar.name,
+                        image=sidecar.image,
+                        cpu=sidecar.cpu,
+                        memory=sidecar.memory,
+                        essential=sidecar.essential if hasattr(sidecar, 'essential') else None,
+                        environment=sidecar.environment if hasattr(sidecar, 'environment') else None,
+                        secrets=sidecar.secrets if hasattr(sidecar, 'secrets') else None,
+                        log_configuration=awsx.ecs.TaskDefinitionLogConfigurationArgs(
+                            log_driver='awslogs',
+                            options=existing_options
+                        ),
+                        entry_point=sidecar.entry_point if hasattr(sidecar, 'entry_point') else None,
+                        command=sidecar.command if hasattr(sidecar, 'command') else None,
+                        port_mappings=sidecar.port_mappings if hasattr(sidecar, 'port_mappings') else None,
+                    )
+                    all_containers[sidecar.name] = updated_sidecar
+                else:
+                    # Use sidecar as-is
+                    all_containers[sidecar.name] = sidecar
+                    
+            task_def_kwargs["containers"] = all_containers
+        else:
+            task_def_kwargs["container"] = primary_container
+            
+        self.task_definition_args = awsx.ecs.FargateServiceTaskDefinitionArgs(**task_def_kwargs)
         service_name = 'service'
         if name != 'container':
             service_name = f'{name}-service'
+        
+        # Build dependencies list including sidecar log groups
+        service_dependencies = [self.logs] + self.sidecar_log_groups
+        
         self.fargate_service = awsx.ecs.FargateService(
             qualify_component_name(f'{service_name}', self.kwargs),
             name=self.namespace,
@@ -314,7 +401,7 @@ class ContainerComponent(pulumi.ComponentResource):
             task_definition_args=self.task_definition_args,
             deployment_maximum_percent=self.deployment_maximum_percent,
             tags=self.tags,
-            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"]),
+            opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"], depends_on=service_dependencies),
         )
 
         if self.kwargs.get('autoscale'):
