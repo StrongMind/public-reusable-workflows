@@ -74,6 +74,10 @@ class RailsComponent(pulumi.ComponentResource):
                                The following environment variables are automatically added to containers:
                                - RDS_PROXY_ENDPOINT: The read/write proxy endpoint
                                - RDS_PROXY_READONLY_ENDPOINT: The read-only proxy endpoint (only if reader instances exist)
+                               Note: When enabled, two proxy authentications are created:
+                               1. Primary authentication using the master database credentials
+                               2. ELT reader authentication using a placeholder secret ({namespace}-rds-proxy-elt-reader-secret)
+                                  that must be manually populated with the appropriate database user credentials
         :key vpc_subnet_ids: Optional list of VPC subnet IDs for the RDS Proxy. If not provided when enable_rds_proxy is True, uses default VPC public subnets.
         :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
         :key sidecar_containers: Optional list of additional container definitions to run alongside Rails containers (e.g., Datadog agent, logging sidecars).
@@ -515,6 +519,14 @@ class RailsComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self.proxy_secret)
         )
 
+        # Create a secret for the ELT reader authentication (to be populated manually)
+        self.proxy_elt_reader_secret = aws.secretsmanager.Secret(
+            qualify_component_name('rds_proxy_elt_reader_secret', self.kwargs),
+            name=f"{self.namespace}-rds-proxy-elt-reader-secret",
+            tags=self.tags,
+            opts=pulumi.ResourceOptions(parent=self)
+        )
+
         # Create IAM role for RDS Proxy
         assume_role_policy = aws.iam.get_policy_document(
             statements=[aws.iam.GetPolicyDocumentStatementArgs(
@@ -538,8 +550,11 @@ class RailsComponent(pulumi.ComponentResource):
         self.proxy_policy = aws.iam.RolePolicy(
             qualify_component_name('rds_proxy_policy', self.kwargs),
             role=self.proxy_role.id,
-            policy=self.proxy_secret.arn.apply(
-                lambda arn: f'''{{
+            policy=Output.all(
+                self.proxy_secret.arn,
+                self.proxy_elt_reader_secret.arn
+            ).apply(
+                lambda arns: f'''{{
                     "Version": "2012-10-17",
                     "Statement": [
                         {{
@@ -547,7 +562,10 @@ class RailsComponent(pulumi.ComponentResource):
                             "Action": [
                                 "secretsmanager:GetSecretValue"
                             ],
-                            "Resource": "{arn}"
+                            "Resource": [
+                                "{arns[0]}",
+                                "{arns[1]}"
+                            ]
                         }}
                     ]
                 }}'''
@@ -562,11 +580,18 @@ class RailsComponent(pulumi.ComponentResource):
         proxy_args = {
             'name': f"{self.namespace}-rds-proxy",
             'engine_family': "POSTGRESQL",
-            'auths': [aws.rds.ProxyAuthArgs(
-                auth_scheme="SECRETS",
-                iam_auth="DISABLED",
-                secret_arn=self.proxy_secret.arn,
-            )],
+            'auths': [
+                aws.rds.ProxyAuthArgs(
+                    auth_scheme="SECRETS",
+                    iam_auth="DISABLED",
+                    secret_arn=self.proxy_secret.arn,
+                ),
+                aws.rds.ProxyAuthArgs(
+                    auth_scheme="SECRETS",
+                    iam_auth="DISABLED",
+                    secret_arn=self.proxy_elt_reader_secret.arn,
+                )
+            ],
             'role_arn': self.proxy_role.arn,
             'vpc_subnet_ids': vpc_subnet_ids,
             'require_tls': False,
@@ -582,7 +607,11 @@ class RailsComponent(pulumi.ComponentResource):
             **proxy_args,
             opts=pulumi.ResourceOptions(
                 parent=self,
-                depends_on=[self.proxy_secret_version, self.proxy_policy] + all_instances
+                depends_on=[
+                    self.proxy_secret_version,
+                    self.proxy_elt_reader_secret,
+                    self.proxy_policy
+                ] + all_instances
             )
         )
 

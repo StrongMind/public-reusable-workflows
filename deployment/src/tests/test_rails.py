@@ -1080,6 +1080,10 @@ def describe_a_pulumi_rails_component():
             assert sut.proxy_target is not None
 
         @pulumi.runtime.test
+        def it_creates_elt_reader_secret(sut):
+            assert sut.proxy_elt_reader_secret is not None
+
+        @pulumi.runtime.test
         def it_adds_proxy_endpoint_to_env_vars(sut):
             assert 'RDS_PROXY_ENDPOINT' in sut.web_container.env_vars
 
