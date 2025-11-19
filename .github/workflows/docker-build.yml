@@ -42,7 +42,7 @@ on:
         required: false
         default: false
         type: boolean
-      ecr_repository:
+      ecr-repository:
         description: "ECR repository name"
         required: false
         type: string
@@ -57,7 +57,7 @@ on:
         required: false
         type: string
         default: "."
-      run_tests:
+      run-tests:
         description: "Run rspec tests"
         required: false
         type: boolean
@@ -122,12 +122,12 @@ jobs:
       - name: Create private repo
         uses: int128/create-ecr-repository-action@v1
         with:
-          repository: ${{ inputs.ecr_repository != '' && inputs.ecr_repository || github.event.repository.name }}
+          repository: ${{ inputs.ecr-repository != '' && inputs.ecr-repository || github.event.repository.name }}
 
       - name: Test docker and upload to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ inputs.ecr_repository != '' && inputs.ecr_repository || github.event.repository.name }}
+          ECR_REPOSITORY: ${{ inputs.ecr-repository != '' && inputs.ecr-repository || github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
         uses: docker/build-push-action@v6
         with:
@@ -140,7 +140,7 @@ jobs:
           build-args: BUNDLE_GEMS__CONTRIBSYS__COM=${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
 
   rspec-test:
-    if: ${{ inputs.run_tests }}
+    if: ${{ inputs.run-tests }}
     name: Rspec test to code coverage
     uses: Strongmind/public-reusable-workflows/.github/workflows/rspec-test.yml@main
     with:
