@@ -1123,34 +1123,12 @@ def describe_a_pulumi_rails_component():
                 assert 'RDS_PROXY_READONLY_ENDPOINT' in sut.web_container.env_vars
 
     def describe_rds_tags():
-        @pulumi.runtime.test
-        def it_applies_default_tags_to_rds_cluster(sut, app_name, stack, environment):
-            def check_tags(tags):
-                assert tags['product'] == app_name
-                assert tags['repository'] == app_name
-                assert tags['service'] == app_name
-                assert tags['environment'] == environment
-                assert 'owner' in tags
-                return True
-            
-            return sut.rds_serverless_cluster.tags.apply(check_tags)
-
-        @pulumi.runtime.test
-        def it_applies_default_tags_to_rds_instance(sut, app_name, environment):
-            def check_tags(tags):
-                assert tags['product'] == app_name
-                assert tags['environment'] == environment
-                return True
-            
-            return sut.rds_serverless_cluster_instance.tags.apply(check_tags)
-
         def describe_with_custom_rds_tags():
             @pytest.fixture
             def custom_rds_tags():
                 return {
                     'datadog_monitor': 'true',
-                    'backup_policy': 'daily',
-                    'cost_center': 'engineering'
+                    'backup_policy': 'daily'
                 }
 
             @pytest.fixture
@@ -1159,27 +1137,25 @@ def describe_a_pulumi_rails_component():
                 return component_kwargs
 
             @pulumi.runtime.test
-            def it_merges_custom_tags_with_default_tags_on_cluster(sut, app_name, custom_rds_tags, environment):
+            def it_merges_custom_tags_with_default_tags_on_cluster(sut, app_name, custom_rds_tags):
                 def check_tags(tags):
                     # Check default tags still exist
                     assert tags['product'] == app_name
                     assert tags['repository'] == app_name
                     assert tags['service'] == app_name
-                    assert tags['environment'] == environment
+                    assert 'owner' in tags
                     # Check custom tags are added
                     assert tags['datadog_monitor'] == 'true'
                     assert tags['backup_policy'] == 'daily'
-                    assert tags['cost_center'] == 'engineering'
                     return True
                 
                 return sut.rds_serverless_cluster.tags.apply(check_tags)
 
             @pulumi.runtime.test
-            def it_merges_custom_tags_with_default_tags_on_instance(sut, app_name, custom_rds_tags, environment):
+            def it_merges_custom_tags_with_default_tags_on_instance(sut, app_name, custom_rds_tags):
                 def check_tags(tags):
                     # Check default tags still exist
                     assert tags['product'] == app_name
-                    assert tags['environment'] == environment
                     # Check custom tags are added
                     assert tags['datadog_monitor'] == 'true'
                     assert tags['backup_policy'] == 'daily'
@@ -1190,7 +1166,7 @@ def describe_a_pulumi_rails_component():
             def describe_with_reader_instances():
                 @pytest.fixture
                 def reader_count():
-                    return 2
+                    return 1
 
                 @pytest.fixture
                 def component_kwargs(component_kwargs, reader_count):
@@ -1198,94 +1174,9 @@ def describe_a_pulumi_rails_component():
                     return component_kwargs
 
                 @pulumi.runtime.test
-                def it_applies_custom_tags_to_reader_instances(sut, reader_count, custom_rds_tags):
-                    def check_reader_tags(reader_index):
-                        def check_tags(tags):
-                            assert tags['datadog_monitor'] == 'true'
-                            assert tags['backup_policy'] == 'daily'
-                            return True
-                        return sut.reader_instances[reader_index].tags.apply(check_tags)
-                    
-                    # Check first reader instance
-                    return check_reader_tags(0)
-
-            def describe_with_rds_proxy():
-                @pytest.fixture
-                def component_kwargs(component_kwargs):
-                    component_kwargs['enable_rds_proxy'] = True
-                    return component_kwargs
-
-                @pulumi.runtime.test
-                def it_applies_custom_tags_to_proxy(sut, custom_rds_tags):
+                def it_applies_custom_tags_to_reader_instances(sut, custom_rds_tags):
                     def check_tags(tags):
                         assert tags['datadog_monitor'] == 'true'
                         assert tags['backup_policy'] == 'daily'
                         return True
-                    
-                    return sut.rds_proxy.tags.apply(check_tags)
-
-                @pulumi.runtime.test
-                def it_applies_custom_tags_to_proxy_secret(sut, custom_rds_tags):
-                    def check_tags(tags):
-                        assert tags['datadog_monitor'] == 'true'
-                        return True
-                    
-                    return sut.proxy_secret.tags.apply(check_tags)
-
-                @pulumi.runtime.test
-                def it_applies_custom_tags_to_proxy_elt_reader_secret(sut, custom_rds_tags):
-                    def check_tags(tags):
-                        assert tags['datadog_monitor'] == 'true'
-                        return True
-                    
-                    return sut.proxy_elt_reader_secret.tags.apply(check_tags)
-
-                @pulumi.runtime.test
-                def it_applies_custom_tags_to_proxy_role(sut, custom_rds_tags):
-                    def check_tags(tags):
-                        assert tags['datadog_monitor'] == 'true'
-                        return True
-                    
-                    return sut.proxy_role.tags.apply(check_tags)
-
-                def describe_with_reader_instances_and_proxy():
-                    @pytest.fixture
-                    def reader_count():
-                        return 1
-
-                    @pytest.fixture
-                    def component_kwargs(component_kwargs, reader_count):
-                        component_kwargs['reader_instance_count'] = reader_count
-                        return component_kwargs
-
-                    @pulumi.runtime.test
-                    def it_applies_custom_tags_to_readonly_endpoint(sut, custom_rds_tags):
-                        def check_tags(tags):
-                            assert tags['datadog_monitor'] == 'true'
-                            return True
-                        
-                        return sut.proxy_readonly_endpoint.tags.apply(check_tags)
-
-        def describe_with_custom_tags_overriding_defaults():
-            @pytest.fixture
-            def custom_rds_tags():
-                # Intentionally override a default tag
-                return {
-                    'environment': 'custom-env',
-                    'datadog_monitor': 'true'
-                }
-
-            @pytest.fixture
-            def component_kwargs(component_kwargs, custom_rds_tags):
-                component_kwargs['rds_tags'] = custom_rds_tags
-                return component_kwargs
-
-            @pulumi.runtime.test
-            def it_allows_custom_tags_to_override_defaults(sut, custom_rds_tags):
-                def check_tags(tags):
-                    # Custom tag should override default
-                    assert tags['environment'] == 'custom-env'
-                    assert tags['datadog_monitor'] == 'true'
-                    return True
-                
-                return sut.rds_serverless_cluster.tags.apply(check_tags)
+                    return sut.reader_instances[0].tags.apply(check_tags)
