@@ -85,6 +85,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
+        :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
+                      These tags are merged with the default tags (product, repository, service, environment, owner).
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -139,6 +141,9 @@ class RailsComponent(pulumi.ComponentResource):
             "environment": self.env_name,
             "owner": owning_team,
         }
+        
+        # Merge additional RDS-specific tags with default tags
+        self.rds_tags = {**self.tags, **self.kwargs.get('rds_tags', {})}
         
         ecs_client = kwargs.get('ecs_client') or boto3.client('ecs', region_name='us-west-2')
 
@@ -413,7 +418,7 @@ class RailsComponent(pulumi.ComponentResource):
             snapshot_identifier=self.snapshot_identifier,
             kms_key_id=self.kms_key_id,
             storage_encrypted=bool(self.kms_key_id),
-            tags=self.tags,
+            tags=self.rds_tags,
             opts=pulumi.ResourceOptions(parent=self,  # pragma: no cover
                                         protect=True,
                                         ignore_changes=[
@@ -436,7 +441,7 @@ class RailsComponent(pulumi.ComponentResource):
             engine_version=self.rds_serverless_cluster.engine_version,
             apply_immediately=True,
             publicly_accessible=True,
-            tags=self.tags,
+            tags=self.rds_tags,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster],
                                         protect=True,
@@ -462,7 +467,7 @@ class RailsComponent(pulumi.ComponentResource):
                 apply_immediately=True,
                 publicly_accessible=True,
                 promotion_tier=i + 2,  # Higher tier = lower priority for promotion
-                tags=self.tags,
+                tags=self.rds_tags,
                 opts=pulumi.ResourceOptions(
                     parent=self,
                     depends_on=[self.rds_serverless_cluster],
@@ -504,7 +509,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.proxy_secret = aws.secretsmanager.Secret(
             qualify_component_name('rds_proxy_secret', self.kwargs),
             name=f"{self.namespace}-rds-proxy-secret",
-            tags=self.tags,
+            tags=self.rds_tags,
             opts=pulumi.ResourceOptions(parent=self)
         )
 
@@ -523,7 +528,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.proxy_elt_reader_secret = aws.secretsmanager.Secret(
             qualify_component_name('rds_proxy_elt_reader_secret', self.kwargs),
             name=f"{self.namespace}-rds-proxy-elt-reader-secret",
-            tags=self.tags,
+            tags=self.rds_tags,
             opts=pulumi.ResourceOptions(parent=self)
         )
 
@@ -542,7 +547,7 @@ class RailsComponent(pulumi.ComponentResource):
             qualify_component_name('rds_proxy_role', self.kwargs),
             name=f"{self.namespace}-rds-proxy-role",
             assume_role_policy=assume_role_policy.json,
-            tags=self.tags,
+            tags=self.rds_tags,
             opts=pulumi.ResourceOptions(parent=self)
         )
 
@@ -595,7 +600,7 @@ class RailsComponent(pulumi.ComponentResource):
             'role_arn': self.proxy_role.arn,
             'vpc_subnet_ids': vpc_subnet_ids,
             'require_tls': False,
-            'tags': self.tags,
+            'tags': self.rds_tags,
         }
 
         # Add security groups if provided
@@ -644,7 +649,7 @@ class RailsComponent(pulumi.ComponentResource):
                 db_proxy_endpoint_name=f"{self.namespace}-readonly",
                 vpc_subnet_ids=vpc_subnet_ids,
                 target_role="READ_ONLY",
-                tags=self.tags,
+                tags=self.rds_tags,
                 opts=pulumi.ResourceOptions(
                     parent=self.rds_proxy,
                     depends_on=[self.proxy_target]
