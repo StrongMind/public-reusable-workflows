@@ -13,6 +13,9 @@ on:
 
 jobs:
   send_notification:
+    # Disabled: Deployment notifications are now handled by Lambda function triggered by EventBridge
+    # when ECS deployment actually completes, not when GitHub Actions finishes
+    if: false
     runs-on: ${{ inputs.runner }}
 
     steps:

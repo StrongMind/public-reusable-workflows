@@ -88,6 +88,7 @@ class LambdaComponent(pulumi.ComponentResource):
                  name,
                  lambda_args: Optional[LambdaArgs] = None,
                  lambda_env_variables: Optional[LambdaEnvVariables] = None,
+                 create_layer: bool = True,
                  opts: Optional[pulumi.ResourceOptions] = None,
                  **kwargs
                  ):
@@ -138,12 +139,20 @@ class LambdaComponent(pulumi.ComponentResource):
             role=self.lambda_role.name
         )
 
-        self.lambda_layer = aws.lambda_.LayerVersion(
-            f"{self.name}-layer",
-            layer_name=f"{self.name}-layer",
-            code=pulumi.FileArchive("../lambda_layer.zip"),
-            compatible_runtimes=[self.lambda_args.runtime],
-        )
+        # Create layer only if requested
+        self.lambda_layer = None
+        if create_layer:
+            self.lambda_layer = aws.lambda_.LayerVersion(
+                f"{self.name}-layer",
+                layer_name=f"{self.name}-layer",
+                code=pulumi.FileArchive("../lambda_layer.zip"),
+                compatible_runtimes=[self.lambda_args.runtime],
+            )
+
+        # Build layers list - include custom layers from lambda_args and optionally the created layer
+        layers_list = list(self.lambda_args.layers)
+        if self.lambda_layer:
+            layers_list.append(self.lambda_layer.arn)
 
         self.lambda_function = aws.lambda_.Function(
             f"{self.name}",
@@ -152,7 +161,7 @@ class LambdaComponent(pulumi.ComponentResource):
             role=self.lambda_role.arn,
             handler=self.lambda_args.handler,
             runtime=self.runtime,
-            layers=[self.lambda_layer.arn],
+            layers=layers_list if layers_list else None,
             memory_size=self.memory_size,
             timeout=self.timeout,
             environment={
