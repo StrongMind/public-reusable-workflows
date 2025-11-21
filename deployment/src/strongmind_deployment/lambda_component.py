@@ -108,7 +108,6 @@ class LambdaComponent(pulumi.ComponentResource):
             "owner": self.owning_team,
         }
 
-        self.lambda_args = lambda_args
         self.lambda_env_variables = lambda_env_variables or LambdaEnvVariables()
         self.timeout = self.lambda_args.timeout
         self.runtime = self.lambda_args.runtime

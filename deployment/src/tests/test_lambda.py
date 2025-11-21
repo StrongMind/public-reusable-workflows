@@ -279,8 +279,9 @@ def describe_a_lambda_component():
             return assert_output_equals(sut.lambda_function.timeout, 60)
 
         @pulumi.runtime.test
-        def it_has_layers(sut):
-            return assert_outputs_equal(sut.lambda_function.layers, [sut.lambda_layer.arn])
+        def it_has_layers(sut, lambda_args):
+            expected_layers = lambda_args.layers + [sut.lambda_layer.arn]
+            return assert_outputs_equal(sut.lambda_function.layers, expected_layers)
 
         @pulumi.runtime.test
         def it_specifies_the_memory_size(sut):
