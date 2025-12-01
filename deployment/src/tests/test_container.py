@@ -526,6 +526,82 @@ def describe_container():
             def it_sets_the_deployment_maximum_percent_to_200(sut):
                 return assert_output_equals(sut.fargate_service.deployment_maximum_percent, 200)
 
+            def describe_with_additional_port_mappings():
+                @pytest.fixture
+                def additional_target_group():
+                    import pulumi_aws as aws
+                    return aws.lb.TargetGroup(
+                        "additional-tg",
+                        name="additional-tg",
+                        port=8001,
+                        protocol="HTTP",
+                        target_type="ip",
+                    )
+
+                @pytest.fixture
+                def additional_port_mappings(additional_target_group):
+                    return [
+                        awsx.ecs.TaskDefinitionPortMappingArgs(
+                            container_port=8001,
+                            host_port=8001,
+                            target_group=additional_target_group,
+                        ),
+                    ]
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, additional_port_mappings):
+                    component_kwargs["additional_port_mappings"] = additional_port_mappings
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_includes_the_main_container_port_mapping(sut, container_port):
+                    def check_port_mappings(args):
+                        task_definition_dict = args[0]
+                        container = task_definition_dict["container"]
+                        port_mappings = container["portMappings"]
+                        
+                        # Should have at least one port mapping (the main one)
+                        assert len(port_mappings) >= 1
+                        
+                        # First port mapping should be for the main container_port
+                        assert port_mappings[0]["containerPort"] == container_port
+                        assert port_mappings[0]["hostPort"] == container_port
+
+                    return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_port_mappings)
+
+                @pulumi.runtime.test
+                def it_includes_additional_port_mappings(sut):
+                    def check_additional_port_mappings(args):
+                        task_definition_dict = args[0]
+                        container = task_definition_dict["container"]
+                        port_mappings = container["portMappings"]
+                        
+                        # Should have 2 port mappings: main (8000) + additional (8001)
+                        assert len(port_mappings) == 2
+                        
+                        # Second port mapping should be for port 8001
+                        assert port_mappings[1]["containerPort"] == 8001
+                        assert port_mappings[1]["hostPort"] == 8001
+
+                    return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_additional_port_mappings)
+
+                @pulumi.runtime.test
+                def it_does_not_override_automatic_port_mapping(sut, container_port):
+                    """Verifies that additional_port_mappings supplements rather than replaces automatic mapping"""
+                    def check_both_mappings_exist(args):
+                        task_definition_dict = args[0]
+                        container = task_definition_dict["container"]
+                        port_mappings = container["portMappings"]
+                        
+                        # Extract all container ports
+                        container_ports = [pm["containerPort"] for pm in port_mappings]
+                        
+                        # Both the automatic port and additional port should be present
+                        assert container_port in container_ports, "Automatic port mapping was overridden"
+                        assert 8001 in container_ports, "Additional port mapping not added"
+
+                    return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_both_mappings_exist)
+
             def describe_desired_count():
                 @pytest.fixture
                 def desired_count():

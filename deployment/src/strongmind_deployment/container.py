@@ -53,6 +53,9 @@ class ContainerComponent(pulumi.ComponentResource):
         :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
         :key port_mappings: Custom port mappings for the container. If provided, overrides automatic port mapping logic.
                            Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to None.
+        :key additional_port_mappings: Additional port mappings to supplement the automatic port mapping for container_port.
+                                      Unlike port_mappings, this does NOT override the automatic behavior - it adds to it.
+                                      Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to [].
         :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
         """
@@ -183,13 +186,22 @@ class ContainerComponent(pulumi.ComponentResource):
             )
 
         port_mappings = kwargs.get('port_mappings', None)
+        additional_port_mappings = kwargs.get('additional_port_mappings', [])
+        
         if port_mappings is None:
+            # Use automatic port mapping for container_port
             if self.target_group is not None:
                 port_mappings = [awsx.ecs.TaskDefinitionPortMappingArgs(
                     container_port=self.container_port,
                     host_port=self.container_port,
                     target_group=self.target_group,
                 )]
+            else:
+                port_mappings = []
+            
+            # Add any additional port mappings
+            if additional_port_mappings:
+                port_mappings = port_mappings + additional_port_mappings
 
         self.execution_role = aws.iam.Role(
             f"{self.namespace}-execution-role",
