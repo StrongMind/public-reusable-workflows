@@ -22,6 +22,9 @@ on:
 
 jobs:
   send-slack:
+    # Disabled: Slack notifications are now handled by Lambda function triggered by EventBridge
+    # when ECS deployment completes, not when GitHub Actions finishes
+    if: false
     name: Send slack message
     runs-on: ${{ inputs.runner }}
     steps:
