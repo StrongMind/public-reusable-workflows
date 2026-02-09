@@ -23,6 +23,7 @@ dependencies = [
     "pulumi-awsx",
     "pulumi-random",
     "boto3",
+    "setuptools",
 ]
 
 [project.urls]
