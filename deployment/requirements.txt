@@ -11,3 +11,4 @@ mockito
 pytest-mockito
 
 wheel
+setuptools
