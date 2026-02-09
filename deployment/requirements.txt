@@ -6,7 +6,7 @@ pulumi-awsx
 pulumi-cloudflare
 pulumi-random
 boto3
-setuptools
+setuptools<81
 
 pytest-describe
 pytest-timeout
