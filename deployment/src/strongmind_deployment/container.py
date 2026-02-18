@@ -400,13 +400,12 @@ class ContainerComponent(pulumi.ComponentResource):
         # Build dependencies list including sidecar log groups
         service_dependencies = [self.logs] + self.sidecar_log_groups
         
-        self.fargate_service = awsx.ecs.FargateService(
-            qualify_component_name(f'{service_name}', self.kwargs),
+        fargate_service_kwargs = dict(
             name=self.namespace,
             desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
-            assign_public_ip=True,
+            assign_public_ip=kwargs.get('assign_public_ip', True),
             health_check_grace_period_seconds=600 if self.need_load_balancer else None,
             propagate_tags="SERVICE",
             enable_execute_command=True,
@@ -414,6 +413,14 @@ class ContainerComponent(pulumi.ComponentResource):
             deployment_maximum_percent=self.deployment_maximum_percent,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"], depends_on=service_dependencies),
+        )
+
+        if kwargs.get('network_configuration'):
+            fargate_service_kwargs['network_configuration'] = kwargs['network_configuration']
+
+        self.fargate_service = awsx.ecs.FargateService(
+            qualify_component_name(f'{service_name}', self.kwargs),
+            **fargate_service_kwargs,
         )
 
         if self.kwargs.get('autoscale'):
