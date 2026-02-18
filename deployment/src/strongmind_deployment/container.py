@@ -419,7 +419,6 @@ class ContainerComponent(pulumi.ComponentResource):
             desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
-            assign_public_ip=not self.use_nat_gateway,
             health_check_grace_period_seconds=600 if self.need_load_balancer else None,
             propagate_tags="SERVICE",
             enable_execute_command=True,
@@ -434,6 +433,8 @@ class ContainerComponent(pulumi.ComponentResource):
                 subnets=self._private_subnet_ids,
                 assign_public_ip=False,
             )
+        else:
+            fargate_service_kwargs['assign_public_ip'] = True
 
         self.fargate_service = awsx.ecs.FargateService(
             qualify_component_name(f'{service_name}', self.kwargs),
