@@ -58,6 +58,13 @@ class ContainerComponent(pulumi.ComponentResource):
                                       Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to [].
         :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
+        :key use_nat_gateway: Whether to create a NAT Gateway so ECS tasks have a static outbound IP.
+                             Tasks are placed in private subnets and all outbound traffic exits through
+                             the NAT Gateway's Elastic IP. Useful when connecting to external services
+                             that require IP whitelisting (e.g., Azure SQL). Defaults to False.
+        :key nat_gateway_cidrs: Tuple of two CIDR blocks for private subnets when use_nat_gateway is True.
+                               Must not overlap with existing subnets in the VPC.
+                               Defaults to ("172.31.128.0/20", "172.31.144.0/20").
         """
         super().__init__('strongmind:global_build:commons:container', name, None, opts)
         stack = pulumi.get_stack()
@@ -75,6 +82,9 @@ class ContainerComponent(pulumi.ComponentResource):
         self._security_group_name = None
         self.cname_record = None
         self.worker_autoscaling = None
+        self.nat_eip = None
+        self.nat_gateway = None
+        self._private_subnet_ids = None
         self.ecs_cluster = kwargs.get('ecs_cluster')
         self.need_load_balancer = kwargs.get('need_load_balancer', True)
         self.container_image = kwargs.get('container_image')
@@ -103,6 +113,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.pre_scale_time = kwargs.get('pre_scale_time')
         self.post_scale_time = kwargs.get('post_scale_time')
         self.peak_min_capacity = kwargs.get('peak_min_capacity')
+        self.use_nat_gateway = kwargs.get('use_nat_gateway', False)
 
         project = pulumi.get_project()
         self.namespace = kwargs.get('namespace', f"{project}-{stack}")
@@ -130,6 +141,9 @@ class ContainerComponent(pulumi.ComponentResource):
 
         if self.need_load_balancer:
             self.setup_load_balancer(kwargs, project, self.namespace, stack)
+
+        if self.use_nat_gateway:
+            self.setup_nat_gateway(kwargs)
 
         log_name = 'log'
         if name != 'container':
@@ -400,13 +414,12 @@ class ContainerComponent(pulumi.ComponentResource):
         # Build dependencies list including sidecar log groups
         service_dependencies = [self.logs] + self.sidecar_log_groups
         
-        self.fargate_service = awsx.ecs.FargateService(
-            qualify_component_name(f'{service_name}', self.kwargs),
+        fargate_service_kwargs = dict(
             name=self.namespace,
             desired_count=self.desired_count,
             cluster=self.ecs_cluster_arn,
             continue_before_steady_state=True,
-            assign_public_ip=True,
+            assign_public_ip=not self.use_nat_gateway,
             health_check_grace_period_seconds=600 if self.need_load_balancer else None,
             propagate_tags="SERVICE",
             enable_execute_command=True,
@@ -414,6 +427,17 @@ class ContainerComponent(pulumi.ComponentResource):
             deployment_maximum_percent=self.deployment_maximum_percent,
             tags=self.tags,
             opts=pulumi.ResourceOptions(parent=self, ignore_changes=["desired_count"], depends_on=service_dependencies),
+        )
+
+        if self._private_subnet_ids:
+            fargate_service_kwargs['network_configuration'] = aws.ecs.ServiceNetworkConfigurationArgs(
+                subnets=self._private_subnet_ids,
+                assign_public_ip=False,
+            )
+
+        self.fargate_service = awsx.ecs.FargateService(
+            qualify_component_name(f'{service_name}', self.kwargs),
+            **fargate_service_kwargs,
         )
 
         if self.kwargs.get('autoscale'):
@@ -782,6 +806,77 @@ class ContainerComponent(pulumi.ComponentResource):
 
         if kwargs.get('use_cloudfront', True):
             self.setup_cloudfront(project, stack)
+
+    def setup_nat_gateway(self, kwargs):
+        """Create a NAT Gateway so ECS tasks get a static outbound IP.
+
+        Places tasks in private subnets that route outbound traffic through
+        a NAT Gateway with an Elastic IP. The ALB (in public subnets) can
+        still reach the tasks because they share the same VPC.
+        """
+        cidrs = kwargs.get('nat_gateway_cidrs', ("172.31.128.0/20", "172.31.144.0/20"))
+
+        default_vpc = aws.ec2.get_vpc(default=True)
+        azs = aws.get_availability_zones(state="available")
+
+        public_subnets = aws.ec2.get_subnets(
+            filters=[
+                aws.ec2.GetSubnetsFilterArgs(name="vpc-id", values=[default_vpc.id]),
+                aws.ec2.GetSubnetsFilterArgs(name="default-for-az", values=["true"]),
+            ],
+        )
+
+        self.nat_eip = aws.ec2.Eip(
+            qualify_component_name("nat-eip", self.kwargs),
+            tags={**self.tags, "Name": f"{self.namespace}-nat-eip"},
+        )
+
+        self.nat_gateway = aws.ec2.NatGateway(
+            qualify_component_name("nat-gw", self.kwargs),
+            subnet_id=public_subnets.ids[0],
+            allocation_id=self.nat_eip.id,
+            tags={**self.tags, "Name": f"{self.namespace}-nat-gw"},
+        )
+
+        private_subnet_a = aws.ec2.Subnet(
+            qualify_component_name("private-subnet-a", self.kwargs),
+            vpc_id=default_vpc.id,
+            cidr_block=cidrs[0],
+            availability_zone=azs.names[0],
+            tags={**self.tags, "Name": f"{self.namespace}-private-a"},
+        )
+
+        private_subnet_b = aws.ec2.Subnet(
+            qualify_component_name("private-subnet-b", self.kwargs),
+            vpc_id=default_vpc.id,
+            cidr_block=cidrs[1],
+            availability_zone=azs.names[1],
+            tags={**self.tags, "Name": f"{self.namespace}-private-b"},
+        )
+
+        private_rt = aws.ec2.RouteTable(
+            qualify_component_name("private-rt", self.kwargs),
+            vpc_id=default_vpc.id,
+            routes=[aws.ec2.RouteTableRouteArgs(
+                cidr_block="0.0.0.0/0",
+                nat_gateway_id=self.nat_gateway.id,
+            )],
+            tags={**self.tags, "Name": f"{self.namespace}-private-rt"},
+        )
+
+        aws.ec2.RouteTableAssociation(
+            qualify_component_name("private-rt-assoc-a", self.kwargs),
+            subnet_id=private_subnet_a.id,
+            route_table_id=private_rt.id,
+        )
+
+        aws.ec2.RouteTableAssociation(
+            qualify_component_name("private-rt-assoc-b", self.kwargs),
+            subnet_id=private_subnet_b.id,
+            route_table_id=private_rt.id,
+        )
+
+        self._private_subnet_ids = [private_subnet_a.id, private_subnet_b.id]
 
     def setup_cloudfront(self, project, stack):
         """Set up CloudFront distribution in front of the ALB"""
