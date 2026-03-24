@@ -147,7 +147,7 @@ class DistributionComponent(pulumi.ComponentResource):
           name=domain_validation_options[0].resource_record_name,
           type=domain_validation_options[0].resource_record_type,
           zone_id=zone_id,
-          value=resource_record_value,
+          content=resource_record_value,
           ttl=1,
           opts=pulumi.ResourceOptions(parent=self, depends_on=[self.cert]),
         )
@@ -169,6 +169,6 @@ class DistributionComponent(pulumi.ComponentResource):
         name=full_name,
         type='CNAME',
         zone_id=zone_id,
-        value=distribution_domain_name,
+        content=distribution_domain_name,
         ttl=1,
         )
