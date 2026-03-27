@@ -114,6 +114,7 @@ class ContainerComponent(pulumi.ComponentResource):
         self.post_scale_time = kwargs.get('post_scale_time')
         self.peak_min_capacity = kwargs.get('peak_min_capacity')
         self.use_nat_gateway = kwargs.get('use_nat_gateway', False)
+        self.stop_timeout = kwargs.get('stop_timeout')
 
         project = pulumi.get_project()
         self.namespace = kwargs.get('namespace', f"{project}-{stack}")
@@ -348,7 +349,8 @@ class ContainerComponent(pulumi.ComponentResource):
             essential=True,
             port_mappings=port_mappings,
             secrets=self.secrets,
-            environment=[{"name": k, "value": v} for k, v in self.env_vars.items()]
+            environment=[{"name": k, "value": v} for k, v in self.env_vars.items()],
+            stop_timeout=self.stop_timeout,
         )
 
         # Build task definition args - use 'containers' (plural) if we have sidecars, else 'container' (singular)

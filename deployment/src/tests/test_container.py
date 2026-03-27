@@ -1226,3 +1226,32 @@ def describe_container():
             @pulumi.runtime.test
             def it_adds_the_component_name_to_the_namespace(sut, namespace, component_name):
                 assert sut.namespace == f"{namespace}-{component_name}"
+
+    def describe_with_stop_timeout():
+        @pytest.fixture
+        def stop_timeout(faker):
+            return faker.random_int(min=1, max=120)
+
+        @pytest.fixture
+        def component_kwargs(component_kwargs, stop_timeout):
+            component_kwargs["stop_timeout"] = stop_timeout
+            return component_kwargs
+
+        @pulumi.runtime.test
+        def it_sets_stop_timeout_on_the_container(sut, stop_timeout):
+            def check_stop_timeout(args):
+                task_definition_dict = args[0]
+                container = task_definition_dict["container"]
+                assert container["stopTimeout"] == stop_timeout
+
+            return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_stop_timeout)
+
+    def describe_without_stop_timeout():
+        @pulumi.runtime.test
+        def it_defaults_stop_timeout_to_none(sut):
+            def check_stop_timeout(args):
+                task_definition_dict = args[0]
+                container = task_definition_dict["container"]
+                assert container.get("stopTimeout") is None
+
+            return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_stop_timeout)
