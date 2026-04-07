@@ -599,7 +599,7 @@ class RailsComponent(pulumi.ComponentResource):
             ],
             'role_arn': self.proxy_role.arn,
             'vpc_subnet_ids': vpc_subnet_ids,
-            'require_tls': False,
+            'require_tls': self.kwargs.get('require_tls', False),
             'tags': self.rds_tags,
         }
 
