@@ -142,6 +142,7 @@ class Alb(pulumi.ComponentResource):
             port=443,
             certificate_arn=self.args.certificate_arn,
             protocol="HTTPS",
+            ssl_policy="ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09",
             default_actions=[
                 lb.ListenerDefaultActionArgs(
                     type="fixed-response",
