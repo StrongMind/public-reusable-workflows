@@ -148,9 +148,3 @@ temp.file
 my.secrets
 .DS_Store
 WARP.md
-
-# scripts/ci/axe (npm / Playwright)
-node_modules/
-
-# Local axe CI artifacts
-tmp/
