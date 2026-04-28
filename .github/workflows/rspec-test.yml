@@ -237,6 +237,7 @@ jobs:
           bundler-cache: 'true'
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
+          BUNDLE_RUBYGEMS__PKG__GITHUB__COM: x-access-token:${{ secrets.GITHUB_TOKEN }}
 
       - name: Assets and DB setup
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
@@ -286,6 +287,7 @@ jobs:
           bundler-cache: 'true'
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
+          BUNDLE_RUBYGEMS__PKG__GITHUB__COM: x-access-token:${{ secrets.GITHUB_TOKEN }}
 
       - run: |
           ${{ inputs.bundle-no-assets }}
