@@ -90,6 +90,8 @@ jobs:
         STRONGMIND_SERVICE_UPDATES_TOPIC_ARN: ${{ secrets.STRONGMIND_SERVICE_UPDATES_TOPIC_ARN }}
         ID_MAPPER_TOKEN: ${{ secrets.ID_MAPPER_TOKEN }}
         ID_MAPPER_DOMAIN: ${{ secrets.ID_MAPPER_DOMAIN }}
+        DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+        DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
       run: |
         cd ./infrastructure/
         pulumi login s3://${{ inputs.pulumi-bucket }}/${{ github.event.repository.name }}
