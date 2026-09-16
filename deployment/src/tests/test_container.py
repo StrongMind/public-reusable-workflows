@@ -117,7 +117,6 @@ def describe_container():
                                 "s3:ListBucket",
                                 "ses:SendEmail",
                                 "ses:SendRawEmail",
-                                "sts:AssumeRole"
                             ],
                             "Effect": "Allow",
                             "Resource": "*",
@@ -154,7 +153,6 @@ def describe_container():
                             "s3:ListBucket",
                             "ses:SendEmail",
                             "ses:SendRawEmail",
-                            "sts:AssumeRole"
                         ],
                         "Effect": "Allow",
                         "Resource": "*",

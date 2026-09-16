@@ -1117,14 +1117,13 @@ class ContainerComponent(pulumi.ComponentResource):
                 "s3:ListBucket",
                 "ses:SendEmail",
                 "ses:SendRawEmail",
-                "sts:AssumeRole",
             ],
             "Effect": "Allow",
             "Resource": "*",
         }
-        
+
         statements = [base_statement]
-        
+
         # Include primary cross-account role assumption if provided
         cross_account_role_arn = self.kwargs.get('cross_account_arn_role')
         if cross_account_role_arn:
