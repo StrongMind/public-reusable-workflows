@@ -54,6 +54,8 @@ jobs:
         WORKER_CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ github.event.repository.name }}:${{ github.sha }}
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+        DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+        DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
         ENVIRONMENT_NAME: stage
       run: |
         cd ./infrastructure/
@@ -69,6 +71,8 @@ jobs:
         WORKER_CONTAINER_IMAGE: ${{ steps.login-ecr.outputs.registry }}/${{ github.event.repository.name }}:${{ github.sha }}
         RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
         CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_TOKEN }}
+        DATADOG_API_KEY: ${{ secrets.DATADOG_API_KEY }}
+        DATADOG_APP_KEY: ${{ secrets.DATADOG_APP_KEY }}
         ENVIRONMENT_NAME: prod
       run: |
         cd ./infrastructure/
