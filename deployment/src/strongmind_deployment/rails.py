@@ -65,8 +65,9 @@ class RailsComponent(pulumi.ComponentResource):
         :key rds_minimum_capacity: The minimum capacity of the RDS cluster. Defaults to 0.5.
         :key rds_maximum_capacity: The maximum capacity of the RDS cluster. Defaults to 16.
         :key cross_account_assume_roles: A list of additional cross-account role ARNs that containers can assume. Defaults to [].
-                                        Note: All containers automatically have access to assume the StrongmindStageAccessRole.
-        :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to StrongmindStageAccessRole.
+                                        Opt-in: no sts:AssumeRole is granted unless role ARNs are passed.
+        :key cross_account_arn_role: The primary cross-account role ARN that containers can assume. Defaults to None (no grant).
+                                    Pass arn:aws:iam::058264302180:role/StrongmindStageAccessRole explicitly if a service needs it.
         :key reader_instance_count: The number of reader instances for the RDS cluster. Defaults to 0.
         :key enable_rds_proxy: Whether to enable RDS Proxy for connection pooling. Defaults to False.
                                When enabled, creates a read/write proxy endpoint (exported as 'rds_proxy_endpoint').
@@ -119,10 +120,6 @@ class RailsComponent(pulumi.ComponentResource):
         self.enable_db_cloudwatch_logs = self.kwargs.get('enable_db_cloudwatch_logs', True)
         self.kwargs['sns_topic_arn'] = self.kwargs.get('sns_topic_arn',
                                                        operations.get_opsgenie_sns_topic_arn())
-        
-        # Set default cross-account role ARN for container task policies
-        self.kwargs['cross_account_arn_role'] = self.kwargs.get('cross_account_arn_role',
-                                                               'arn:aws:iam::058264302180:role/StrongmindStageAccessRole')
 
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
 
