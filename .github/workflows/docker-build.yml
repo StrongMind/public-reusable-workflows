@@ -142,6 +142,9 @@ jobs:
             BUNDLE_GEMS__CONTRIBSYS__COM=${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
             BUNDLE_RUBYGEMS__PKG__GITHUB__COM=x-access-token:${{ secrets.GITHUB_TOKEN }}
             ${{ inputs.build_args }}
+          secrets: |
+            BUNDLE_GEMS__CONTRIBSYS__COM=${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
+            BUNDLE_RUBYGEMS__PKG__GITHUB__COM=x-access-token:${{ secrets.GITHUB_TOKEN }}
 
   rspec-test:
     if: ${{ inputs.run-tests }}
