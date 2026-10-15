@@ -27,12 +27,27 @@ on:
         required: false
         default: false
         type: boolean
+      shard-count:
+        description: "Run specs as N runtime-balanced shards (0 = legacy behaviour)"
+        required: false
+        default: 0
+        type: number
+      runtime-log-workflow:
+        description: "Caller workflow file that uploads a parallel-runtime-log artifact (used to balance shards)"
+        required: false
+        default: ""
+        type: string
+      postgres-image:
+        description: "Postgres service image for sharded runs"
+        required: false
+        default: "postgres:latest"
+        type: string
 
 jobs:
   list-folders:
     name: List folders
     runs-on: ${{ inputs.runner }}
-    if: ${{ inputs.run-job-per-folder == true }}
+    if: ${{ inputs.run-job-per-folder == true && inputs.shard-count == 0 }}
     outputs:
       matrix: ${{ steps.get-folders.outputs.matrix }}
     steps:
@@ -124,7 +139,7 @@ jobs:
     name: Run tests in folder
     runs-on: ${{ inputs.runner }}
     needs: list-folders
-    if: ${{ inputs.run-job-per-folder == true }}
+    if: ${{ inputs.run-job-per-folder == true && inputs.shard-count == 0 }}
     strategy:
       matrix:
         folder: ${{fromJson(needs.list-folders.outputs.matrix)}}
@@ -261,7 +276,7 @@ jobs:
   run-tests:
     name: Run tests
     runs-on: ${{ inputs.runner }}
-    if: ${{ inputs.run-job-per-folder == false }}
+    if: ${{ inputs.run-job-per-folder == false && inputs.shard-count == 0 }}
     services:
       postgres:
         image: postgres:latest
@@ -314,3 +329,180 @@ jobs:
         if: ${{ inputs.run-parallel == false }}
         run: |
           RAILS_ENV=test bundle exec rspec --format documentation --format json --out ${{ github.workspace }}/rspec_output.json
+
+  plan-shards:
+    name: Plan rspec shards
+    runs-on: ubuntu-latest
+    if: ${{ inputs.shard-count > 0 }}
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Fetch runtime baseline
+        if: ${{ inputs.runtime-log-workflow != '' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WORKFLOW: ${{ inputs.runtime-log-workflow }}
+          BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          run_id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow "$WORKFLOW" --branch "$BRANCH" --limit 10 \
+            --json databaseId,conclusion \
+            --jq '[.[] | select(.conclusion=="success" or .conclusion=="failure")][0].databaseId')
+          gh run download "$run_id" -R "$GITHUB_REPOSITORY" -n parallel-runtime-log -D tmp/baseline
+          mkdir -p tmp/shard-plan
+          mv tmp/baseline/parallel_runtime_rspec.log tmp/shard-plan/runtime-baseline.log
+          echo "Runtime baseline from run $run_id: $(wc -l < tmp/shard-plan/runtime-baseline.log) files"
+
+      - name: Plan shards
+        id: plan
+        env:
+          SHARDS: ${{ inputs.shard-count }}
+          BASELINE: tmp/shard-plan/runtime-baseline.log
+          OUT: tmp/shard-plan
+        run: |
+          set -euo pipefail
+          mkdir -p "$OUT"
+          matrix=$(ruby <<'RUBY' | tail -1
+            # plan_shards.rb: split spec files into N shards by recorded runtime (greedy LPT).
+            # Env: SHARDS (Integer), BASELINE (path, may not exist), OUT (dir).
+            # Writes OUT/shard-<i>.txt and prints a matrix JSON array on stdout's last line.
+            require "json"
+            require "fileutils"
+
+            files = Dir.glob("spec/**/*_spec.rb").sort
+            abort "plan_shards: no spec files under spec/" if files.empty?
+
+            baseline = ENV["BASELINE"].to_s
+            log = {}
+            if !baseline.empty? && File.exist?(baseline)
+              File.foreach(baseline) do |line|
+                path, secs = line.strip.split(":", 2)
+                log[path] = secs.to_f if path && secs
+              end
+            end
+
+            known = files.map { |f| log[f] }.compact.sort
+            if known.empty?
+              warn "plan_shards: no usable runtime baseline, weighting by file size"
+              weight = files.to_h { |f| [f, File.size(f).to_f] }
+            else
+              median = known[known.size / 2]
+              missing = files.count { |f| !log.key?(f) }
+              warn "plan_shards: #{missing} of #{files.size} files have no recorded runtime, using median #{median.round(2)}s"
+              weight = files.to_h { |f| [f, log.fetch(f, median)] }
+            end
+
+            n = [Integer(ENV.fetch("SHARDS")), files.size, 256].min  # 256 = GitHub Actions matrix job limit
+            bins = Array.new(n) { { files: [], total: 0.0 } }
+            files.sort_by { |f| [-weight[f], f] }.each do |f|
+              bin = bins.each_with_index.min_by { |b, i| [b[:total], i] }.first
+              bin[:files] << f
+              bin[:total] += weight[f]
+            end
+
+            planned = bins.flat_map { |b| b[:files] }
+            unless planned.sort == files && planned.uniq.size == planned.size
+              abort "plan_shards: invariant broken, every spec file must be planned exactly once"
+            end
+
+            out = ENV.fetch("OUT")
+            FileUtils.mkdir_p(out)
+            bins.each_with_index do |b, i|
+              File.write(File.join(out, "shard-#{i + 1}.txt"), b[:files].join("\n") + "\n")
+              warn format("shard %2d: %4d files, est %7.1f", i + 1, b[:files].size, b[:total])
+            end
+            puts JSON.generate((1..n).to_a)
+          RUBY
+          )
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - name: Upload shard plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: rspec-shard-plan
+          path: tmp/shard-plan/
+          if-no-files-found: error
+          retention-days: 1
+
+  run-tests-sharded:
+    name: Rspec shard
+    needs: plan-shards
+    runs-on: ${{ inputs.runner }}
+    if: ${{ inputs.shard-count > 0 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: ${{ fromJson(needs.plan-shards.outputs.matrix) }}
+    services:
+      postgres:
+        image: ${{ inputs.postgres-image }}
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Download shard plan
+        uses: actions/download-artifact@v4
+        with:
+          name: rspec-shard-plan
+          path: tmp/shard-plan
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ inputs.ruby-version }}
+          bundler-cache: 'true'
+        env:
+          BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
+          BUNDLE_RUBYGEMS__PKG__GITHUB__COM: x-access-token:${{ secrets.GITHUB_TOKEN }}
+
+      - name: Assets and DB setup
+        run: |
+          bundle exec rails assets:precompile
+          bundle exec rails parallel:create
+          bundle exec rails parallel:load_schema
+        env:
+          RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY }}
+          RAILS_ENV: test
+
+      - name: Test
+        env:
+          RAILS_ENV: test
+          SHARD: ${{ matrix.shard }}
+        run: |
+          set -euo pipefail
+          mapfile -t files < <(grep -v '^$' "tmp/shard-plan/shard-${SHARD}.txt" || true)
+          echo "Shard ${SHARD}: ${#files[@]} spec files"
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "Shard ${SHARD}: no spec files, skipping"
+            exit 0
+          fi
+          if [ -f tmp/shard-plan/runtime-baseline.log ]; then
+            group=(--group-by runtime --runtime-log tmp/shard-plan/runtime-baseline.log --allowed-missing 100)
+          else
+            group=(--group-by filesize)
+          fi
+          bundle exec parallel_rspec "${group[@]}" "${files[@]}"
+
+  rspec-result:
+    name: Rspec result
+    needs: run-tests-sharded
+    runs-on: ubuntu-latest
+    if: ${{ always() && inputs.shard-count > 0 }}
+    steps:
+      - name: All shards passed
+        env:
+          RESULT: ${{ needs.run-tests-sharded.result }}
+        run: |
+          echo "run-tests-sharded result: $RESULT"
+          [ "$RESULT" = "success" ]
