@@ -28,6 +28,8 @@ class StandardTags:
         service: str = None,
         product: str = None,
         repository: str = None,
+        tenant: str = None,
+        app: str = None,
     ):
         config = pulumi.Config("tags")
         self.extra_tags = extra_tags
@@ -38,6 +40,13 @@ class StandardTags:
         # get the git repository from the current git repo if not provided
         self.repository = repository or config.get("repository") or get_repo_name()
         self.owner = get_code_owner_team_name()
+        # tenant must be a value from the deploy/kargo/ registry in
+        # strongmind-platform (DEVOPS-16345 standard); optional until every
+        # repo has set tags:tenant, so untagged is possible but wrong is not.
+        self.tenant = tenant or config.get("tenant")
+        # app must equal the Datadog service value (ADR-0004), which is the
+        # service tag by the DEVOPS-16364 decision.
+        self.app = app or config.get("app") or self.service
 
 
 def get_standard_tags(extra_tags:dict):
@@ -54,6 +63,10 @@ def get_standard_tags(extra_tags:dict):
         "product": standard_tags.product,
         "repository": standard_tags.repository,
         "owner": standard_tags.owner,
+        "app": standard_tags.app,
+        # a missing tenant stays missing rather than guessing: backfill and
+        # cost attribution must never see a value outside the registry
+        **({"tenant": standard_tags.tenant} if standard_tags.tenant else {}),
         **extra_tags,
     }
 
