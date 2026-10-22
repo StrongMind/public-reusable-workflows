@@ -34,6 +34,9 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
+    - name: Install Pulumi CLI
+      uses: pulumi/actions@v5
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
