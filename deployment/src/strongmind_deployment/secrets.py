@@ -1,5 +1,6 @@
 import pulumi
 import pulumi_aws as aws
+from strongmind_deployment.autotag import component_tags
 from pulumi import Output
 import os
 import json
@@ -29,13 +30,7 @@ class SecretsComponent(pulumi.ComponentResource):
         with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        self.tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        self.tags = component_tags(project, self.env_name, owning_team)
 
         self.sm_secret = aws.secretsmanager.Secret(
             f"{self.namespace}-secrets",

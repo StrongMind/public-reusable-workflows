@@ -5,6 +5,7 @@ import json
 from typing import Optional, List, Dict, Union, Any
 
 from strongmind_deployment.operations import get_code_owner_team_name
+from strongmind_deployment.autotag import component_tags
 
 
 # lambda_component.py
@@ -100,13 +101,7 @@ class LambdaComponent(pulumi.ComponentResource):
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.lambda_args = lambda_args or LambdaArgs()
         self.owning_team = get_code_owner_team_name()
-        self.tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": self.owning_team,
-        }
+        self.tags = component_tags(project, self.env_name, self.owning_team)
 
         self.lambda_env_variables = lambda_env_variables or LambdaEnvVariables()
         self.timeout = self.lambda_args.timeout

@@ -6,6 +6,7 @@ import subprocess
 from pulumi_aws import cloudwatch
 import sys
 from strongmind_deployment.secrets import SecretsComponent
+from strongmind_deployment.autotag import component_tags
 
 class BatchComponent(pulumi.ComponentResource):
     def __init__(self, name, **kwargs):
@@ -31,13 +32,7 @@ class BatchComponent(pulumi.ComponentResource):
         with open(f'{git_root}/CODEOWNERS', 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        tags = component_tags(project, self.env_name, owning_team)
 
         default_vpc = aws.ec2.get_vpc(default="true")
 

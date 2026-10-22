@@ -6,6 +6,7 @@ import pulumi_aws as aws
 import json
 
 from strongmind_deployment.util import qualify_component_name
+from strongmind_deployment.autotag import component_tags
 
 
 class StorageComponent(pulumi.ComponentResource):
@@ -21,13 +22,7 @@ class StorageComponent(pulumi.ComponentResource):
         with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        tags = component_tags(project, self.env_name, owning_team)
         self.bucket = aws.s3.BucketV2(qualify_component_name("bucket", self.kwargs),
                                       bucket=bucket_name,
                                       tags=tags

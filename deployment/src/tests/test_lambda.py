@@ -149,7 +149,8 @@ def describe_a_lambda_component():
             "repository": app_name,
             "service": app_name,
             "environment": environment,
-            "owner": get_code_owner_team_name()
+            "owner": get_code_owner_team_name(),
+            "app": app_name,
         }
 
     @pulumi.runtime.test

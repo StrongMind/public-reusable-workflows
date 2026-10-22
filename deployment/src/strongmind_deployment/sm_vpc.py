@@ -1,5 +1,6 @@
 import pulumi
 import pulumi_aws as aws
+from strongmind_deployment.autotag import component_tags
 from pulumi import Output
 import re
 import os
@@ -28,21 +29,11 @@ class VpcComponent(pulumi.ComponentResource):
         with open('../CODEOWNERS', 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        tags = component_tags(project, self.env_name, owning_team)
 
         def standard_tags(extra_tags:dict):
             return {
-                "product": project,
-                "repository": project,
-                "service": project,
-                "environment": self.env_name,
-                "owner": owning_team,
+                **component_tags(project, self.env_name, owning_team),
                 **extra_tags,
             }
 

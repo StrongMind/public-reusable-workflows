@@ -3,6 +3,7 @@ import subprocess
 
 import pulumi
 import pulumi_aws as aws
+from strongmind_deployment.autotag import component_tags
 from pulumi import Output
 
 
@@ -26,13 +27,7 @@ class RedisComponent(pulumi.ComponentResource):
         with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        self.tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        self.tags = component_tags(project, self.env_name, owning_team)
         dependencies = []
         if hasattr(self, 'parameter_group'):
             dependencies.append(self.parameter_group)

@@ -3,6 +3,7 @@ import pulumi_aws as aws
 from pulumi_cloudflare import get_zone, Record
 from pulumi import Output
 from strongmind_deployment.storage import StorageComponent
+from strongmind_deployment.autotag import component_tags
 import re
 import os
 
@@ -71,13 +72,7 @@ class DistributionComponent(pulumi.ComponentResource):
         with open('../CODEOWNERS', 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        self.tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        self.tags = component_tags(project, self.env_name, owning_team)
 
         self.dns()
         cache_policy = aws.cloudfront.get_cache_policy(name="Managed-CachingOptimized")
