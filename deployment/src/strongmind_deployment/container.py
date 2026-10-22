@@ -17,6 +17,20 @@ from strongmind_deployment.util import create_ecs_cluster, qualify_component_nam
 from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
 
 
+ASSUMABLE_ROLE_ARN_PATTERN = re.compile(r"^arn:aws:iam::\d{12}:role/.+$")
+
+
+def _validate_assumable_role_arn(arn):
+    # Outputs cannot be json.dumps'd into the task policy anyway; leave them unvalidated.
+    if isinstance(arn, Output):
+        return
+    if not isinstance(arn, str) or "*" in arn or arn.endswith(":root") or not ASSUMABLE_ROLE_ARN_PATTERN.match(arn):
+        raise ValueError(
+            f"Invalid cross-account role ARN {arn!r}: expected a specific IAM role ARN "
+            "like arn:aws:iam::123456789012:role/RoleName (no wildcards, no account root)."
+        )
+
+
 class ContainerComponent(pulumi.ComponentResource):
     def __init__(self, name, opts=None, **kwargs):
         """
@@ -49,8 +63,10 @@ class ContainerComponent(pulumi.ComponentResource):
                                       (e.g., ["enrollment.strongmind.com"]). These domains will be added to the certificate's 
                                       SAN and the CloudFront distribution's aliases.
         :key cross_account_assume_roles: A list of additional cross-account role ARNs that the container can assume. Defaults to [].
-                                        Note: All containers automatically have access to assume the StrongmindStageAccessRole.
-        :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to StrongmindStageAccessRole.
+                                        Opt-in: no sts:AssumeRole is granted unless role ARNs are passed.
+                                        Each must be a specific role ARN (arn:aws:iam::<account-id>:role/<name>); wildcards are rejected.
+        :key cross_account_arn_role: The primary cross-account role ARN that the container can assume. Defaults to None (no grant).
+                                    Must be a specific role ARN (arn:aws:iam::<account-id>:role/<name>); wildcards are rejected.
         :key port_mappings: Custom port mappings for the container. If provided, overrides automatic port mapping logic.
                            Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to None.
         :key additional_port_mappings: Additional port mappings to supplement the automatic port mapping for container_port.
@@ -1127,6 +1143,7 @@ class ContainerComponent(pulumi.ComponentResource):
         # Include primary cross-account role assumption if provided
         cross_account_role_arn = self.kwargs.get('cross_account_arn_role')
         if cross_account_role_arn:
+            _validate_assumable_role_arn(cross_account_role_arn)
             cross_account_role_statement = {
                 "Effect": "Allow",
                 "Action": "sts:AssumeRole",
@@ -1137,6 +1154,8 @@ class ContainerComponent(pulumi.ComponentResource):
         # Add additional cross-account role assumptions if specified
         cross_account_roles = self.kwargs.get('cross_account_assume_roles', [])
         if cross_account_roles:
+            for role_arn in ([cross_account_roles] if isinstance(cross_account_roles, str) else cross_account_roles):
+                _validate_assumable_role_arn(role_arn)
             statements.append({
                 "Effect": "Allow",
                 "Action": "sts:AssumeRole",

@@ -165,6 +165,25 @@ def describe_container():
                 ],
             }))
 
+        @pytest.mark.parametrize("bad_arn", [
+            "*",
+            "arn:aws:iam::123456789012:root",
+            "arn:aws:iam::123456789012:role/*",
+            "arn:aws:iam::*:role/TestRole",
+            "arn:aws:s3:::some-bucket",
+        ])
+        def it_rejects_an_invalid_cross_account_role(pulumi_set_mocks, component_kwargs, bad_arn):
+            component_kwargs["cross_account_arn_role"] = bad_arn
+            import strongmind_deployment.container
+            with pytest.raises(ValueError, match="Invalid cross-account role ARN"):
+                strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+
+        def it_rejects_a_wildcard_in_cross_account_assume_roles(pulumi_set_mocks, component_kwargs):
+            component_kwargs["cross_account_assume_roles"] = ["arn:aws:iam::123456789012:role/TestRole", "*"]
+            import strongmind_deployment.container
+            with pytest.raises(ValueError, match="Invalid cross-account role ARN"):
+                strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+
         @pulumi.runtime.test
         def it_creates_an_s3_policy(sut):
 

@@ -814,6 +814,39 @@ def describe_a_pulumi_rails_component():
     def it_does_not_create_a_worker_container(sut):
         assert sut.worker_container is None
 
+    def describe_task_role_cross_account_access():
+        def _assume_role_statements(policy):
+            return [statement for statement in json.loads(policy)["Statement"]
+                    if statement["Action"] == "sts:AssumeRole"]
+
+        @pulumi.runtime.test
+        def it_grants_no_assume_role_by_default(sut):
+            def check(policy):
+                assert _assume_role_statements(policy) == []
+            return sut.web_container.task_policy.policy.apply(check)
+
+        def describe_when_a_cross_account_role_is_provided():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs["cross_account_arn_role"] = "arn:aws:iam::123456789012:role/TestRole"
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_grants_exactly_one_scoped_assume_role(sut):
+                def check(policy):
+                    assert _assume_role_statements(policy) == [{
+                        "Effect": "Allow",
+                        "Action": "sts:AssumeRole",
+                        "Resource": "arn:aws:iam::123456789012:role/TestRole",
+                    }]
+                return sut.web_container.task_policy.policy.apply(check)
+
+        def it_rejects_a_wildcard_cross_account_role(pulumi_set_mocks, component_kwargs):
+            component_kwargs["cross_account_arn_role"] = "*"
+            import strongmind_deployment.rails
+            with pytest.raises(ValueError, match="Invalid cross-account role ARN"):
+                strongmind_deployment.rails.RailsComponent("rails", **component_kwargs)
+
     def describe_with_sidekiq_present():
         @pytest.fixture
         def sidekiq_present(when):
