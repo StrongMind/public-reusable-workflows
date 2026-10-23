@@ -5,6 +5,7 @@ import os
 import boto3
 import pulumi.runtime
 import pytest
+import pulumi_awsx as awsx
 from botocore.stub import Stubber
 from pytest_describe import behaves_like
 
@@ -792,6 +793,29 @@ def describe_a_pulumi_rails_component():
             @pulumi.runtime.test
             def it_uses_custom_command_for_execution(sut, execution_container_cmd):
                 assert sut.migration_container.command == execution_container_cmd
+
+        def describe_with_sidecar_containers():
+            @pytest.fixture
+            def sidecar():
+                return awsx.ecs.TaskDefinitionContainerDefinitionArgs(
+                    name="datadog-agent",
+                    image="gcr.io/datadoghq/agent:7",
+                    memory=256,
+                    essential=False,
+                )
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, sidecar):
+                component_kwargs['sidecar_containers'] = [sidecar]
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_leaves_sidecars_off_the_migration_task(sut):
+                assert sut.migration_container.sidecar_containers == []
+
+            @pulumi.runtime.test
+            def it_keeps_sidecars_on_the_web_task(sut, sidecar):
+                assert sut.web_container.sidecar_containers == [sidecar]
 
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
