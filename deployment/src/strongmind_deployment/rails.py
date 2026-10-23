@@ -18,6 +18,7 @@ from strongmind_deployment.secrets import SecretsComponent
 from strongmind_deployment.storage import StorageComponent
 from strongmind_deployment.dashboard import DashboardComponent
 from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
+from strongmind_deployment.autotag import component_tags
 
 
 def sidekiq_present():  # pragma: no cover
@@ -134,13 +135,7 @@ class RailsComponent(pulumi.ComponentResource):
         with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        self.tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        self.tags = component_tags(project, self.env_name, owning_team)
         
         # Merge additional RDS-specific tags with default tags
         self.rds_tags = {**self.tags, **self.kwargs.get('rds_tags', {})}

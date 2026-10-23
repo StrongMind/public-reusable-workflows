@@ -15,6 +15,7 @@ from strongmind_deployment import alb
 from strongmind_deployment import operations
 from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
+from strongmind_deployment.autotag import component_tags
 
 
 class ContainerComponent(pulumi.ComponentResource):
@@ -126,13 +127,7 @@ class ContainerComponent(pulumi.ComponentResource):
         with open(file_path, 'r') as file:
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
-        self.tags = {
-            "product": project,
-            "repository": project,
-            "service": project,
-            "environment": self.env_name,
-            "owner": owning_team,
-        }
+        self.tags = component_tags(project, self.env_name, owning_team)
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
 
         if not self.ecs_cluster:
