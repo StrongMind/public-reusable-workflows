@@ -7,19 +7,100 @@ on:
         required: false
         default: "ubuntu-latest"
         type: string
+      build_command:
+        description: "Optional. When set, a separate job with no secrets runs `npm ci` and this command, and only build_output_dir is uploaded. Leave unset to upload the repo as is."
+        required: false
+        default: ""
+        type: string
+      build_output_dir:
+        description: "Directory the build writes, relative to the repo root. It is deleted before the build and uploaded to <repo>/<build_output_dir>/ so existing URLs keep working."
+        required: false
+        default: "public"
+        type: string
+      node_version:
+        description: "Node version for the build job."
+        required: false
+        default: "22"
+        type: string
 
 jobs:
+  # Runs only when build_command is set. It gets no secrets, so install scripts and the
+  # build never share a job with the storage connection string.
+  build:
+    if: inputs.build_command != ''
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+    outputs:
+      output_dir: ${{ steps.output_dir.outputs.dir }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check build_output_dir
+        id: output_dir
+        env:
+          BUILD_OUTPUT_DIR: ${{ inputs.build_output_dir }}
+        run: |
+          dir="${BUILD_OUTPUT_DIR#./}"
+          dir="${dir%/}"
+          if [[ ! "$dir" =~ ^[A-Za-z0-9._/-]+$ || "/$dir/" == *//* || "/$dir/" == */./* || "/$dir/" == */../* ]]; then
+            echo "::error::build_output_dir must be a plain relative path inside the repo (letters, digits, . _ - /), got '$BUILD_OUTPUT_DIR'"
+            exit 1
+          fi
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node_version }}
+          cache: npm
+
+      - name: Build
+        env:
+          BUILD_COMMAND: ${{ inputs.build_command }}
+          OUTPUT_DIR: ${{ steps.output_dir.outputs.dir }}
+        run: |
+          # Delete any committed copy so only what this build writes gets uploaded
+          rm -rf "$OUTPUT_DIR"
+          npm ci
+          bash -eo pipefail -c "$BUILD_COMMAND"
+          if [ -z "$(ls -A "$OUTPUT_DIR" 2>/dev/null)" ]; then
+            echo "::error::The build left $OUTPUT_DIR missing or empty"
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interactive-build
+          path: ${{ steps.output_dir.outputs.dir }}
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
+
   deploy:
+    needs: build
+    if: ${{ !cancelled() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ${{ inputs.runner }}
 
     steps:
       - uses: actions/checkout@v4
+        if: inputs.build_command == ''
+
+      - uses: actions/download-artifact@v4
+        if: inputs.build_command != ''
+        with:
+          name: interactive-build
+          path: build-output
 
       - name: Pulling Repo Name to use as subfolder
         run: |
           echo "REPONAME=$(echo $GITHUB_REPOSITORY | cut -d/ -f2)" >> $GITHUB_ENV
 
       - name: Remove Unneeded Files
+        if: inputs.build_command == ''
         run: |
           rm -r .github/ .git/
 
@@ -29,15 +110,16 @@ jobs:
           # The name of the storage account container these assets will be uploaded to
           container_name: "$web"
           # The name of the directory you want to upload
-          source_dir: ./
+          source_dir: ${{ inputs.build_command != '' && './build-output' || './' }}
           # The connection string for the storage account. Used if value is set. Either connection_string or sas_token must be supplied
           connection_string: ${{ secrets.INTERACTIVE_CONNECTION_STRING_PROD_KEY_2 }}
           # Extra arguments that can be passed to `az storage blob upload-batch|sync`. Useful for passing flags like `--pattern` or `--destination-path`
-          extra_args: '--destination ${{ env.REPONAME }}/'
+          extra_args: ${{ inputs.build_command != '' && format('--destination {0}/{1}/', env.REPONAME, needs.build.outputs.output_dir) || format('--destination {0}/', env.REPONAME) }}
 
   notify_deployment:
     name: Notify Deployment
     needs: deploy
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     uses:
       strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
     with:
