@@ -46,12 +46,10 @@ jobs:
         run: |
           dir="${BUILD_OUTPUT_DIR#./}"
           dir="${dir%/}"
-          case "/$dir/" in
-            //|/./|*/../*|//*)
-              echo "::error::build_output_dir must be a relative path inside the repo, got '$BUILD_OUTPUT_DIR'"
-              exit 1
-              ;;
-          esac
+          if [[ ! "$dir" =~ ^[A-Za-z0-9._/-]+$ || "/$dir/" == *//* || "/$dir/" == */./* || "/$dir/" == */../* ]]; then
+            echo "::error::build_output_dir must be a plain relative path inside the repo (letters, digits, . _ - /), got '$BUILD_OUTPUT_DIR'"
+            exit 1
+          fi
           echo "dir=$dir" >> "$GITHUB_OUTPUT"
 
       - name: Set up Node
@@ -121,6 +119,7 @@ jobs:
   notify_deployment:
     name: Notify Deployment
     needs: deploy
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     uses:
       strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
     with:
