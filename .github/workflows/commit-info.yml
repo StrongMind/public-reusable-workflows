@@ -8,6 +8,9 @@ on:
         default: "ubuntu-latest"
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   push-commit-info:
     runs-on: ${{ inputs.runner }}
