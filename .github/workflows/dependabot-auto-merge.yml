@@ -11,6 +11,10 @@ on:
       - 'master'
     types: [opened, synchronize]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   dependabot:
     uses: ./.github/workflows/shared-dependabot-auto-merge.yml
@@ -18,4 +22,5 @@ jobs:
       PR_URL: ${{ github.event.pull_request.html_url }}
       github_actor: ${{ github.actor }}
     secrets: inherit
-    if: ${{ github.actor == 'dependabot[bot]'}}
+    # github.actor is whoever triggered the event, so also require Dependabot to be the PR author.
+    if: ${{ github.actor == 'dependabot[bot]' && github.event.pull_request.user.login == 'dependabot[bot]' }}
