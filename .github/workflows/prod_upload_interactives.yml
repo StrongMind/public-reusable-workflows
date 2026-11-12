@@ -120,8 +120,7 @@ jobs:
     name: Notify Deployment
     needs: deploy
     if: ${{ !cancelled() && needs.deploy.result == 'success' }}
-    uses:
-      strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
+    uses: ./.github/workflows/send-deployment-notification.yml
     with:
       repository_name: ${{ github.repository }}
     secrets: inherit

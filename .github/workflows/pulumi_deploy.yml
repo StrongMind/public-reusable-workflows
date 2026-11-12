@@ -26,6 +26,9 @@ on:
         default: 'ubuntu-latest'
 
 jobs:
+  # pulumi.yml is called at @caylent_main on purpose, not via ./ (DEVOPS-16435).
+  # caylent_main's pulumi.yml differs from main's, and ./ would silently switch
+  # these callers to main's copy. Leave as is until caylent_main is retired.
   stage_account:
     if: ${{ !contains(inputs.stack, 'prod') && !contains(inputs.stack, 'main') }}
     uses: strongmind/public-reusable-workflows/.github/workflows/pulumi.yml@caylent_main
