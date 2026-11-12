@@ -68,11 +68,11 @@ jobs:
       pull-requests: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ inputs.sha }}
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: ${{inputs.python_version}}
           cache: "pip"
@@ -81,11 +81,11 @@ jobs:
       - run: pip3 install -r ${{inputs.working_directory}}/requirements.txt
 
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{inputs.role_to_assume}}
           aws-region: ${{inputs.aws_region}}
-      - uses: pulumi/actions@v5
+      - uses: pulumi/actions@cd99a7f8865434dd3532b586a26f9ebea596894f # v5.5.1
         with:
           command: ${{inputs.pulumi_command}}
           stack-name: ${{ inputs.pulumi_stack }}

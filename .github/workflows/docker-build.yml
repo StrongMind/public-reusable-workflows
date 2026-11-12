@@ -98,12 +98,12 @@ jobs:
           - 5432:5432
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: '0'
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
@@ -111,10 +111,10 @@ jobs:
           mask-aws-account-id: no
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
 
       - name: Cache Docker layers
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: /tmp/.buildx-cache
           key: ${{ runner.os }}-buildx-${{ github.sha }}
@@ -123,10 +123,10 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
       - name: Create private repo
-        uses: int128/create-ecr-repository-action@v1
+        uses: int128/create-ecr-repository-action@23d03102a9309774acbde6d7a6510fb06d71b322 # v1.515.0
         with:
           repository: ${{ inputs.ecr-repository != '' && inputs.ecr-repository || github.event.repository.name }}
 
@@ -135,7 +135,7 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: ${{ inputs.ecr-repository != '' && inputs.ecr-repository || github.event.repository.name }}
           IMAGE_TAG: ${{ github.sha }}
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: ${{ inputs.context }}
           file: ${{ inputs.dockerfile }}

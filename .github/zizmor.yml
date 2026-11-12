@@ -1,0 +1,13 @@
+# zizmor configuration: https://docs.zizmor.sh/configuration/
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Same-repo reusable workflows are referenced by branch (@main / @caylent_main).
+        # Allowed for now; DEVOPS-16435 moves these to ./ local paths.
+        # zizmor pattern matching is case-sensitive, so list each casing in use.
+        StrongMind/public-reusable-workflows/*: ref-pin
+        strongmind/public-reusable-workflows/*: ref-pin
+        Strongmind/public-reusable-workflows/*: ref-pin
+        # Every other action must be pinned to a full commit SHA.
+        "*": hash-pin
