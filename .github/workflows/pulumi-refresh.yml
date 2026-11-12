@@ -7,6 +7,23 @@ on:
         required: false
         default: "ubuntu-latest"
         type: string
+    # All optional so callers using `secrets: inherit` keep working unchanged (DEVOPS-16435).
+    # GITHUB_TOKEN is not listed: it is always available and cannot be declared.
+    secrets:
+      STRONGMIND_AWS_ACCESS_KEY_ID:
+        required: false
+      STRONGMIND_AWS_SECRET_ACCESS_KEY:
+        required: false
+      PULUMI_CONFIG_PASSPHRASE:
+        required: false
+      RAILS_MASTER_KEY:
+        required: false
+      CLOUDFLARE_TOKEN:
+        required: false
+      DATADOG_API_KEY:
+        required: false
+      DATADOG_APP_KEY:
+        required: false
 
 env:
   AWS_REGION: us-west-2
