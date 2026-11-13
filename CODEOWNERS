@@ -1,3 +1,3 @@
-# Every workflow here runs in ~140 org pipelines with their secrets, so all
-# changes need DevOps review (enforced by the main branch ruleset).
-* @StrongMind/devops
+# Workflows here run in org pipelines with their secrets, so every change
+# needs review from DevOps or Josh (enforced by the main branch ruleset).
+* @StrongMind/devops @JoshuaGleason
