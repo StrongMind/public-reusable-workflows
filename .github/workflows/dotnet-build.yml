@@ -63,11 +63,11 @@ jobs:
     steps:
 
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
     - if: ${{ inputs.dotnet-version }}
       name: Setup .NET Core SDK ${{ inputs.dotnet-version }}
-      uses: actions/setup-dotnet@v3
+      uses: actions/setup-dotnet@55ec9447dda3d1cf6bd587150f3262f30ee10815 # v3.4.2
       with:
         dotnet-version: ${{ inputs.dotnet-version }}
 
@@ -89,7 +89,7 @@ jobs:
 
     - if: ${{ inputs.npm_directory }}
       name: setup nodejs
-      uses: actions/setup-node@v3
+      uses: actions/setup-node@3235b876344d2a9aa001b8d1453c930bba69e610 # v3.9.1
       with:
         node-version: ${{ inputs.node-version }}
         
@@ -109,7 +109,7 @@ jobs:
       run: dotnet publish ${{ inputs.project_path }} --configuration Release --output .\${{ inputs.upload_source }}
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       with:
         name: ${{ github.sha }}${{ inputs.artifact_name }}
         path: '${{ github.workspace }}\${{ inputs.upload_source }}\*'

@@ -20,7 +20,7 @@ jobs:
     steps:
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
@@ -29,14 +29,14 @@ jobs:
 
       - name: Login to Amazon ECR
         id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v1
+        uses: aws-actions/amazon-ecr-login@5a88a04c91d5c6f97aae0d9be790e64d9b1d47b7 # v1.7.1
 
       - name: Create private repo
-        uses: int128/create-ecr-repository-action@v1
+        uses: int128/create-ecr-repository-action@23d03102a9309774acbde6d7a6510fb06d71b322 # v1.515.0
         with:
           repository: ${{ github.event.repository.name }}
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         name: Checkout code
 
       - name: Build Docker

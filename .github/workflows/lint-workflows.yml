@@ -1,0 +1,53 @@
+name: Lint workflows
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  zizmor:
+    name: zizmor (fail on unpinned actions)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Install zizmor
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --quiet --require-hashes --no-deps -r /dev/stdin <<'REQ'
+          zizmor==1.32.0 --hash=sha256:84a6acb975accc13408786a2bd274b572537ca19c933ebbc13e78f3988562071
+          REQ
+
+      - name: Full zizmor report (informational)
+        run: |
+          "$RUNNER_TEMP/zizmor/bin/zizmor" --offline --no-exit-codes --format github .
+
+      - name: Fail on unpinned action refs
+        # Policy lives in .github/zizmor.yml: every action must be SHA-pinned,
+        # except same-repo reusable workflow refs.
+        run: |
+          "$RUNNER_TEMP/zizmor/bin/zizmor" --offline --no-exit-codes --format json . > "$RUNNER_TEMP/zizmor.json"
+          count=$(jq '[.[] | select(.ident == "unpinned-uses")] | length' "$RUNNER_TEMP/zizmor.json")
+          if [ "$count" -ne 0 ]; then
+            echo "::error::$count unpinned action reference(s). Pin each 'uses:' to a full commit SHA with a '# vX.Y.Z' comment."
+            jq -r '.[] | select(.ident == "unpinned-uses") | .locations[] | select(.symbolic.kind == "Primary") | "\(.symbolic.key.Local.verbatim_path):\(.concrete.location.start_point.row + 1): \(.concrete.feature)"' "$RUNNER_TEMP/zizmor.json"
+            exit 1
+          fi
+          echo "No unpinned action references."
+
+      - name: Fail on unpinned action refs (text backstop)
+        # zizmor skips jobs with `if: false`; this grep catches refs in them too.
+        run: |
+          if grep -rnE '^[[:space:]]*(-[[:space:]]*)?uses:[[:space:]]*[^[:space:]#]' .github/workflows \
+            | grep -viE 'uses:[[:space:]]*(\./|docker://|strongmind/public-reusable-workflows/)' \
+            | grep -vE '@[0-9a-f]{40}([[:space:]]|$)'; then
+            echo "::error::Unpinned action reference(s) above. Pin each 'uses:' to a full commit SHA."
+            exit 1
+          fi
