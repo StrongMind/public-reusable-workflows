@@ -11,6 +11,9 @@ on:
         required: true
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   bundle-and-test:
     runs-on: ${{ inputs.runner }}
@@ -44,14 +47,3 @@ jobs:
           gem push *.gem
         env:
           GEM_HOST_API_KEY: "${{secrets.RUBYGEMS_API_KEY}}"
-
-  notify_deployment:
-    name: Notify Deployment
-    needs: publish-gem
-    uses: strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
-    with:
-      repository_name: ${{ github.repository }}
-      runner: ${{ inputs.runner }}
-    secrets: inherit
-
-    

@@ -15,6 +15,11 @@ on:
         type: string
 
 
+# actions: read lets action-download-artifact fetch the artifact from the dotnet-build run.
+permissions:
+  actions: read
+  contents: read
+
 jobs:
   Deploy-to-Rollback:
     name: Artifact Download
