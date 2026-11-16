@@ -50,7 +50,7 @@ jobs:
         # zizmor skips jobs with `if: false`; this grep catches refs in them too.
         run: |
           if grep -rnE '^[[:space:]]*(-[[:space:]]*)?uses:[[:space:]]*[^[:space:]#]' .github/workflows \
-            | grep -viE 'uses:[[:space:]]*(\./|docker://|strongmind/public-reusable-workflows/)' \
+            | grep -viE 'uses:[[:space:]]*(\./|docker://|strongmind/public-reusable-workflows/\.github/workflows/pulumi\.yml@caylent_main)' \
             | grep -vE '@[0-9a-f]{40}"?([[:space:]]|$)'; then
             echo "::error::Unpinned action reference(s) above. Pin each 'uses:' to a full commit SHA."
             exit 1
