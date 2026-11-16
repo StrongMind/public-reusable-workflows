@@ -54,6 +54,9 @@ env:
   atlas_source: 'https://pkgs.dev.azure.com/strongmind/Strongmind/_packaging/AtlasMavenAgregateFeed/nuget/v3/index.json'
   nuget_config_file: 'nuget.config'
 
+permissions:
+  contents: read
+
 jobs:
 
   Build-Upload:

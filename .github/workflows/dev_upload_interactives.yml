@@ -23,6 +23,9 @@ on:
         default: "22"
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   # Runs only when build_command is set. It gets no secrets, so install scripts and the
   # build never share a job with the storage connection string.

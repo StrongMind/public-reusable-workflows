@@ -11,6 +11,8 @@ on:
         required: true
         type: string
 
+permissions: {}
+
 jobs:
   send_notification:
     # Disabled: Deployment notifications are now handled by Lambda function triggered by EventBridge

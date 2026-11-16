@@ -20,6 +20,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   send-slack:
     # Disabled: Slack notifications are now handled by Lambda function triggered by EventBridge

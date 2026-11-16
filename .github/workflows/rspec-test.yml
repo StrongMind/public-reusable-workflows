@@ -47,6 +47,8 @@ jobs:
   list-folders:
     name: List folders
     runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
     if: ${{ inputs.run-job-per-folder == true && inputs.shard-count == 0 }}
     outputs:
       matrix: ${{ steps.get-folders.outputs.matrix }}
@@ -138,6 +140,9 @@ jobs:
   run-tests-in-folder:
     name: Run tests in folder
     runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      packages: read  # GITHUB_TOKEN pulls gems from GitHub Packages
     needs: list-folders
     if: ${{ inputs.run-job-per-folder == true && inputs.shard-count == 0 }}
     strategy:
@@ -276,6 +281,9 @@ jobs:
   run-tests:
     name: Run tests
     runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      packages: read  # GITHUB_TOKEN pulls gems from GitHub Packages
     if: ${{ inputs.run-job-per-folder == false && inputs.shard-count == 0 }}
     services:
       postgres:
@@ -432,6 +440,9 @@ jobs:
     name: Rspec shard
     needs: plan-shards
     runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      packages: read  # GITHUB_TOKEN pulls gems from GitHub Packages
     if: ${{ inputs.shard-count > 0 }}
     strategy:
       fail-fast: false
@@ -498,6 +509,7 @@ jobs:
     name: Rspec result
     needs: run-tests-sharded
     runs-on: ubuntu-latest
+    permissions: {}
     if: ${{ always() && inputs.shard-count > 0 }}
     steps:
       - name: All shards passed

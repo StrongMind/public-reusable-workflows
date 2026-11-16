@@ -23,6 +23,9 @@ on:
         default: "22"
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   # Runs only when build_command is set. It gets no secrets, so install scripts and the
   # build never share a job with the storage connection string.
@@ -115,13 +118,3 @@ jobs:
           connection_string: ${{ secrets.INTERACTIVE_CONNECTION_STRING_PROD_KEY_2 }}
           # Extra arguments that can be passed to `az storage blob upload-batch|sync`. Useful for passing flags like `--pattern` or `--destination-path`
           extra_args: ${{ inputs.build_command != '' && format('--destination {0}/{1}/', env.REPONAME, needs.build.outputs.output_dir) || format('--destination {0}/', env.REPONAME) }}
-
-  notify_deployment:
-    name: Notify Deployment
-    needs: deploy
-    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
-    uses:
-      strongmind/public-reusable-workflows/.github/workflows/send-deployment-notification.yml@main
-    with:
-      repository_name: ${{ github.repository }}
-    secrets: inherit
