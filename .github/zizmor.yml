@@ -1,0 +1,11 @@
+# zizmor configuration: https://docs.zizmor.sh/configuration/
+rules:
+  unpinned-uses:
+    config:
+      policies:
+        # Same-repo reusable workflows use ./ paths (DEVOPS-16435). The only branch
+        # refs left are pulumi_deploy.yml's calls to pulumi.yml@caylent_main, kept
+        # until caylent_main is retired. zizmor matching is case-sensitive.
+        strongmind/public-reusable-workflows/*: ref-pin
+        # Every other action must be pinned to a full commit SHA.
+        "*": hash-pin

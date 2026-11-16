@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    # Wait a week after an upstream release before proposing it, so a
+    # compromised release has time to be caught and pulled.
+    cooldown:
+      default-days: 7
+    groups:
+      # Minor and patch bumps share one PR. Each major bump gets its own PR,
+      # so a breaking change can be reviewed or declined on its own.
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - minor
+          - patch
+    labels:
+      - dependencies
