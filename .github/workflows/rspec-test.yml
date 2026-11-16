@@ -451,7 +451,7 @@ jobs:
           name: rspec-shard-plan
           path: tmp/shard-plan/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30  # GitHub allows "Re-run failed jobs" for 30 days; the plan must outlive that
 
   run-tests-sharded:
     name: Rspec shard
