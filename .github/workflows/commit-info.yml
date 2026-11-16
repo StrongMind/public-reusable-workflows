@@ -29,10 +29,10 @@ jobs:
       - name: Check current directory
         run: pwd
 
-      # Inlined copy of scripts/process-commits.sh (DEVOPS-16435). It used to be curled
-      # from raw.githubusercontent.com at main at run time, which ran whatever main had
-      # (not this workflow's commit) and breaks once this repo is private. Keep the two
-      # in sync. "bash {0}" runs it without -e, like the old ./process-commits.sh call.
+      # Formerly scripts/process-commits.sh (DEVOPS-16435), curled from raw.githubusercontent.com
+      # at main at run time, which ran whatever main had (not this workflow's commit) and breaks
+      # once this repo is private. This step is now the only copy of the script.
+      # "bash {0}" runs it without -e, like the old ./process-commits.sh call.
       - name: Execute script
         shell: bash {0}
         env:
@@ -85,8 +85,9 @@ jobs:
                   co_authors_array="${co_authors_array%,}]"  # Remove trailing comma and close array
               fi
 
-              lines_added=$(git show --stat $commit | grep -E 'files? changed' | awk '{print $4}')
-              lines_removed=$(git show --stat $commit | grep -E 'files? changed' | awk '{print $6}')
+              stat_line=$(git show --stat $commit | grep -E 'files? changed')
+              lines_added=$(echo "$stat_line" | awk '{print $4}')
+              lines_removed=$(echo "$stat_line" | awk '{print $6}')
 
               commit_info="{\"commit\": {\"commit_hash\": \"$commit\", \"author\": \"$author\", \"date\": \"$date\", \"co_authors\": $co_authors_array, \"lines_added\": \"$lines_added\", \"lines_removed\": \"$lines_removed\", \"repository\": \"$repo_name\"}}"
 

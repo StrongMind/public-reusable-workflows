@@ -118,12 +118,3 @@ jobs:
           connection_string: ${{ secrets.INTERACTIVE_CONNECTION_STRING_PROD_KEY_2 }}
           # Extra arguments that can be passed to `az storage blob upload-batch|sync`. Useful for passing flags like `--pattern` or `--destination-path`
           extra_args: ${{ inputs.build_command != '' && format('--destination {0}/{1}/', env.REPONAME, needs.build.outputs.output_dir) || format('--destination {0}/', env.REPONAME) }}
-
-  notify_deployment:
-    name: Notify Deployment
-    needs: deploy
-    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
-    uses: ./.github/workflows/send-deployment-notification.yml
-    with:
-      repository_name: ${{ github.repository }}
-    secrets: inherit
