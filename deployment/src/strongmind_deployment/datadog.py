@@ -1,5 +1,3 @@
-import os
-
 import pulumi_aws as aws
 import pulumi_awsx as awsx
 
@@ -9,16 +7,16 @@ AGENT_IMAGE = "gcr.io/datadoghq/agent:7.84.5"
 DD_API_KEY_SECRET_NAME = "datadog/ecs-agent-api-key"
 
 
-def otel_env_vars(service_name, env_name):
+def otel_env_vars(service_name, env_name, container_image, health_check_path):
     """OpenTelemetry settings that point the app container at the agent sidecar."""
-    git_sha = os.environ.get('CONTAINER_IMAGE', 'unknown').split(':')[-1]
+    git_sha = container_image.split(':')[-1]
     return {
         "OTEL_SERVICE_NAME": service_name,
         "OTEL_EXPORTER_OTLP_ENDPOINT": f"http://localhost:{OTLP_HTTP_PORT}",
         "OTEL_EXPORTER_OTLP_PROTOCOL": "http/protobuf",
         "OTEL_EXPORTER_OTLP_TIMEOUT": "2",
         "OTEL_BSP_EXPORT_TIMEOUT": "2000",
-        "OTEL_RUBY_INSTRUMENTATION_RACK_CONFIG_OPTS": "untraced_endpoints=/up",
+        "OTEL_RUBY_INSTRUMENTATION_RACK_CONFIG_OPTS": f"untraced_endpoints={health_check_path}",
         "OTEL_RESOURCE_ATTRIBUTES": (
             f"deployment.environment.name={env_name},"
             f"service.version={git_sha}"
@@ -28,7 +26,7 @@ def otel_env_vars(service_name, env_name):
 
 def agent_sidecar(env_name):
     """Datadog agent that receives OTLP from the app container; cpu 0 keeps the task at the app's size."""
-    api_key_secret_arn = aws.secretsmanager.get_secret(name=DD_API_KEY_SECRET_NAME).arn
+    api_key_secret_arn = aws.secretsmanager.get_secret_output(name=DD_API_KEY_SECRET_NAME).arn
     return awsx.ecs.TaskDefinitionContainerDefinitionArgs(
         name=AGENT_CONTAINER_NAME,
         image=AGENT_IMAGE,

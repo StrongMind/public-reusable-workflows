@@ -1151,13 +1151,12 @@ def describe_container():
 
         def describe_with_datadog():
             @pytest.fixture
-            def git_sha(faker, monkeypatch):
-                sha = faker.sha1()
-                monkeypatch.setenv("CONTAINER_IMAGE", f"123.dkr.ecr.us-west-2.amazonaws.com/app:{sha}")
-                return sha
+            def git_sha(faker):
+                return faker.sha1()
 
             @pytest.fixture
             def component_kwargs(component_kwargs, git_sha):
+                component_kwargs["container_image"] = f"123.dkr.ecr.us-west-2.amazonaws.com/app:{git_sha}"
                 component_kwargs["datadog"] = True
                 return component_kwargs
 
@@ -1216,6 +1215,18 @@ def describe_container():
                 assert env_vars.items() <= sut.env_vars.items()
 
             @pulumi.runtime.test
+            def it_skips_tracing_the_default_health_check(sut):
+                assert sut.env_vars["OTEL_RUBY_INSTRUMENTATION_RACK_CONFIG_OPTS"] == "untraced_endpoints=/up"
+
+            @pulumi.runtime.test
+            def it_puts_the_otel_env_vars_in_the_app_container(sut, app_name, stack):
+                def check(args):
+                    environment = args[0]["containers"][f"{app_name}-{stack}"]["environment"]
+                    assert {"name": "OTEL_SERVICE_NAME", "value": app_name} in environment
+                    assert {"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": "http://localhost:4318"} in environment
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check)
+
+            @pulumi.runtime.test
             def it_puts_both_containers_in_the_task(sut, app_name, stack):
                 def check(args):
                     containers = args[0]["containers"]
@@ -1226,6 +1237,16 @@ def describe_container():
             @pulumi.runtime.test
             def it_gives_the_agent_its_own_log_group(sut, app_name, stack):
                 return assert_output_equals(sut.sidecar_log_groups[0].name, f"/ecs/{app_name}-{stack}-datadog-agent")
+
+            def describe_with_custom_health_check_path():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["custom_health_check_path"] = "/health_check"
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_skips_tracing_that_path(sut):
+                    assert sut.env_vars["OTEL_RUBY_INSTRUMENTATION_RACK_CONFIG_OPTS"] == "untraced_endpoints=/health_check"
 
             def describe_when_the_app_sets_an_otel_var():
                 @pytest.fixture

@@ -842,6 +842,24 @@ def describe_a_pulumi_rails_component():
             def it_leaves_otel_env_vars_off_the_migration_task(sut):
                 assert not any(key.startswith("OTEL_") for key in sut.migration_container.env_vars)
 
+            def describe_with_a_separate_worker_image():
+                @pytest.fixture
+                def worker_sha(faker, monkeypatch):
+                    sha = faker.sha1()
+                    monkeypatch.setenv("WORKER_CONTAINER_IMAGE", f"repo/worker:{sha}")
+                    return sha
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, worker_sha):
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_stamps_the_worker_with_its_own_version(sut, worker_sha, container_image):
+                    assert sut.worker_container.env_vars["OTEL_RESOURCE_ATTRIBUTES"].endswith(f"service.version={worker_sha}")
+                    assert sut.web_container.env_vars["OTEL_RESOURCE_ATTRIBUTES"].endswith(
+                        f"service.version={container_image.split(':')[-1]}"
+                    )
+
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
         assert sut.firewall_rule

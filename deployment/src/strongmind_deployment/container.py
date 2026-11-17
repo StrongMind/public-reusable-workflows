@@ -459,7 +459,9 @@ class ContainerComponent(pulumi.ComponentResource):
     def add_datadog(self):
         if any(getattr(sidecar, 'name', None) == datadog.AGENT_CONTAINER_NAME for sidecar in self.sidecar_containers):
             raise ValueError("datadog=True adds its own datadog-agent sidecar; remove the one in sidecar_containers")
-        self.env_vars = {**datadog.otel_env_vars(self.tags['app'], self.env_name), **self.env_vars}
+        health_check_path = self.kwargs.get('custom_health_check_path', '/up')
+        otel_env_vars = datadog.otel_env_vars(self.tags['app'], self.env_name, self.container_image, health_check_path)
+        self.env_vars = {**otel_env_vars, **self.env_vars}
         self.sidecar_containers = [*self.sidecar_containers, datadog.agent_sidecar(self.env_name)]
 
     def _validate_time_format(self, time_str):
