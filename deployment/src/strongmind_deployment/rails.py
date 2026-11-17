@@ -83,6 +83,8 @@ class RailsComponent(pulumi.ComponentResource):
         :key vpc_security_group_ids: Optional list of VPC security group IDs for the RDS Proxy. If not provided, AWS will use the default VPC security group.
         :key sidecar_containers: Optional list of additional container definitions to run alongside Rails containers (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Applied to web and worker containers. Defaults to [].
+        :key datadog: Whether to run the Datadog agent sidecar on the web and worker containers and point their
+                      OpenTelemetry export at it (ADR-0004). Defaults to False.
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
@@ -284,7 +286,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['worker_autoscale'] = False
 
         # Sidecars stay off: the execution provider reads the first container's exit code.
-        migration_kwargs = {k: v for k, v in self.kwargs.items() if k != 'sidecar_containers'}
+        migration_kwargs = {k: v for k, v in self.kwargs.items() if k not in ('sidecar_containers', 'datadog')}
         self.migration_container = ContainerComponent(
             qualify_component_name("migration", self.kwargs),
             need_load_balancer=False,

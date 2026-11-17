@@ -12,6 +12,7 @@ from pulumi_awsx.awsx import DefaultRoleWithPolicyArgs
 from pulumi_cloudflare import Record
 
 from strongmind_deployment import alb
+from strongmind_deployment import datadog
 from strongmind_deployment import operations
 from strongmind_deployment.util import create_ecs_cluster, qualify_component_name
 from strongmind_deployment.worker_autoscale import WorkerAutoscaleComponent
@@ -59,6 +60,8 @@ class ContainerComponent(pulumi.ComponentResource):
                                       Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to [].
         :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
+        :key datadog: Whether to run the Datadog agent sidecar and point the app's OpenTelemetry export at it (ADR-0004).
+                      The Datadog service name is the Pulumi project name. Defaults to False.
         :key use_nat_gateway: Whether to create a NAT Gateway so ECS tasks have a static outbound IP.
                              Tasks are placed in private subnets and all outbound traffic exits through
                              the NAT Gateway's Elastic IP. Useful when connecting to external services
@@ -128,6 +131,8 @@ class ContainerComponent(pulumi.ComponentResource):
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
         self.tags = component_tags(project, self.env_name, owning_team)
+        if kwargs.get('datadog', False):
+            self.add_datadog()
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
 
         if not self.ecs_cluster:
@@ -450,6 +455,12 @@ class ContainerComponent(pulumi.ComponentResource):
                                                                **self.kwargs)
 
         self.register_outputs({})
+
+    def add_datadog(self):
+        if any(getattr(sidecar, 'name', None) == datadog.AGENT_CONTAINER_NAME for sidecar in self.sidecar_containers):
+            raise ValueError("datadog=True adds its own datadog-agent sidecar; remove the one in sidecar_containers")
+        self.env_vars = {**datadog.otel_env_vars(self.tags['app'], self.env_name), **self.env_vars}
+        self.sidecar_containers = [*self.sidecar_containers, datadog.agent_sidecar(self.env_name)]
 
     def _validate_time_format(self, time_str):
         """Validate time string is in HH:MM format."""

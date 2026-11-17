@@ -158,6 +158,12 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                     "secretString": secret_string
                 }
 
+            if args.token == "aws:secretsmanager/getSecret:getSecret":
+                return {
+                    "arn": f"arn:aws:secretsmanager:us-west-2:123456789012:secret:{args.args.get('name')}-AbCdEf",
+                    "name": args.args.get("name"),
+                }
+
             if args.token == "aws:cloudfront/getCachePolicy:getCachePolicy":
                 # print(f"Debug - MockCallArgs contents: {dir(args)}")  # Debug line
                 # print(f"Debug - MockCallArgs args: {args.args}")  # Debug line

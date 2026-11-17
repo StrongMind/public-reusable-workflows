@@ -817,6 +817,31 @@ def describe_a_pulumi_rails_component():
             def it_keeps_sidecars_on_the_web_task(sut, sidecar):
                 assert sut.web_container.sidecar_containers == [sidecar]
 
+        def describe_with_datadog():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['datadog'] = True
+                component_kwargs['need_worker'] = True
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_adds_the_agent_to_the_web_task(sut):
+                assert [s.name for s in sut.web_container.sidecar_containers] == ["datadog-agent"]
+                assert "OTEL_SERVICE_NAME" in sut.web_container.env_vars
+
+            @pulumi.runtime.test
+            def it_adds_the_agent_to_the_worker_task(sut):
+                assert [s.name for s in sut.worker_container.sidecar_containers] == ["datadog-agent"]
+                assert "OTEL_SERVICE_NAME" in sut.worker_container.env_vars
+
+            @pulumi.runtime.test
+            def it_leaves_the_agent_off_the_migration_task(sut):
+                assert sut.migration_container.sidecar_containers == []
+
+            @pulumi.runtime.test
+            def it_leaves_otel_env_vars_off_the_migration_task(sut):
+                assert not any(key.startswith("OTEL_") for key in sut.migration_container.env_vars)
+
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
         assert sut.firewall_rule
