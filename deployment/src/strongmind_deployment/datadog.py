@@ -10,7 +10,7 @@ DD_API_KEY_SECRET_NAME = "datadog/ecs-agent-api-key"
 
 
 def otel_env_vars(service_name, env_name):
-    """OpenTelemetry settings that point the app container at the agent sidecar (ADR-0004)."""
+    """OpenTelemetry settings that point the app container at the agent sidecar."""
     git_sha = os.environ.get('CONTAINER_IMAGE', 'unknown').split(':')[-1]
     return {
         "OTEL_SERVICE_NAME": service_name,

@@ -84,7 +84,7 @@ class RailsComponent(pulumi.ComponentResource):
         :key sidecar_containers: Optional list of additional container definitions to run alongside Rails containers (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Applied to web and worker containers. Defaults to [].
         :key datadog: Whether to run the Datadog agent sidecar on the web and worker containers and point their
-                      OpenTelemetry export at it (ADR-0004). Defaults to False.
+                      OpenTelemetry export at it. Defaults to False.
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.

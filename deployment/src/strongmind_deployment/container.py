@@ -60,7 +60,7 @@ class ContainerComponent(pulumi.ComponentResource):
                                       Should be a list of awsx.ecs.TaskDefinitionPortMappingArgs. Defaults to [].
         :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
-        :key datadog: Whether to run the Datadog agent sidecar and point the app's OpenTelemetry export at it (ADR-0004).
+        :key datadog: Whether to run the Datadog agent sidecar and point the app's OpenTelemetry export at it.
                       The Datadog service name is the Pulumi project name. Defaults to False.
         :key use_nat_gateway: Whether to create a NAT Gateway so ECS tasks have a static outbound IP.
                              Tasks are placed in private subnets and all outbound traffic exits through
