@@ -1,5 +1,7 @@
 # Slack Release Notification
 
+> **Deprecated:** `notify-slack.yml` no longer sends anything. Release notifications come from the EventBridge-triggered Lambda when an ECS deployment completes. Existing calls still work, but don't add new ones.
+
 ## Overview
 Use these instructions to add a step to your production release workflow that notifies #release-notifications of the release.
 

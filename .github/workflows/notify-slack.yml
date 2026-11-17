@@ -24,49 +24,12 @@ permissions:
   contents: read
 
 jobs:
+  # Stub: Slack release notifications come from the EventBridge-triggered Lambda
+  # when an ECS deployment completes. ~19 repos still call this workflow at @main,
+  # so it keeps its inputs and one job that never runs (a reusable workflow needs a job).
   send-slack:
-    # Disabled: Slack notifications are now handled by Lambda function triggered by EventBridge
-    # when ECS deployment completes, not when GitHub Actions finishes
     if: false
     name: Send slack message
     runs-on: ${{ inputs.runner }}
     steps:
-    - name: Checkout
-      uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-      with:
-        fetch-depth: 0
-        ref: ${{github.sha}}
-    - name: Get Commit Message
-      id: get-commit-message
-      run: |
-        delimiter="$(openssl rand -hex 8)"
-        MSG=$(git log --format=%B -n 1 ${{ github.sha }})
-        AUTHOR_NAME=$(git log --format=%an -n 1 ${{ github.sha }})
-        MSG="${MSG//$'\n'/\\n}"
-        MSG="${MSG//\"/\\\"}"
-        echo "message<<${delimiter}" >> "${GITHUB_OUTPUT}"
-        echo "${MSG}" >> "$GITHUB_OUTPUT"
-        echo "${delimiter}" >> "${GITHUB_OUTPUT}"
-        echo "author_name=${AUTHOR_NAME}" >> "${GITHUB_OUTPUT}"
-    - name: Send message to slack
-      id: slack
-      uses: slackapi/slack-github-action@007b2c3c751a190b6f0f040e47ed024deaa72844 # v1.23.0
-      with:
-        payload: |
-          {
-            "repository_url": "${{ github.server_url }}/${{ github.repository }}",
-            "repository_name": "${{ github.event.repository.name }}",
-            "repository_owner": "${{ github.event.repository.owner.login }}",
-            "commit_sha": "${{ github.sha }}",
-            "commit_url": "${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}",
-            "commit_message": "${{ steps.get-commit-message.outputs.message }}",
-            "jira_ticket": "${{ github.event.inputs.jira-ticket }}",
-            "actor": "${{ github.actor }}",
-            "actor_name": "${{ steps.get-commit-message.outputs.author_name }}",
-            "actor_url": "${{ github.server_url }}/${{ github.actor }}",
-            "actor_avatar": "${{ github.event.sender.avatar_url }}",
-            "workflow_url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
-            "workflow_name": "${{ github.workflow }}"
-          }
-      env:
-        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_RELEASE_NOTIFICATIONS_URL }}
+      - run: echo "Disabled; see the comment above."
