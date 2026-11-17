@@ -259,6 +259,16 @@ jobs:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           BUNDLE_RUBYGEMS__PKG__GITHUB__COM: x-access-token:${{ secrets.GITHUB_TOKEN }}
 
+      # Rails creates tmp/local_secret.txt on its first test boot, then writes the key
+      # into it. Processes that boot together (parallel:create, parallel_rspec) can read
+      # it empty in between and fail with "`secret_key_base` for test environment must
+      # be a type of String". Write it once, before any of them start.
+      - name: Create the local secret once
+        if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
+        run: >-
+          ruby -rsecurerandom -rfileutils -e 'f = "tmp/local_secret.txt"; FileUtils.mkdir_p("tmp");
+          File.size?(f) || File.binwrite(f, SecureRandom.hex(64))'
+
       - name: Assets and DB setup
         if: ${{ steps.spec-check.outputs.specs-found == 'true' }}
         run: |
@@ -325,6 +335,13 @@ jobs:
               npm i
               npm run test
           fi
+
+      # Same race as in run-tests-in-folder: write the local secret before parallel boots.
+      - name: Create the local secret once
+        if: ${{ inputs.run-parallel == true }}
+        run: >-
+          ruby -rsecurerandom -rfileutils -e 'f = "tmp/local_secret.txt"; FileUtils.mkdir_p("tmp");
+          File.size?(f) || File.binwrite(f, SecureRandom.hex(64))'
 
       - name: Test in parallel
         if: ${{ inputs.run-parallel == true }}
@@ -434,7 +451,7 @@ jobs:
           name: rspec-shard-plan
           path: tmp/shard-plan/
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 30  # GitHub allows "Re-run failed jobs" for 30 days; the plan must outlive that
 
   run-tests-sharded:
     name: Rspec shard
@@ -476,6 +493,12 @@ jobs:
         env:
           BUNDLE_GEMS__CONTRIBSYS__COM: ${{ secrets.BUNDLE_GEMS__CONTRIBSYS__COM }}
           BUNDLE_RUBYGEMS__PKG__GITHUB__COM: x-access-token:${{ secrets.GITHUB_TOKEN }}
+
+      # Same race as in run-tests-in-folder: write the local secret before parallel boots.
+      - name: Create the local secret once
+        run: >-
+          ruby -rsecurerandom -rfileutils -e 'f = "tmp/local_secret.txt"; FileUtils.mkdir_p("tmp");
+          File.size?(f) || File.binwrite(f, SecureRandom.hex(64))'
 
       - name: Assets and DB setup
         run: |
