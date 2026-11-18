@@ -8,7 +8,11 @@ DD_API_KEY_SECRET_NAME = "datadog/ecs-agent-api-key"
 
 
 def otel_env_vars(service_name, env_name, container_image, health_check_path):
-    """OpenTelemetry settings that point the app container at the agent sidecar."""
+    """OpenTelemetry settings that point the app container at the agent sidecar.
+
+    Values assume the Ruby SDK, which reads OTEL_EXPORTER_OTLP_TIMEOUT in seconds; non-Ruby apps
+    should set their own OTEL_EXPORTER_OTLP_TIMEOUT in env_vars (spec unit is milliseconds).
+    """
     git_sha = container_image.split(':')[-1]
     return {
         "OTEL_SERVICE_NAME": service_name,
