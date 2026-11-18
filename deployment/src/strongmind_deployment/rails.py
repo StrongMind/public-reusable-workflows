@@ -286,14 +286,13 @@ class RailsComponent(pulumi.ComponentResource):
         self.kwargs['worker_autoscale'] = False
 
         # Sidecars stay off: the execution provider reads the first container's exit code.
-        migration_kwargs = {k: v for k, v in self.kwargs.items() if k not in ('sidecar_containers', 'datadog')}
         self.migration_container = ContainerComponent(
             qualify_component_name("migration", self.kwargs),
             need_load_balancer=False,
             desired_count=0,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance]),
-            **migration_kwargs
+            **{**self.kwargs, 'sidecars': False}
         )
 
         subnets = self.kwargs.get(

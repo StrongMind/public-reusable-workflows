@@ -61,7 +61,10 @@ class ContainerComponent(pulumi.ComponentResource):
         :key sidecar_containers: Optional list of additional container definitions to run alongside the main container (e.g., Datadog agent, logging sidecars).
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
         :key datadog: Whether to run the Datadog agent sidecar and point the app's OpenTelemetry export at it.
-                      The Datadog service name is the Pulumi project name. Defaults to False.
+                      The Datadog service name is the Pulumi project name. The OTel values assume the Ruby SDK;
+                      non-Ruby services set their own OTEL_EXPORTER_OTLP_TIMEOUT in env_vars. Defaults to False.
+        :key sidecars: Whether this task runs any sidecars, from sidecar_containers or from flags like datadog.
+                       Set False for one-off tasks whose exit code must come from the app container. Defaults to True.
         :key use_nat_gateway: Whether to create a NAT Gateway so ECS tasks have a static outbound IP.
                              Tasks are placed in private subnets and all outbound traffic exits through
                              the NAT Gateway's Elastic IP. Useful when connecting to external services
@@ -99,7 +102,8 @@ class ContainerComponent(pulumi.ComponentResource):
         self.command = kwargs.get('command')
         self.env_vars = kwargs.get('env_vars', {})
         self.secrets = kwargs.get('secrets', [])
-        self.sidecar_containers = kwargs.get('sidecar_containers', [])
+        self.sidecars = kwargs.get('sidecars', True)
+        self.sidecar_containers = kwargs.get('sidecar_containers', []) if self.sidecars else []
         self.kwargs = kwargs
         self.env_name = os.environ.get('ENVIRONMENT_NAME', 'stage')
         self.autoscaling_target = None
@@ -131,7 +135,7 @@ class ContainerComponent(pulumi.ComponentResource):
             owning_team = [line.strip().split('@')[-1] for line in file if '@' in line][-1].split('/')[1]
 
         self.tags = component_tags(project, self.env_name, owning_team)
-        if kwargs.get('datadog', False):
+        if self.sidecars and kwargs.get('datadog', False):
             self.add_datadog()
         self.ecs_cluster_arn = kwargs.get('ecs_cluster_arn')
 

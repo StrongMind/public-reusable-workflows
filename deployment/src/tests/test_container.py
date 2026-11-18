@@ -1284,6 +1284,34 @@ def describe_container():
                     with pytest.raises(ValueError, match="datadog-agent"):
                         strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
 
+            def describe_with_an_image_that_is_not_a_string():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["container_image"] = pulumi.Output.from_input("app:abc123")
+                    return component_kwargs
+
+                def it_says_it_needs_a_repo_tag_string(component_kwargs):
+                    import strongmind_deployment.container
+                    with pytest.raises(ValueError, match="'repo:tag' string"):
+                        strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+
+            def describe_with_sidecars_off():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["sidecars"] = False
+                    component_kwargs["sidecar_containers"] = [
+                        awsx.ecs.TaskDefinitionContainerDefinitionArgs(name="wiz-sensor", image="wiz:1", memory=128)
+                    ]
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_runs_no_sidecars(sut):
+                    assert sut.sidecar_containers == []
+
+                @pulumi.runtime.test
+                def it_adds_no_otel_env_vars(sut):
+                    assert not any(key.startswith("OTEL_") for key in sut.env_vars)
+
     def describe_unhealthy_host_metric_alarm():
         @pulumi.runtime.test
         def it_exits(sut):
