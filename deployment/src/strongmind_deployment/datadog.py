@@ -13,6 +13,8 @@ def otel_env_vars(service_name, env_name, container_image, health_check_path):
     Values assume the Ruby SDK, which reads OTEL_EXPORTER_OTLP_TIMEOUT in seconds; non-Ruby apps
     should set their own OTEL_EXPORTER_OTLP_TIMEOUT in env_vars (spec unit is milliseconds).
     """
+    if not isinstance(container_image, str):
+        raise ValueError("datadog=True needs container_image as a 'repo:tag' string; the tag becomes service.version")
     git_sha = container_image.split(':')[-1]
     return {
         "OTEL_SERVICE_NAME": service_name,
