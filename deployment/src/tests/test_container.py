@@ -1129,8 +1129,188 @@ def describe_container():
                                 log_group = log_config['options']['awslogs-group']
                                 expected = f"/ecs/{app_name}-{stack}-datadog-agent"
                                 assert log_group == expected, f"Expected {expected}, got {log_group}"
-                
+
                 return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check_log_group)
+
+        def describe_without_datadog():
+            @pulumi.runtime.test
+            def it_adds_no_sidecar(sut):
+                assert sut.sidecar_containers == []
+
+            @pulumi.runtime.test
+            def it_adds_no_otel_env_vars(sut, env_vars):
+                assert sut.env_vars == env_vars
+
+            @pulumi.runtime.test
+            def it_keeps_a_single_container_task(sut):
+                def check(args):
+                    task_definition = args[0]
+                    assert "container" in task_definition
+                    assert task_definition.get("containers") is None
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check)
+
+        def describe_with_datadog():
+            @pytest.fixture
+            def git_sha(faker):
+                return faker.sha1()
+
+            @pytest.fixture
+            def component_kwargs(component_kwargs, git_sha):
+                component_kwargs["container_image"] = f"123.dkr.ecr.us-west-2.amazonaws.com/app:{git_sha}"
+                component_kwargs["datadog"] = True
+                return component_kwargs
+
+            @pytest.fixture
+            def agent(sut):
+                return sut.sidecar_containers[-1]
+
+            @pulumi.runtime.test
+            def it_adds_the_datadog_agent_sidecar(sut, agent):
+                assert len(sut.sidecar_containers) == 1
+                assert agent.name == "datadog-agent"
+                assert agent.image == "gcr.io/datadoghq/agent:7.84.5"
+
+            @pulumi.runtime.test
+            def it_reserves_no_cpu_for_the_agent(agent):
+                assert agent.cpu == 0
+                assert agent.memory == 256
+
+            @pulumi.runtime.test
+            def it_does_not_stop_the_task_when_the_agent_stops(agent):
+                assert agent.essential is False
+
+            @pulumi.runtime.test
+            def it_tags_the_agent_with_the_environment(agent, environment):
+                assert {"name": "DD_ENV", "value": environment} in agent.environment
+
+            @pulumi.runtime.test
+            def it_listens_for_otlp_on_localhost_only(agent):
+                assert {"name": "DD_OTLP_CONFIG_RECEIVER_PROTOCOLS_HTTP_ENDPOINT", "value": "localhost:4318"} in agent.environment
+
+            @pulumi.runtime.test
+            def it_reads_the_api_key_from_the_shared_secret(agent):
+                def check(arn):
+                    assert ":secret:datadog/ecs-agent-api-key-" in arn
+                secret = agent.secrets[0]
+                assert secret["name"] == "DD_API_KEY"
+                return pulumi.Output.from_input(secret["valueFrom"]).apply(check)
+
+            @pulumi.runtime.test
+            def it_names_the_service_after_the_project(sut, app_name):
+                assert sut.env_vars["OTEL_SERVICE_NAME"] == app_name
+
+            @pulumi.runtime.test
+            def it_exports_to_the_agent_sidecar(sut):
+                assert sut.env_vars["OTEL_EXPORTER_OTLP_ENDPOINT"] == "http://localhost:4318"
+                assert sut.env_vars["OTEL_EXPORTER_OTLP_PROTOCOL"] == "http/protobuf"
+
+            @pulumi.runtime.test
+            def it_stamps_environment_and_version(sut, environment, git_sha):
+                assert sut.env_vars["OTEL_RESOURCE_ATTRIBUTES"] == (
+                    f"deployment.environment.name={environment},service.version={git_sha}"
+                )
+
+            @pulumi.runtime.test
+            def it_keeps_the_apps_own_env_vars(sut, env_vars):
+                assert env_vars.items() <= sut.env_vars.items()
+
+            @pulumi.runtime.test
+            def it_skips_tracing_the_default_health_check(sut):
+                assert sut.env_vars["OTEL_RUBY_INSTRUMENTATION_RACK_CONFIG_OPTS"] == "untraced_endpoints=/up"
+
+            @pulumi.runtime.test
+            def it_puts_the_otel_env_vars_in_the_app_container(sut, app_name, stack):
+                def check(args):
+                    environment = args[0]["containers"][f"{app_name}-{stack}"]["environment"]
+                    assert {"name": "OTEL_SERVICE_NAME", "value": app_name} in environment
+                    assert {"name": "OTEL_EXPORTER_OTLP_ENDPOINT", "value": "http://localhost:4318"} in environment
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check)
+
+            @pulumi.runtime.test
+            def it_puts_both_containers_in_the_task(sut, app_name, stack):
+                def check(args):
+                    containers = args[0]["containers"]
+                    assert set(containers) == {f"{app_name}-{stack}", "datadog-agent"}
+                    assert containers["datadog-agent"]["cpu"] == 0
+                return pulumi.Output.all(sut.fargate_service.task_definition_args).apply(check)
+
+            @pulumi.runtime.test
+            def it_gives_the_agent_its_own_log_group(sut, app_name, stack):
+                return assert_output_equals(sut.sidecar_log_groups[0].name, f"/ecs/{app_name}-{stack}-datadog-agent")
+
+            def describe_with_custom_health_check_path():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["custom_health_check_path"] = "/health_check"
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_skips_tracing_that_path(sut):
+                    assert sut.env_vars["OTEL_RUBY_INSTRUMENTATION_RACK_CONFIG_OPTS"] == "untraced_endpoints=/health_check"
+
+            def describe_when_the_app_sets_an_otel_var():
+                @pytest.fixture
+                def env_vars(env_vars):
+                    return {**env_vars, "OTEL_SERVICE_NAME": "kong"}
+
+                @pulumi.runtime.test
+                def it_keeps_the_apps_value(sut):
+                    assert sut.env_vars["OTEL_SERVICE_NAME"] == "kong"
+
+            def describe_with_other_sidecars():
+                @pytest.fixture
+                def other_sidecar():
+                    return awsx.ecs.TaskDefinitionContainerDefinitionArgs(name="wiz-sensor", image="wiz:1", memory=128)
+
+                @pytest.fixture
+                def component_kwargs(component_kwargs, other_sidecar):
+                    component_kwargs["sidecar_containers"] = [other_sidecar]
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_keeps_them_and_adds_the_agent(sut, other_sidecar):
+                    assert [s.name for s in sut.sidecar_containers] == ["wiz-sensor", "datadog-agent"]
+
+            def describe_with_a_datadog_agent_already_in_sidecar_containers():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["sidecar_containers"] = [
+                        awsx.ecs.TaskDefinitionContainerDefinitionArgs(name="datadog-agent", image="gcr.io/datadoghq/agent:7", memory=256)
+                    ]
+                    return component_kwargs
+
+                def it_refuses_to_run_two_agents(component_kwargs):
+                    import strongmind_deployment.container
+                    with pytest.raises(ValueError, match="datadog-agent"):
+                        strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+
+            def describe_with_an_image_that_is_not_a_string():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["container_image"] = pulumi.Output.from_input("app:abc123")
+                    return component_kwargs
+
+                def it_says_it_needs_a_repo_tag_string(component_kwargs):
+                    import strongmind_deployment.container
+                    with pytest.raises(ValueError, match="'repo:tag' string"):
+                        strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+
+            def describe_with_sidecars_off():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs["sidecars"] = False
+                    component_kwargs["sidecar_containers"] = [
+                        awsx.ecs.TaskDefinitionContainerDefinitionArgs(name="wiz-sensor", image="wiz:1", memory=128)
+                    ]
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_runs_no_sidecars(sut):
+                    assert sut.sidecar_containers == []
+
+                @pulumi.runtime.test
+                def it_adds_no_otel_env_vars(sut):
+                    assert not any(key.startswith("OTEL_") for key in sut.env_vars)
 
     def describe_unhealthy_host_metric_alarm():
         @pulumi.runtime.test
