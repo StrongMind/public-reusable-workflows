@@ -842,6 +842,21 @@ def describe_a_pulumi_rails_component():
             def it_leaves_otel_env_vars_off_the_migration_task(sut):
                 assert not any(key.startswith("OTEL_") for key in sut.migration_container.env_vars)
 
+            def describe_with_datadog_notify_in_prod():
+                @pytest.fixture
+                def component_kwargs(component_kwargs, monkeypatch):
+                    monkeypatch.setenv("ENVIRONMENT_NAME", "prod")
+                    component_kwargs['datadog_notify'] = "@slack-alerts-team-xxx"
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_creates_the_monitor_on_the_web_container(sut):
+                    assert sut.web_container.error_monitor
+
+                @pulumi.runtime.test
+                def it_creates_no_second_monitor_on_the_worker(sut):
+                    assert not hasattr(sut.worker_container, "error_monitor")
+
             def describe_with_a_separate_worker_image():
                 @pytest.fixture
                 def worker_sha(faker, monkeypatch):

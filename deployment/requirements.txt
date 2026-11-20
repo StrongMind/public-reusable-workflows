@@ -4,6 +4,7 @@ pytest-watch==4.2.0
 pulumi-aws
 pulumi-awsx
 pulumi-cloudflare
+pulumi-datadog
 pulumi-random
 boto3
 setuptools<81

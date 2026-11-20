@@ -21,6 +21,7 @@ dependencies = [
     "pulumi",
     "pulumi-aws",
     "pulumi-awsx",
+    "pulumi-datadog",
     "pulumi-random",
     "boto3",
     "setuptools<81",

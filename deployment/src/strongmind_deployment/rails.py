@@ -85,6 +85,8 @@ class RailsComponent(pulumi.ComponentResource):
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Applied to web and worker containers. Defaults to [].
         :key datadog: Whether to run the Datadog agent sidecar on the web and worker containers and point their
                       OpenTelemetry export at it. Defaults to False.
+        :key datadog_notify: With datadog=True in prod, a Datadog notification handle (e.g. "@slack-alerts-team-xxx")
+                             to alert on each new Error Tracking issue. The web container creates the one monitor.
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
@@ -362,11 +364,12 @@ class RailsComponent(pulumi.ComponentResource):
             'PROCESS_TYPE': 'worker'
         })
 
+        worker_kwargs = {k: v for k, v in self.kwargs.items() if k != 'datadog_notify'}
         self.worker_container = ContainerComponent(qualify_component_name("worker", self.kwargs),
                                                    pulumi.ResourceOptions(parent=self,
                                                                           depends_on=[self.execution]
                                                                           ),
-                                                   **self.kwargs
+                                                   **worker_kwargs
                                                    )
         self.kwargs['log_metric_filters'] = []
 
