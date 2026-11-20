@@ -1,6 +1,26 @@
+import re
 import subprocess
 import pulumi_aws as aws
 import pulumi
+
+CODEOWNERS_TEAM = re.compile(r'@[\w.-]+/([\w.-]+)')
+
+
+def get_service_owner_team() -> str:
+    """The team on the repo's CODEOWNERS catch-all line; it is also the service's Datadog team handle."""
+    path = subprocess.check_output(['git', 'rev-parse', '--show-toplevel']).decode('utf-8').strip()
+    with open(f"{path}/CODEOWNERS", 'r') as file:
+        return service_owner_team(file.read())
+
+
+def service_owner_team(codeowners: str) -> str:
+    catch_all = [line for line in codeowners.splitlines() if line.split()[:1] == ['*']]
+    teams = CODEOWNERS_TEAM.findall(catch_all[-1]) if catch_all else []
+    if len(teams) != 1:
+        raise ValueError("CODEOWNERS needs one team on its `*` line (e.g. `* @StrongMind/xxx`); "
+                         "datadog=True alerts that team's Datadog handle")
+    return teams[0].lower()
+
 
 def get_code_owner_team_name()-> str:
     """

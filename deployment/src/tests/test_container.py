@@ -8,6 +8,7 @@ import pytest
 from moto import mock_aws
 from pytest_describe import behaves_like
 
+from strongmind_deployment import operations
 from tests.a_pulumi_containerized_app import a_pulumi_containerized_app
 from tests.shared import assert_output_equals, assert_outputs_equal
 
@@ -1239,53 +1240,63 @@ def describe_container():
                 return assert_output_equals(sut.sidecar_log_groups[0].name, f"/ecs/{app_name}-{stack}-datadog-agent")
 
             @pulumi.runtime.test
-            def it_creates_no_error_monitor_without_datadog_team(sut):
+            def it_creates_no_error_monitor_outside_prod(sut):
                 assert not hasattr(sut, "error_monitor")
 
-            def describe_with_datadog_team():
+            def it_fails_the_deploy_in_any_environment_without_a_codeowners_team(component_kwargs, monkeypatch):
+                import strongmind_deployment.container
+
+                def no_team():
+                    raise ValueError("CODEOWNERS needs one team on its `*` line")
+                monkeypatch.setattr(operations, "get_service_owner_team", no_team)
+                with pytest.raises(ValueError, match="CODEOWNERS"):
+                    strongmind_deployment.container.ContainerComponent("container", **component_kwargs)
+
+            def describe_in_prod():
                 @pytest.fixture
                 def team():
-                    return "xxx"
+                    return "steakholders"
 
                 @pytest.fixture
-                def component_kwargs(component_kwargs, team):
-                    component_kwargs["datadog_team"] = team
-                    return component_kwargs
+                def environment(monkeypatch, team):
+                    monkeypatch.setattr(operations, "get_service_owner_team", lambda: team)
+                    os.environ["ENVIRONMENT_NAME"] = "prod"
+                    return "prod"
+
+                @pytest.fixture
+                def monitor(sut):
+                    return sut.error_monitor
 
                 @pulumi.runtime.test
-                def it_creates_no_monitor_outside_prod(sut):
-                    assert not hasattr(sut, "error_monitor")
+                def it_alerts_on_new_error_tracking_issues_for_the_service(monitor, app_name):
+                    def check(args):
+                        monitor_type, query = args
+                        assert monitor_type == "error-tracking alert"
+                        assert query == (
+                            f'error-tracking("service:{app_name} env:prod").source("all")'
+                            '.new().rollup("count").by("issue.id").last("1d") > 0'
+                        )
+                    return pulumi.Output.all(monitor.type, monitor.query).apply(check)
 
-                def describe_in_prod():
+                @pulumi.runtime.test
+                def it_notifies_the_codeowners_team(monitor, team):
+                    return monitor.message.apply(lambda message: assertion(f"@team-{team}\n" in message))
+
+                @pulumi.runtime.test
+                def it_tags_the_service_environment_and_team(monitor, app_name, team):
+                    def check(tags):
+                        assert sorted(tags) == sorted([f"service:{app_name}", "env:prod", f"team:{team}"])
+                    return monitor.tags.apply(check)
+
+                def describe_when_told_not_to():
                     @pytest.fixture
-                    def environment():
-                        os.environ["ENVIRONMENT_NAME"] = "prod"
-                        return "prod"
-
-                    @pytest.fixture
-                    def monitor(sut):
-                        return sut.error_monitor
+                    def component_kwargs(component_kwargs):
+                        component_kwargs["datadog_error_monitor"] = False
+                        return component_kwargs
 
                     @pulumi.runtime.test
-                    def it_alerts_on_new_error_tracking_issues_for_the_service(monitor, app_name):
-                        def check(args):
-                            monitor_type, query = args
-                            assert monitor_type == "error-tracking alert"
-                            assert query == (
-                                f'error-tracking("service:{app_name} env:prod").source("all")'
-                                '.new().rollup("count").by("issue.id").last("1d") > 0'
-                            )
-                        return pulumi.Output.all(monitor.type, monitor.query).apply(check)
-
-                    @pulumi.runtime.test
-                    def it_notifies_the_team(monitor, team):
-                        return monitor.message.apply(lambda message: assertion(f"@team-{team}\n" in message))
-
-                    @pulumi.runtime.test
-                    def it_tags_the_service_environment_and_team(monitor, app_name, team):
-                        def check(tags):
-                            assert sorted(tags) == sorted([f"service:{app_name}", "env:prod", f"team:{team}"])
-                        return monitor.tags.apply(check)
+                    def it_creates_no_monitor(sut):
+                        assert not hasattr(sut, "error_monitor")
 
             def describe_with_custom_health_check_path():
                 @pytest.fixture

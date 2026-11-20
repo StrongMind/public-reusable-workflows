@@ -62,9 +62,9 @@ class ContainerComponent(pulumi.ComponentResource):
                                 Each should be a TaskDefinitionContainerDefinitionArgs object. Defaults to [].
         :key datadog: Whether to run the Datadog agent sidecar and point the app's OpenTelemetry export at it.
                       The Datadog service name is the Pulumi project name. The OTel values assume the Ruby SDK;
-                      non-Ruby services set their own OTEL_EXPORTER_OTLP_TIMEOUT in env_vars. Defaults to False.
-        :key datadog_team: With datadog=True in prod, the owning Datadog team's handle (e.g. "xxx"). Creates a monitor
-                           that alerts @team-<handle> on each new Error Tracking issue. Defaults to no monitor.
+                      non-Ruby services set their own OTEL_EXPORTER_OTLP_TIMEOUT in env_vars. In prod it also creates
+                      a monitor that alerts @team-<team> on each new Error Tracking issue, where <team> is the one team
+                      on the CODEOWNERS `*` line. Defaults to False.
         :key sidecars: Whether this task runs any sidecars, from sidecar_containers or from flags like datadog.
                        Set False for one-off tasks whose exit code must come from the app container. Defaults to True.
         :key use_nat_gateway: Whether to create a NAT Gateway so ECS tasks have a static outbound IP.
@@ -469,8 +469,8 @@ class ContainerComponent(pulumi.ComponentResource):
         otel_env_vars = datadog.otel_env_vars(self.tags['app'], self.env_name, self.container_image, health_check_path)
         self.env_vars = {**otel_env_vars, **self.env_vars}
         self.sidecar_containers = [*self.sidecar_containers, datadog.agent_sidecar(self.env_name)]
-        team = self.kwargs.get('datadog_team')
-        if team and self.env_name == 'prod':
+        team = operations.get_service_owner_team()
+        if self.kwargs.get('datadog_error_monitor', True) and self.env_name == 'prod':
             self.error_monitor = datadog.error_monitor(self.namespace, self.tags['app'], self.env_name, team,
                                                        parent=self)
 
