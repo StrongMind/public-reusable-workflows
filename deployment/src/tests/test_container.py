@@ -1239,17 +1239,17 @@ def describe_container():
                 return assert_output_equals(sut.sidecar_log_groups[0].name, f"/ecs/{app_name}-{stack}-datadog-agent")
 
             @pulumi.runtime.test
-            def it_creates_no_error_monitor_without_datadog_notify(sut):
+            def it_creates_no_error_monitor_without_datadog_team(sut):
                 assert not hasattr(sut, "error_monitor")
 
-            def describe_with_datadog_notify():
+            def describe_with_datadog_team():
                 @pytest.fixture
-                def notify():
-                    return "@slack-alerts-team-xxx"
+                def team():
+                    return "xxx"
 
                 @pytest.fixture
-                def component_kwargs(component_kwargs, notify):
-                    component_kwargs["datadog_notify"] = notify
+                def component_kwargs(component_kwargs, team):
+                    component_kwargs["datadog_team"] = team
                     return component_kwargs
 
                 @pulumi.runtime.test
@@ -1278,15 +1278,13 @@ def describe_container():
                         return pulumi.Output.all(monitor.type, monitor.query).apply(check)
 
                     @pulumi.runtime.test
-                    def it_notifies_the_handle(monitor, notify):
-                        return monitor.message.apply(lambda message: assertion(notify in message))
+                    def it_notifies_the_team(monitor, team):
+                        return monitor.message.apply(lambda message: assertion(f"@team-{team}\n" in message))
 
                     @pulumi.runtime.test
-                    def it_tags_the_service_environment_and_owner(monitor, app_name):
+                    def it_tags_the_service_environment_and_team(monitor, app_name, team):
                         def check(tags):
-                            assert f"service:{app_name}" in tags
-                            assert "env:prod" in tags
-                            assert any(tag.startswith("owner:") for tag in tags)
+                            assert sorted(tags) == sorted([f"service:{app_name}", "env:prod", f"team:{team}"])
                         return monitor.tags.apply(check)
 
             def describe_with_custom_health_check_path():

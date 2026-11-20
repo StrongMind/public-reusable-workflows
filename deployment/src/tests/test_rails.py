@@ -842,11 +842,11 @@ def describe_a_pulumi_rails_component():
             def it_leaves_otel_env_vars_off_the_migration_task(sut):
                 assert not any(key.startswith("OTEL_") for key in sut.migration_container.env_vars)
 
-            def describe_with_datadog_notify_in_prod():
+            def describe_with_datadog_team_in_prod():
                 @pytest.fixture
                 def component_kwargs(component_kwargs, monkeypatch):
                     monkeypatch.setenv("ENVIRONMENT_NAME", "prod")
-                    component_kwargs['datadog_notify'] = "@slack-alerts-team-xxx"
+                    component_kwargs['datadog_team'] = "xxx"
                     return component_kwargs
 
                 @pulumi.runtime.test

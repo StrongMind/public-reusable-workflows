@@ -62,8 +62,8 @@ def agent_sidecar(env_name):
     )
 
 
-def error_monitor(name, service_name, env_name, notify, owner, parent):
-    """Alerts `notify` on each new Datadog Error Tracking issue for the service in this environment."""
+def error_monitor(name, service_name, env_name, team, parent):
+    """Alerts the Datadog team's notification channel on each new Error Tracking issue for the service."""
     provider = pulumi_datadog.Provider(
         f"{name}-datadog",
         api_key=_secret_string(MONITORS_API_KEY_SECRET_NAME),
@@ -84,11 +84,11 @@ def error_monitor(name, service_name, env_name, notify, owner, parent):
             "```\n"
             "{{issue.attributes.error.type}}: {{issue.attributes.error.message}}\n"
             "```\n\n"
-            f"{notify}\n"
+            f"@team-{team}\n"
             "{{/is_alert}}\n\n"
             "Mark the issue as Reviewed to stop receiving this alert."
         ),
-        tags=[f"service:{service_name}", f"env:{env_name}", f"owner:{owner}"],
+        tags=[f"service:{service_name}", f"env:{env_name}", f"team:{team}"],
         priority="3",
         include_tags=False,
         notify_audit=False,
