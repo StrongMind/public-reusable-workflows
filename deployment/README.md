@@ -3,6 +3,20 @@
 ## What?
 Deployment scripts for StrongMind, using Pulumi.
 
+## Datadog
+`datadog=True` on `ContainerComponent` or `RailsComponent` runs the Datadog agent as a sidecar and points the app's OpenTelemetry export at it. The app still has to send traces; Rails apps call `PlatformSdk::Observability::Otel.setup` from the Ruby SDK.
+
+In prod, `datadog=True` also creates a monitor that alerts the owning team on every new Error Tracking issue. The owning team is the one GitHub team on the repo's CODEOWNERS `*` line:
+
+```
+* @StrongMind/steakholders
+```
+
+* That team's Datadog handle must be the same as its GitHub team slug, lower-cased (see the [Teams page](https://app.datadoghq.com/organization-settings/teams)). The monitor is tagged `team:<slug>` and mentions `@team-<slug>`, which Datadog sends to the channel set under that team's Settings → Notifications.
+* Without exactly one team on the `*` line, any `datadog=True` deploy fails with a message saying so, stage included, so it's caught before prod. People on the line are ignored; path rules like `/db/migrate/*` don't count.
+* To move a service to another team, change its `*` line; the next deploy moves the alert. To change where a team's alerts go, change its Notifications setting in Datadog; no deploy needed.
+* Stage gets no monitor. An app moving from its own `monitors.py` should delete that monitor in the same change, or the team gets two alerts per issue.
+
 ## Development
 Write pytest tests for functionality you need. When you need to use this with real AWS resources in a development environment, you'll need to follow these steps.
 

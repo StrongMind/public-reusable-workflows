@@ -1,10 +1,14 @@
+import pulumi
 import pulumi_aws as aws
 import pulumi_awsx as awsx
+import pulumi_datadog
 
 OTLP_HTTP_PORT = 4318
 AGENT_CONTAINER_NAME = "datadog-agent"
 AGENT_IMAGE = "gcr.io/datadoghq/agent:7.84.5"
 DD_API_KEY_SECRET_NAME = "datadog/ecs-agent-api-key"
+MONITORS_API_KEY_SECRET_NAME = "datadog/pulumi-monitors-api-key"
+MONITORS_APP_KEY_SECRET_NAME = "datadog/pulumi-monitors-app-key"
 
 
 def otel_env_vars(service_name, env_name, container_image, health_check_path):
@@ -56,3 +60,42 @@ def agent_sidecar(env_name):
             options={"awslogs-region": "us-west-2", "awslogs-stream-prefix": AGENT_CONTAINER_NAME},
         ),
     )
+
+
+def error_monitor(name, service_name, env_name, team, parent):
+    """Alerts the Datadog team's notification channel on each new Error Tracking issue for the service."""
+    provider = pulumi_datadog.Provider(
+        f"{name}-datadog",
+        api_key=_secret_string(MONITORS_API_KEY_SECRET_NAME),
+        app_key=_secret_string(MONITORS_APP_KEY_SECRET_NAME),
+        opts=pulumi.ResourceOptions(parent=parent),
+    )
+    return pulumi_datadog.Monitor(
+        f"{name}-new-error",
+        name=f"{service_name}: [{{{{ issue.alert_reason }}}}] New issue to review",
+        type="error-tracking alert",
+        query=(
+            f'error-tracking("service:{service_name} env:{env_name}").source("all")'
+            '.new().rollup("count").by("issue.id").last("1d") > 0'
+        ),
+        message=(
+            f"A new [issue]({{{{ issue.link }}}}) was detected in {service_name} {env_name}.\n\n"
+            "{{#is_alert}}\n"
+            "```\n"
+            "{{issue.attributes.error.type}}: {{issue.attributes.error.message}}\n"
+            "```\n\n"
+            f"@team-{team}\n"
+            "{{/is_alert}}\n\n"
+            "Mark the issue as Reviewed to stop receiving this alert."
+        ),
+        tags=[f"service:{service_name}", f"env:{env_name}", f"team:{team}"],
+        priority="3",
+        include_tags=False,
+        notify_audit=False,
+        monitor_thresholds=pulumi_datadog.MonitorMonitorThresholdsArgs(critical="0"),
+        opts=pulumi.ResourceOptions(parent=parent, provider=provider),
+    )
+
+
+def _secret_string(secret_name):
+    return pulumi.Output.secret(aws.secretsmanager.get_secret_version_output(secret_id=secret_name).secret_string)
