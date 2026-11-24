@@ -85,7 +85,7 @@ jobs:
         with:
           role-to-assume: ${{inputs.role_to_assume}}
           aws-region: ${{inputs.aws_region}}
-      - uses: pulumi/actions@cd99a7f8865434dd3532b586a26f9ebea596894f # v5.5.1
+      - uses: pulumi/actions@96c7761824268174e0d2a4e8c7d75671eebd24a7 # v7.1.0
         with:
           command: ${{inputs.pulumi_command}}
           stack-name: ${{ inputs.pulumi_stack }}
