@@ -16,6 +16,7 @@ In prod, `datadog=True` also creates a monitor that alerts the owning team on ev
 * Without exactly one team on the `*` line, any `datadog=True` deploy fails with a message saying so, stage included, so it's caught before prod. People on the line are ignored; path rules like `/db/migrate/*` don't count.
 * To move a service to another team, change its `*` line; the next deploy moves the alert. To change where a team's alerts go, change its Notifications setting in Datadog; no deploy needed.
 * Stage gets no monitor. An app moving from its own `monitors.py` should delete that monitor in the same change, or the team gets two alerts per issue.
+* `datadog_error_monitor=False` skips the monitor for a container that shouldn't get its own, like a second `datadog=True` container in the same service (`RailsComponent` already does this for its worker). The CODEOWNERS check still runs.
 
 ## Development
 Write pytest tests for functionality you need. When you need to use this with real AWS resources in a development environment, you'll need to follow these steps.

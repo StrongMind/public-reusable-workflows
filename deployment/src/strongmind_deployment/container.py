@@ -65,6 +65,8 @@ class ContainerComponent(pulumi.ComponentResource):
                       non-Ruby services set their own OTEL_EXPORTER_OTLP_TIMEOUT in env_vars. In prod it also creates
                       a monitor that alerts @team-<team> on each new Error Tracking issue, where <team> is the one team
                       on the CODEOWNERS `*` line. Defaults to False.
+        :key datadog_error_monitor: With datadog=True, False skips that prod monitor (for a second container in the
+                                    same service). The CODEOWNERS check still runs. Defaults to True.
         :key sidecars: Whether this task runs any sidecars, from sidecar_containers or from flags like datadog.
                        Set False for one-off tasks whose exit code must come from the app container. Defaults to True.
         :key use_nat_gateway: Whether to create a NAT Gateway so ECS tasks have a static outbound IP.
