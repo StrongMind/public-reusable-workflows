@@ -903,11 +903,20 @@ def describe_a_pulumi_rails_component():
                 return _check_postgres_rule(sut.web_firewall_rule, sut.web_container, sut.rds_serverless_cluster)
 
             @pulumi.runtime.test
-            def it_uses_the_web_service_group_not_the_migration_group(sut, ecs_security_groups):
+            def it_uses_the_web_services_own_group(sut, ecs_security_groups):
+                # The mock gives each Fargate service the group "sg-<service name>".
                 def check(source_group):
+                    assert source_group == f"sg-{sut.web_container.namespace}"
                     assert source_group not in ecs_security_groups
 
                 return sut.web_firewall_rule.source_security_group_id.apply(check)
+
+            def describe_with_a_nat_gateway():
+                def it_refuses_the_combination(pulumi_set_mocks, component_kwargs):
+                    import strongmind_deployment.rails
+                    component_kwargs['use_nat_gateway'] = True
+                    with pytest.raises(ValueError, match='use_nat_gateway'):
+                        strongmind_deployment.rails.RailsComponent("rails", **component_kwargs)
 
             def describe_with_a_worker():
                 @pytest.fixture
@@ -924,6 +933,7 @@ def describe_a_pulumi_rails_component():
                 def it_gives_the_worker_its_own_rule(sut):
                     def check(values):
                         web_source, worker_source = values
+                        assert worker_source == f"sg-{sut.worker_container.namespace}"
                         assert web_source != worker_source
 
                     return pulumi.Output.all(
