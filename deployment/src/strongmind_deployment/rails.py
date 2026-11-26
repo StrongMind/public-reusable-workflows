@@ -88,6 +88,11 @@ class RailsComponent(pulumi.ComponentResource):
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
+        :key allow_db_from_web_and_worker: Whether to add Postgres ingress rules on the database security group for the web
+                                           and worker services' own security groups. Defaults to False, which admits only
+                                           the migration service's group, so web and worker reach the database only if
+                                           another rule (for example a VPC CIDR rule) allows them. Each enabled stack adds
+                                           up to two rules to the database group; check its inbound-rule quota first.
         :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
                       These tags are merged with the default tags (product, repository, service, environment, owner).
         """
@@ -103,6 +108,8 @@ class RailsComponent(pulumi.ComponentResource):
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
+        self.web_firewall_rule = None
+        self.worker_firewall_rule = None
         self.web_container = None
         self.worker_container = None
         self.secret = None
@@ -236,6 +243,34 @@ class RailsComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance,
                                                     self.web_container])
+        )
+
+        # The rule above admits the migration task's security group. The web and worker
+        # services each get their own security group from awsx, so they need their own rules.
+        # Opt-in: many stacks share their VPC's default group for the database, and adding up to
+        # two rules per stack there can hit the 60-inbound-rules-per-group quota.
+        if not self.kwargs.get('allow_db_from_web_and_worker', False):
+            return
+        self.web_firewall_rule = self._allow_postgres_from_container('web', self.web_container)
+        if self.worker_container:
+            self.worker_firewall_rule = self._allow_postgres_from_container('worker', self.worker_container)
+
+    def _allow_postgres_from_container(self, role, container):
+        # With a NAT gateway the service runs without its own security group (it falls back to
+        # the VPC default group), so there is no group to reference here.
+        if container.use_nat_gateway:
+            return None
+        return aws.ec2.SecurityGroupRule(
+            qualify_component_name(f'{role}_rds_security_group_rule', self.kwargs),
+            type='ingress',
+            from_port=5432,
+            to_port=5432,
+            protocol='tcp',
+            description=f'Postgres from the {role} service',
+            security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
+            source_security_group_id=container.fargate_service.service.network_configuration.security_groups[0],
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[self.rds_serverless_cluster_instance, container])
         )
 
     def ecs(self):

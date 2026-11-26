@@ -860,6 +860,88 @@ def describe_a_pulumi_rails_component():
                         f"service.version={container_image.split(':')[-1]}"
                     )
 
+    def describe_rds_access_for_the_web_and_worker_services():
+        def _check_postgres_rule(rule, container, rds_cluster):
+            def check(values):
+                rds_group, target_group, source_group, service_group, from_port, to_port, protocol, rule_type = values
+                assert target_group == rds_group
+                assert source_group == service_group
+                assert (from_port, to_port, protocol, rule_type) == (5432, 5432, 'tcp', 'ingress')
+
+            return pulumi.Output.all(
+                rds_cluster.vpc_security_group_ids[0],
+                rule.security_group_id,
+                rule.source_security_group_id,
+                container.fargate_service.service.network_configuration.security_groups[0],
+                rule.from_port,
+                rule.to_port,
+                rule.protocol,
+                rule.type,
+            ).apply(check)
+
+        def describe_by_default():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['need_worker'] = True
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_adds_no_web_or_worker_rules(sut):
+                assert sut.worker_container is not None
+                assert sut.web_firewall_rule is None
+                assert sut.worker_firewall_rule is None
+
+        def describe_when_opted_in():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['allow_db_from_web_and_worker'] = True
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_allows_the_web_service_to_reach_rds(sut):
+                assert sut.web_firewall_rule
+                return _check_postgres_rule(sut.web_firewall_rule, sut.web_container, sut.rds_serverless_cluster)
+
+            @pulumi.runtime.test
+            def it_uses_the_web_service_group_not_the_migration_group(sut, ecs_security_groups):
+                def check(source_group):
+                    assert source_group not in ecs_security_groups
+
+                return sut.web_firewall_rule.source_security_group_id.apply(check)
+
+            def describe_with_a_worker():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs['need_worker'] = True
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_allows_the_worker_service_to_reach_rds(sut):
+                    assert sut.worker_firewall_rule
+                    return _check_postgres_rule(sut.worker_firewall_rule, sut.worker_container, sut.rds_serverless_cluster)
+
+                @pulumi.runtime.test
+                def it_gives_the_worker_its_own_rule(sut):
+                    def check(values):
+                        web_source, worker_source = values
+                        assert web_source != worker_source
+
+                    return pulumi.Output.all(
+                        sut.web_firewall_rule.source_security_group_id,
+                        sut.worker_firewall_rule.source_security_group_id,
+                    ).apply(check)
+
+            def describe_without_a_worker():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs['need_worker'] = False
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_does_not_add_a_worker_rule(sut):
+                    assert sut.worker_container is None
+                    assert sut.worker_firewall_rule is None
+
     @pulumi.runtime.test
     def it_allows_container_to_talk_to_rds(sut, ecs_security_groups):
         assert sut.firewall_rule
