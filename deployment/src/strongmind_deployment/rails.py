@@ -90,8 +90,10 @@ class RailsComponent(pulumi.ComponentResource):
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
         :key publicly_accessible: Whether the RDS cluster instances (primary and readers) get a public IP address. Defaults to True.
                                   The web, worker and migration containers reach the database over its private address
-                                  inside the VPC, so set this to False unless something outside the VPC connects directly.
-                                  Changing it does not cause a database outage.
+                                  inside the VPC, so they are unaffected by this setting. The change applies immediately
+                                  and does not restart the database, but anything that connects from outside the VPC
+                                  (an ELT or BI tool, a laptop) loses access as soon as it is set to False. Check for
+                                  such clients first.
         :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
                       These tags are merged with the default tags (product, repository, service, environment, owner).
         """

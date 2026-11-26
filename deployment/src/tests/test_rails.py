@@ -654,6 +654,15 @@ def describe_a_pulumi_rails_component():
                         *[reader.publicly_accessible for reader in sut.reader_instances]
                     ).apply(check)
 
+            @pulumi.runtime.test
+            def it_makes_the_readers_publicly_accessible_by_default(sut, reader_count):
+                def check(values):
+                    assert values == [True] * reader_count
+
+                return pulumi.Output.all(
+                    *[reader.publicly_accessible for reader in sut.reader_instances]
+                ).apply(check)
+
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
         def kms_key(faker):
