@@ -800,6 +800,46 @@ def describe_container():
             return pulumi.Output.all(sut.cloudfront_distribution.default_root_object).apply(check_root_object)
             
         @pulumi.runtime.test
+        def it_creates_an_origin_access_control_for_the_cdn_bucket(sut):
+            oac = sut.cdn_origin_access_control
+
+            def check(args):
+                origin_type, behavior, protocol = args
+                assert origin_type == "s3"
+                assert behavior == "always"
+                assert protocol == "sigv4"
+
+            return pulumi.Output.all(oac.origin_access_control_origin_type,
+                                     oac.signing_behavior,
+                                     oac.signing_protocol).apply(check)
+
+        @pulumi.runtime.test
+        def it_names_the_origin_access_control_per_app_and_stack(sut, stack, app_name):
+            def check(oac_name):
+                cdn_bucket = "strongmind-cdn-stage" if stack != "prod" else "strongmind-cdn-prod"
+                expected = app_name if stack == "prod" else f"{stack}-{app_name}"
+                assert oac_name == f"{expected}-{cdn_bucket}"[:64]
+                assert len(oac_name) <= 64
+
+            return sut.cdn_origin_access_control.name.apply(check)
+
+        @pulumi.runtime.test
+        def it_signs_only_the_cdn_bucket_origin(sut, stack):
+            cdn_bucket = "strongmind-cdn-stage" if stack != "prod" else "strongmind-cdn-prod"
+            s3_origin = f"{cdn_bucket}.s3.us-west-2.amazonaws.com"
+
+            def check(args):
+                origins, oac_id = args
+                by_id = {o["origin_id"]: o for o in origins}
+                assert by_id[s3_origin].get("origin_access_control_id") == oac_id
+                others = [o for oid, o in by_id.items() if oid != s3_origin]
+                assert others, "expected the load balancer origin too"
+                assert all(not o.get("origin_access_control_id") for o in others)
+
+            return pulumi.Output.all(sut.cloudfront_distribution.origins,
+                                     sut.cdn_origin_access_control.id).apply(check)
+
+        @pulumi.runtime.test
         def it_has_an_ordered_cache_behavior_for_error_pages(sut):
             assert sut.cloudfront_distribution.ordered_cache_behaviors
 
