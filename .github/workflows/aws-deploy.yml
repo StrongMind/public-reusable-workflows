@@ -29,9 +29,15 @@ on:
         required: false
         type: string
         default: 'ubuntu-latest'
+      aws-role-arn:
+        description: 'IAM role assumed via GitHub OIDC to run Pulumi'
+        required: false
+        type: string
+        default: 'arn:aws:iam::221871915463:role/gha-pulumi-deploy'
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy-auto:
@@ -45,6 +51,7 @@ jobs:
       pulumi-command: ${{ inputs.pulumi-command }}
       pulumi-bucket: ${{ inputs.pulumi-bucket }}
       runner: ${{ inputs.runner }}
+      aws-role-arn: ${{ inputs.aws-role-arn }}
     secrets: inherit
 
   deploy-manual:
@@ -58,6 +65,7 @@ jobs:
       pulumi-command: ${{ inputs.pulumi-command }}
       pulumi-bucket: ${{ inputs.pulumi-bucket }}
       runner: ${{ inputs.runner }}
+      aws-role-arn: ${{ inputs.aws-role-arn }}
     secrets: inherit
 
 
@@ -71,4 +79,5 @@ jobs:
       worker-container-image: ${{ inputs.worker-repository-name }}:${{ inputs.commit-sha }}
       pulumi-bucket: ${{ inputs.pulumi-bucket }}
       runner: ${{ inputs.runner }}
+      aws-role-arn: ${{ inputs.aws-role-arn }}
     secrets: inherit
