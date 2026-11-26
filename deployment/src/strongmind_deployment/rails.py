@@ -88,13 +88,13 @@ class RailsComponent(pulumi.ComponentResource):
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
+        :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
+                      These tags are merged with the default tags (product, repository, service, environment, owner).
         :key allow_db_from_web_and_worker: Whether to add Postgres ingress rules on the database security group for the web
                                            and worker services' own security groups. Defaults to False, which admits only
                                            the migration service's group, so web and worker reach the database only if
                                            another rule (for example a VPC CIDR rule) allows them. Each enabled stack adds
                                            up to two rules to the database group; check its inbound-rule quota first.
-        :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
-                      These tags are merged with the default tags (product, repository, service, environment, owner).
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
