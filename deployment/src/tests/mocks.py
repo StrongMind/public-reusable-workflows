@@ -32,7 +32,15 @@ def get_pulumi_mocks(faker, fake_password=None, secret_string="{}"):
                         self.execution_role_arn = "arn:aws:iam::123456789012:role/mock-execution-role"
 
                 service_name = args.inputs["name"]
-                ecs_service_mock = aws.ecs.Service(service_name)
+                # awsx gives each Fargate service its own security group; mirror that so rules
+                # that reference a service's group can be asserted on.
+                ecs_service_mock = aws.ecs.Service(
+                    service_name,
+                    network_configuration=aws.ecs.ServiceNetworkConfigurationArgs(
+                        subnets=["subnet-mock"],
+                        security_groups=[f"sg-{service_name}"],
+                    ),
+                )
 
                 outputs = {
                     **args.inputs,

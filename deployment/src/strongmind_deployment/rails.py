@@ -96,6 +96,12 @@ class RailsComponent(pulumi.ComponentResource):
                                   such clients first.
         :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
                       These tags are merged with the default tags (product, repository, service, environment, owner).
+        :key allow_db_from_web_and_worker: Whether to add Postgres ingress rules on the database security group for the web
+                                           and worker services' own security groups. Defaults to False, which admits only
+                                           the migration service's group. Each enabled stack adds up to two rules to the
+                                           database group, so check its inbound-rule quota first. The rules go on the
+                                           cluster's group only; an RDS Proxy with its own vpc_security_group_ids needs
+                                           its own rules. Can't be combined with use_nat_gateway.
         """
         super().__init__('strongmind:global_build:commons:rails', name, None, opts)
         self.container_security_groups = None
@@ -109,10 +115,15 @@ class RailsComponent(pulumi.ComponentResource):
         self.need_worker = None
         self.cname_record = None
         self.firewall_rule = None
+        self.web_firewall_rule = None
+        self.worker_firewall_rule = None
         self.web_container = None
         self.worker_container = None
         self.secret = None
         self.kwargs = kwargs
+        if self.kwargs.get('allow_db_from_web_and_worker') and self.kwargs.get('use_nat_gateway'):
+            raise ValueError("allow_db_from_web_and_worker needs each service's own security group, "
+                             "and services behind use_nat_gateway don't have one")
         self.worker_log_metric_filters = self.kwargs.get('worker_log_metric_filters', [])
         self.snapshot_identifier = self.kwargs.get('snapshot_identifier', None)
         self.kms_key_id = self.kwargs.get('kms_key_id', None)
@@ -243,6 +254,30 @@ class RailsComponent(pulumi.ComponentResource):
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster_instance,
                                                     self.web_container])
+        )
+
+        # The rule above admits the migration task's security group. The web and worker
+        # services each get their own security group from awsx, so they need their own rules.
+        # Opt-in, because a database security group can be shared by several stacks and each
+        # stack adds up to two rules, which counts against the group's inbound-rule quota.
+        if not self.kwargs.get('allow_db_from_web_and_worker', False):
+            return
+        self.web_firewall_rule = self._allow_postgres_from_container('web', self.web_container)
+        if self.worker_container:
+            self.worker_firewall_rule = self._allow_postgres_from_container('worker', self.worker_container)
+
+    def _allow_postgres_from_container(self, role, container):
+        return aws.ec2.SecurityGroupRule(
+            qualify_component_name(f'{role}_rds_security_group_rule', self.kwargs),
+            type='ingress',
+            from_port=5432,
+            to_port=5432,
+            protocol='tcp',
+            description=f'Postgres from the {role} service',
+            security_group_id=self.rds_serverless_cluster.vpc_security_group_ids[0],
+            source_security_group_id=container.fargate_service.service.network_configuration.security_groups[0],
+            opts=pulumi.ResourceOptions(parent=self,
+                                        depends_on=[self.rds_serverless_cluster_instance])
         )
 
     def ecs(self):
