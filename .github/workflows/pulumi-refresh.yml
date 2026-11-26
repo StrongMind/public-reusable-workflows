@@ -7,6 +7,11 @@ on:
         required: false
         default: "ubuntu-latest"
         type: string
+      aws-role-arn:
+        description: "IAM role assumed via GitHub OIDC to run Pulumi"
+        required: false
+        type: string
+        default: "arn:aws:iam::221871915463:role/gha-pulumi-deploy"
     # All optional so callers using `secrets: inherit` keep working unchanged (DEVOPS-16435).
     # GITHUB_TOKEN is not listed: it is always available and cannot be declared.
     secrets:
@@ -30,6 +35,7 @@ env:
 
 permissions:
   contents: read
+  id-token: write
 
 jobs:
   deploy:
@@ -43,8 +49,7 @@ jobs:
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
       with:
-        aws-access-key-id: ${{ secrets.STRONGMIND_AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.STRONGMIND_AWS_SECRET_ACCESS_KEY }}
+        role-to-assume: ${{ inputs.aws-role-arn }}
         aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
