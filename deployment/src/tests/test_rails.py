@@ -639,6 +639,21 @@ def describe_a_pulumi_rails_component():
                 # Verify the correct number of reader instances
                 assert len(sut.reader_instances) == reader_count
 
+            def describe_when_not_publicly_accessible():
+                @pytest.fixture
+                def component_kwargs(component_kwargs):
+                    component_kwargs['publicly_accessible'] = False
+                    return component_kwargs
+
+                @pulumi.runtime.test
+                def it_makes_the_readers_not_publicly_accessible(sut, reader_count):
+                    def check(values):
+                        assert values == [False] * reader_count
+
+                    return pulumi.Output.all(
+                        *[reader.publicly_accessible for reader in sut.reader_instances]
+                    ).apply(check)
+
     def describe_when_given_a_kms_key_to_restore_from():
         @pytest.fixture
         def kms_key(faker):
@@ -726,6 +741,16 @@ def describe_a_pulumi_rails_component():
         @pulumi.runtime.test
         def it_is_publicly_accessible(sut, app_name):
             return assert_output_equals(sut.rds_serverless_cluster_instance.publicly_accessible, True)
+
+        def describe_when_not_publicly_accessible():
+            @pytest.fixture
+            def component_kwargs(component_kwargs):
+                component_kwargs['publicly_accessible'] = False
+                return component_kwargs
+
+            @pulumi.runtime.test
+            def it_is_not_publicly_accessible(sut):
+                return assert_output_equals(sut.rds_serverless_cluster_instance.publicly_accessible, False)
 
     def describe_an_ecs_cluster():
         @pulumi.runtime.test

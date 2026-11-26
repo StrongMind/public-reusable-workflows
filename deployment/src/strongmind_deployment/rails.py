@@ -88,6 +88,10 @@ class RailsComponent(pulumi.ComponentResource):
         :key enable_db_cloudwatch_logs: Whether to enable CloudWatch Logs exports for the RDS cluster. Defaults to True.
                                         When enabled, PostgreSQL logs are exported to CloudWatch Logs at /aws/rds/cluster/{cluster-identifier}/postgresql.
                                         This enables monitoring of slow queries, connections, errors, and DDL statements.
+        :key publicly_accessible: Whether the RDS cluster instances (primary and readers) get a public IP address. Defaults to True.
+                                  The web, worker and migration containers reach the database over its private address
+                                  inside the VPC, so set this to False unless something outside the VPC connects directly.
+                                  Changing it does not cause a database outage.
         :key rds_tags: Optional dictionary of additional tags to apply to RDS resources (cluster and instances). Defaults to {}.
                       These tags are merged with the default tags (product, repository, service, environment, owner).
         """
@@ -120,6 +124,7 @@ class RailsComponent(pulumi.ComponentResource):
         self.rds_minimum_capacity = self.kwargs.get('rds_minimum_capacity', 1)
         self.rds_maximum_capacity = self.kwargs.get('rds_maximum_capacity', 128)
         self.enable_db_cloudwatch_logs = self.kwargs.get('enable_db_cloudwatch_logs', True)
+        self.publicly_accessible = self.kwargs.get('publicly_accessible', True)
         self.kwargs['sns_topic_arn'] = self.kwargs.get('sns_topic_arn',
                                                        operations.get_opsgenie_sns_topic_arn())
         
@@ -438,7 +443,7 @@ class RailsComponent(pulumi.ComponentResource):
             engine=self.rds_serverless_cluster.engine,
             engine_version=self.rds_serverless_cluster.engine_version,
             apply_immediately=True,
-            publicly_accessible=True,
+            publicly_accessible=self.publicly_accessible,
             tags=self.rds_tags,
             opts=pulumi.ResourceOptions(parent=self,
                                         depends_on=[self.rds_serverless_cluster],
@@ -463,7 +468,7 @@ class RailsComponent(pulumi.ComponentResource):
                 engine=self.rds_serverless_cluster.engine,
                 engine_version=self.rds_serverless_cluster.engine_version,
                 apply_immediately=True,
-                publicly_accessible=True,
+                publicly_accessible=self.publicly_accessible,
                 promotion_tier=i + 2,  # Higher tier = lower priority for promotion
                 tags=self.rds_tags,
                 opts=pulumi.ResourceOptions(
