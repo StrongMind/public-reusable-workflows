@@ -977,6 +977,21 @@ class ContainerComponent(pulumi.ComponentResource):
         # Include all domains in CloudFront aliases
         aliases = [full_name] + additional_domains
 
+        # CloudFront signs its requests to the shared CDN bucket as itself
+        # (Origin Access Control) instead of reading it anonymously. The bucket
+        # policy (strongmind-platform, CloudFrontOacRead) allows any
+        # distribution in the owner account, so this keeps working once the
+        # bucket's public read statement is removed and Block Public Access is on.
+        self.cdn_origin_access_control = aws.cloudfront.OriginAccessControl(
+            qualify_component_name("cdn-oac", self.kwargs),
+            name=f"{name}-{cdn_bucket}"[:64],
+            description=f"{full_name} reads {cdn_bucket} through CloudFront OAC"[:256],
+            origin_access_control_origin_type="s3",
+            signing_behavior="always",
+            signing_protocol="sigv4",
+            opts=pulumi.ResourceOptions(parent=self),
+        )
+
         self.cloudfront_distribution = aws.cloudfront.Distribution(
             qualify_component_name("cloudfront", self.kwargs),
             enabled=True,
@@ -994,6 +1009,7 @@ class ContainerComponent(pulumi.ComponentResource):
                 aws.cloudfront.DistributionOriginArgs(
                     domain_name=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
                     origin_id=f"{cdn_bucket}.s3.us-west-2.amazonaws.com",
+                    origin_access_control_id=self.cdn_origin_access_control.id,
                 )
             ],
             default_root_object="",
